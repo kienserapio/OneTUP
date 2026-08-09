@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The web app needs env vars present to typecheck and build. These are
+      # placeholders: CI never talks to the real project.
+      - name: Write CI env
+        run: |
+          cat > .env <<'EOF'
+          SUPABASE_URL=https://ci.supabase.co
+          SUPABASE_PUBLISHABLE_KEY=ci-publishable
+          SUPABASE_SERVICE_ROLE_KEY=ci-service-role
+          SUPABASE_CONNECTION_STRING=postgresql://postgres:ci@db.ci.supabase.co:5432/postgres
+          OPENROUTER_API_KEY=ci
+          WORKER_SECRET=ci
+          EOF
+          node scripts/sync-env.mjs
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      - run: pnpm build
+
+  # The schema safeguards from 04-DATA-MODEL.md §17. A table without RLS, a
+  # policy-less table, a view without security_invoker, or a column that looks
+  # like a credential store fails the build rather than reaching production.
+  schema:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Write env
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_CONNECTION_STRING: ${{ secrets.SUPABASE_CONNECTION_STRING }}
+          SUPABASE_POOLER_HOST: ${{ secrets.SUPABASE_POOLER_HOST }}
+        run: |
+          {
+            echo "SUPABASE_URL=$SUPABASE_URL"
+            echo "SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY"
+            echo "SUPABASE_CONNECTION_STRING=$SUPABASE_CONNECTION_STRING"
+            echo "SUPABASE_POOLER_HOST=$SUPABASE_POOLER_HOST"
+          } > .env
+
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - run: node scripts/db.mjs check

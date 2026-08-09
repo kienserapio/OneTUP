@@ -1,0 +1,11 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
+  - sharp
+  - esbuild
+  - unrs-resolver
+  - playwright
+  - '@parcel/watcher'

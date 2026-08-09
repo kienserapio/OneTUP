@@ -1,0 +1,31 @@
+{
+  "name": "onetup",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OneTUP — one app for your TUP student life",
+  "packageManager": "pnpm@11.11.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "env": "node scripts/sync-env.mjs",
+    "dev": "pnpm env && pnpm --filter @onetup/web dev",
+    "build": "pnpm env && pnpm --filter @onetup/core build && pnpm --filter @onetup/web build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:push": "node scripts/db.mjs push",
+    "db:status": "node scripts/db.mjs status",
+    "db:check": "node scripts/db.mjs check",
+    "db:psql": "node scripts/db.mjs psql",
+    "db:types": "node scripts/db.mjs types",
+    "worker:dev": "pnpm --filter @onetup/worker dev"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10",
+    "prettier": "^3.6.2"
+  }
+}

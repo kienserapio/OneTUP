@@ -1,0 +1,359 @@
+/*
+ * Materials, surfaces and controls.
+ *
+ * A translucent layer is not "a background with opacity". What makes it read as
+ * glass is the combination of blur, saturation lift, a bright top edge where
+ * light catches, and content genuinely scrolling underneath rather than being
+ * pushed aside.
+ */
+
+.material {
+  background: var(--material-regular);
+  -webkit-backdrop-filter: blur(var(--material-blur-small)) saturate(var(--material-saturate));
+  backdrop-filter: blur(var(--material-blur-small)) saturate(var(--material-saturate));
+  border: 1px solid var(--material-edge);
+  box-shadow: inset 0 1px 0 0 var(--material-edge-top);
+}
+
+.material-ultra-thin { background: var(--material-ultra-thin); }
+.material-thin { background: var(--material-thin); }
+.material-thick { background: var(--material-thick); }
+
+/* Larger surfaces read as thicker glass: more blur, deeper shadow. */
+.material-large {
+  -webkit-backdrop-filter: blur(var(--material-blur-large)) saturate(var(--material-saturate));
+  backdrop-filter: blur(var(--material-blur-large)) saturate(var(--material-saturate));
+}
+
+/* Chrome — nav bars and toolbars. Heavier, because it separates structure. */
+.material-chrome {
+  background: var(--material-chrome);
+  -webkit-backdrop-filter: blur(var(--material-blur-large)) saturate(var(--material-saturate));
+  backdrop-filter: blur(var(--material-blur-large)) saturate(var(--material-saturate));
+  border-bottom: 1px solid var(--material-hairline);
+}
+
+/*
+ * True squircles where the browser has them. Apple's corners are a continuous
+ * curve, not a circular arc, and the difference is the main reason a rounded
+ * rectangle can look almost-but-not-quite right.
+ */
+@supports (corner-shape: squircle) {
+  .squircle,
+  .glass,
+  .card,
+  .sheet,
+  .tab-bar {
+    corner-shape: squircle;
+  }
+}
+
+/* --- Cards --------------------------------------------------------------- */
+
+.card {
+  background: var(--bg-grouped-secondary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.card-flush {
+  background: var(--bg-grouped-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--separator);
+}
+
+/* --- Glass controls -----------------------------------------------------
+ * The house button. Lighter material than the chrome it usually sits on, so it
+ * reads as the interactive thing rather than as part of the frame.
+ */
+
+.glass {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--material-edge);
+  background: var(--material-thin);
+  -webkit-backdrop-filter: blur(var(--material-blur-small)) saturate(var(--material-saturate));
+  backdrop-filter: blur(var(--material-blur-small)) saturate(var(--material-saturate));
+  box-shadow:
+    inset 0 1px 0 0 var(--material-edge-top),
+    var(--shadow-chip);
+  color: var(--label);
+  font-family: var(--font-text);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  isolation: isolate;
+  /* Feedback happens on press, so the transition has to be short enough that
+   * it never lags the finger. */
+  transition:
+    transform var(--duration-instant) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* The specular highlight across the top third. Very slight — at full strength
+ * it stops looking like glass and starts looking like a gradient. */
+.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0.22) 0%,
+    rgb(255 255 255 / 0.04) 42%,
+    transparent 62%
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .glass::before {
+    background: linear-gradient(
+      to bottom,
+      rgb(255 255 255 / 0.1) 0%,
+      rgb(255 255 255 / 0.02) 42%,
+      transparent 62%
+    );
+  }
+}
+
+[data-theme='dark'] .glass::before {
+  background: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0.1) 0%,
+    rgb(255 255 255 / 0.02) 42%,
+    transparent 62%
+  );
+}
+
+/* Pressed state fires on pointer-down, never on release. */
+.glass:active:not(:disabled) {
+  transform: scale(0.965);
+  background: var(--material-regular);
+}
+
+.glass:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.glass-accent {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.24),
+    0 1px 2px rgb(0 0 0 / 0.12),
+    0 8px 20px -8px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.glass-accent:active:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.glass-plain {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.glass-plain:active:not(:disabled) {
+  background: var(--fill-quaternary);
+}
+
+.glass-destructive {
+  color: var(--danger);
+}
+
+.glass-sm {
+  min-height: 34px;
+  padding: 0 var(--space-3);
+  font-size: 0.9375rem;
+}
+
+.glass-lg {
+  min-height: 52px;
+  padding: 0 var(--space-6);
+  font-size: 1.0625rem;
+}
+
+.glass-block {
+  display: flex;
+  width: 100%;
+}
+
+/* --- Focus --------------------------------------------------------------
+ * Visible, keyboard-only, and offset so it never sits on top of the control's
+ * own edge. */
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-contrast: more) {
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline-width: 3px;
+  }
+}
+
+/* --- Grouped lists ------------------------------------------------------
+ * The iOS inset list: a rounded container whose rows share hairline
+ * separators that stop short of the leading edge.
+ */
+
+.list-group {
+  background: var(--bg-grouped-secondary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--target-min);
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  text-align: left;
+  transition: background-color var(--duration-instant) var(--ease-out);
+}
+
+.list-row + .list-row {
+  box-shadow: inset 0 1px 0 0 var(--separator);
+}
+
+/* The separator inset — the detail that makes a list read as iOS. */
+.list-group.list-inset .list-row + .list-row {
+  box-shadow: none;
+  position: relative;
+}
+
+.list-group.list-inset .list-row + .list-row::before {
+  content: '';
+  position: absolute;
+  left: var(--space-4);
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--separator);
+}
+
+button.list-row:active,
+a.list-row:active {
+  background: var(--fill-quaternary);
+}
+
+/* --- Scroll edge --------------------------------------------------------
+ * Where content meets floating chrome, fade rather than rule a line. A 1px
+ * border under a translucent bar defeats the point of the translucency.
+ */
+
+.scroll-edge-top {
+  position: sticky;
+  top: 0;
+  height: var(--space-6);
+  margin-bottom: calc(var(--space-6) * -1);
+  background: linear-gradient(to bottom, var(--bg-grouped), transparent);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* --- Segmented control --------------------------------------------------- */
+
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--fill-tertiary);
+  border-radius: var(--radius-sm);
+  gap: 2px;
+}
+
+.segmented-item {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border-radius: calc(var(--radius-sm) - 2px);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--label-secondary);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.segmented-item[aria-selected='true'],
+.segmented-item[data-selected='true'] {
+  background: var(--bg-grouped-secondary);
+  color: var(--label);
+  box-shadow: var(--shadow-chip);
+}
+
+/* --- Badges and labelling ----------------------------------------------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-xs);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+
+/*
+ * Generated content is visually distinct from computed content — always, and
+ * only where a model was actually involved. Labelling everything would make the
+ * label meaningless (AI spec §8.3).
+ */
+.badge-generated {
+  background: var(--generated-subtle);
+  color: var(--generated);
+}
+
+.badge-verified {
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  color: color-mix(in srgb, var(--ok) 78%, var(--label));
+}
+
+.badge-official {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.badge-stale {
+  background: var(--fill-tertiary);
+  color: var(--label-secondary);
+}
+
+/* --- Offline ------------------------------------------------------------
+ * Offline is a first-class state, not an error state. Cached content displays
+ * normally, with its freshness indicated rather than an alert thrown over it.
+ */
+
+.offline-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.75rem;
+  color: var(--label-secondary);
+}

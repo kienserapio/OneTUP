@@ -1,0 +1,220 @@
+/*
+ * Typography.
+ *
+ * Two decisions carry most of the weight here.
+ *
+ * 1. SF Pro is used, not shipped. Apple licenses SF for interfaces on Apple
+ *    platforms, not as a self-hosted webfont, so it is referenced through
+ *    `local()` and `-apple-system`. On a Mac or an iPhone the student sees real
+ *    SF Pro, with Apple's own optical sizing. Everywhere else Inter takes over,
+ *    which is metric-compatible enough that the layout does not shift.
+ *
+ * 2. Tracking is size-specific, never one value for everything. Large text
+ *    reads too loose as it grows and wants negative tracking; small text wants
+ *    a little positive to stay legible. Leading runs the other way — tight on
+ *    headings, generous on body copy.
+ *
+ * The scale is expressed in rem so it scales with the student's own text-size
+ * setting rather than fighting it.
+ */
+
+/* SF Pro Text for interface sizes below 20px, SF Pro Display above — the same
+ * optical split Apple makes, done explicitly because the web has no access to
+ * the system's automatic switch. */
+@font-face {
+  font-family: 'SF Pro Local';
+  src:
+    local('SF Pro Text'),
+    local('SFProText-Regular'),
+    local('.SFNSText'),
+    local('SF Pro'),
+    local('SFPro-Regular');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: 'SF Pro Display Local';
+  src:
+    local('SF Pro Display'),
+    local('SFProDisplay-Regular'),
+    local('.SFNSDisplay'),
+    local('SF Pro'),
+    local('SFPro-Regular');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SF Mono Local';
+  src:
+    local('SF Mono'),
+    local('SFMono-Regular'),
+    local('.SFNSMono');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-text:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Local', 'Inter Variable', 'Inter',
+    'Segoe UI', Roboto, system-ui, sans-serif;
+
+  --font-display:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display Local', 'Inter Variable', 'Inter',
+    'Segoe UI', Roboto, system-ui, sans-serif;
+
+  /* Data that is scanned rather than read — times, rooms, course codes, fares,
+   * grades — is set in mono so columns line up and digits stay comparable. */
+  --font-mono:
+    'SF Mono Local', ui-monospace, SFMono-Regular, 'JetBrains Mono',
+    'Roboto Mono', Menlo, monospace;
+}
+
+/*
+ * The scale. Sizes and leadings follow iOS text styles; tracking is converted
+ * from Apple's per-size point values into em so it survives Dynamic Type.
+ */
+.type-large-title {
+  font-family: var(--font-display);
+  font-size: 2.125rem;   /* 34 */
+  line-height: 1.206;    /* 41 */
+  letter-spacing: -0.021em;
+  font-weight: 700;
+}
+
+.type-title-1 {
+  font-family: var(--font-display);
+  font-size: 1.75rem;    /* 28 */
+  line-height: 1.214;    /* 34 */
+  letter-spacing: -0.018em;
+  font-weight: 700;
+}
+
+.type-title-2 {
+  font-family: var(--font-display);
+  font-size: 1.375rem;   /* 22 */
+  line-height: 1.273;    /* 28 */
+  letter-spacing: -0.014em;
+  font-weight: 700;
+}
+
+.type-title-3 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;    /* 20 */
+  line-height: 1.25;     /* 25 */
+  letter-spacing: -0.011em;
+  font-weight: 600;
+}
+
+.type-headline {
+  font-family: var(--font-text);
+  font-size: 1.0625rem;  /* 17 */
+  line-height: 1.294;    /* 22 */
+  letter-spacing: -0.024em;
+  font-weight: 600;
+}
+
+.type-body {
+  font-family: var(--font-text);
+  font-size: 1.0625rem;  /* 17 */
+  line-height: 1.412;    /* 24 — looser than iOS, because this is a web page */
+  letter-spacing: -0.024em;
+  font-weight: 400;
+}
+
+.type-callout {
+  font-family: var(--font-text);
+  font-size: 1rem;       /* 16 */
+  line-height: 1.375;    /* 22 */
+  letter-spacing: -0.019em;
+  font-weight: 400;
+}
+
+.type-subheadline {
+  font-family: var(--font-text);
+  font-size: 0.9375rem;  /* 15 */
+  line-height: 1.333;    /* 20 */
+  letter-spacing: -0.015em;
+  font-weight: 400;
+}
+
+.type-footnote {
+  font-family: var(--font-text);
+  font-size: 0.8125rem;  /* 13 */
+  line-height: 1.385;    /* 18 */
+  letter-spacing: -0.006em;
+  font-weight: 400;
+}
+
+.type-caption-1 {
+  font-family: var(--font-text);
+  font-size: 0.75rem;    /* 12 */
+  line-height: 1.333;    /* 16 */
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.type-caption-2 {
+  font-family: var(--font-text);
+  font-size: 0.6875rem;  /* 11 */
+  line-height: 1.182;    /* 13 */
+  letter-spacing: 0.005em;
+  font-weight: 400;
+}
+
+/* Section headers above grouped lists. Small, wide, quiet — iOS's own idiom. */
+.type-section-header {
+  font-family: var(--font-text);
+  font-size: 0.8125rem;
+  line-height: 1.231;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
+
+/* Numbers a student scans. Tabular figures so a column of grades or fares
+ * stays aligned as the values change. */
+.type-data {
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: -0.01em;
+}
+
+/* A single large figure — a GWA, a cut count, a fare total. */
+.type-figure {
+  font-family: var(--font-display);
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+  font-size: 2.75rem;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+/* Marketing display type. Only the landing page uses this. */
+.type-display {
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 6.5vw, 4.25rem);
+  line-height: 1.03;
+  letter-spacing: -0.033em;
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+/*
+ * Vibrancy. Over a translucent surface, flat grey text loses legibility as the
+ * background scrolls beneath it. Higher contrast, slightly heavier, and a small
+ * tracking bump hold it together.
+ */
+.vibrant-secondary {
+  color: var(--label-secondary);
+  font-weight: 500;
+  letter-spacing: 0.004em;
+}
