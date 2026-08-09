@@ -3,7 +3,7 @@
 **Product:** OneTUP
 **Institution:** Technological University of the Philippines — Manila
 **Owner:** Kien Leriss Ramos Serapio
-**Status:** Pre-development, specification complete
+**Status:** V1 built, running locally, not deployed — see [11-HANDOVER.md](11-HANDOVER.md)
 **Version:** 1.0
 **Date:** August 2026
 
@@ -31,6 +31,7 @@ Free forever, for every TUP student, in every program.
 | 08 | [Landing Page Content](08-LANDING-CONTENT.md) | Copy only, no design | Design, marketing |
 | 09 | [Implementation Plan & QA](09-IMPLEMENTATION-PLAN.md) | SDLC phases, sprints, testing, release, ops | Everyone |
 | 10 | [Future Enhancements](10-FUTURE-ENHANCEMENTS.md) | Agentic roadmap, TUP Data API strategy | Product |
+| 11 | [Build Handover](11-HANDOVER.md) | What was actually built, what bites, what is pending | Engineers |
 
 ---
 

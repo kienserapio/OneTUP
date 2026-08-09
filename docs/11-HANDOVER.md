@@ -1,0 +1,226 @@
+# OneTUP — Build Handover
+
+**Status:** V1 built and running locally against live Supabase. Not deployed.
+**Last commit:** `a3ccf23`
+**Date:** August 2026
+
+This document covers what exists, what does not, what will bite you, and what
+is waiting on a decision. The specification set (`00`–`10`) describes what
+OneTUP *should* be; this describes what it *is*.
+
+---
+
+## 1. Current state
+
+| | |
+|---|---|
+| Migrations applied | 27 (`001`–`027`) |
+| Domain tests | 297 passing, 11 files |
+| TypeScript | `tsc --noEmit` clean across the workspace |
+| Production build | Clean, 43 routes |
+| Schema safeguards | 4/4 passing (`pnpm db:check`) |
+| App routes built | 30 |
+| Deployed | No |
+
+Verified by hand in a browser, not only compiled: sign-up, onboarding,
+schedule paste and parse, ERS import, one-tap attendance through the offline
+queue to a server row, commute route comparison, campus tour, and every screen
+at 414px and 1440px.
+
+---
+
+## 2. What is built
+
+### Domain logic — `packages/core`
+
+Pure functions, no I/O, 297 tests. This is where every number comes from.
+
+| Module | Covers |
+|---|---|
+| `schedule/parse` | ERS schedule text into blocks. Day codes matched longest-first so `TH` never reads as Tuesday |
+| `grades/gwa` | Inverted 1.00–5.00 scale, weighted GWA, `planWhatIf` with verdicts |
+| `attendance/arithmetic` | 3 absences allowed, 3 lates to an absence, partial lates never round up |
+| `deadlines/urgency` | Urgency bands, recomputed per render, never stored |
+| `commute/departure` | Bounded 3-pass wake/leave solver with a templated explanation |
+| `commute/fares` | Fares as rules, not stored figures |
+| `study/sm2` | Spaced repetition scheduling |
+| `text/simhash` | Near-duplicate announcement detection |
+
+### Web app — `apps/web`
+
+Next.js 16 App Router, React 19, Tailwind v4.
+
+Daily: Today, Commute (+ wake-up plan), Schedule (+ day, import, re-sync),
+Deadlines (+ detail, new), Announcements (+ share intake).
+Academics: Subjects (+ detail, GWA, catch-up), Faculty evaluations.
+More: Ask OneTUP, Campus, Settings.
+Public: landing, campus tour, sign-in/up, reset, privacy, terms, offline.
+
+All eight app screens carry the same dashboard density: a figure strip up top,
+two columns above 1024px, one below.
+
+### Sync worker — `apps/worker`
+
+Isolated container that logs into ERS and scrapes the schedule. Holds **no**
+Supabase credentials, writes nothing to disk, never logs request bodies.
+Proven against the live portal: 5 consecutive runs, 6/6 subjects, zero
+unparsed rows.
+
+### Database
+
+Postgres 17. RLS on every table from the first migration. See §5 for the
+migrations added after the original schema.
+
+---
+
+## 3. Running it
+
+```bash
+pnpm install
+pnpm dev          # syncs env, then starts the web app
+pnpm build        # core, then web
+pnpm test         # domain tests
+pnpm db:push      # apply pending migrations
+pnpm db:check     # schema safeguards
+pnpm db:types     # regenerate database.types.ts
+```
+
+The worker runs separately (`apps/worker`, see its README). **ERS import
+returns a clear "worker unreachable" error when it is not running** — that is
+a designed state, not a bug.
+
+`.env` at the repo root is the only env file you edit. `scripts/sync-env.mjs`
+derives `apps/web/.env.local` and `apps/worker/.env` from it, and deliberately
+gives the worker no Supabase credentials.
+
+---
+
+## 4. Things that will bite you
+
+Each of these cost real time to find. They are not obvious from the code.
+
+**`pnpm env` is a pnpm builtin.** A script named `env` is shadowed and never
+runs — `pnpm dev` printed pnpm's usage and exited. The script is `env:sync`.
+Do not rename it back.
+
+**ERS rejects programmatically filled logins.** `page.fill()` sets `value`
+without firing the key events the page listens for, and the failure is
+indistinguishable from a wrong password. `scrape.ts` uses `page.type()` with a
+delay. Do not "simplify" it.
+
+**Never use a fixed wait to detect ERS auth failure.** It produced false
+`ERS_AUTH_FAILED` on correct passwords — which tells a student their password
+is wrong *and* burns one of three attempts before lockout. The scraper races
+form-detach against the error text appearing.
+
+**RLS is not privileges.** Correct policies with no `GRANT` still yield
+"permission denied". Migrations `022`/`023` exist because of this.
+
+**Plain CSS outranks every Tailwind utility.** Rules in `materials.css` are
+unlayered; Tailwind utilities live in `@layer utilities`. A `pb-*` class will
+lose to `.safe-bottom` silently. Use an inline style when overriding one.
+
+**Scroll snapping overrides any `scrollLeft` you set.** The snap engine pulls
+it straight back. Put `scroll-margin` on the snap targets instead.
+
+**A ref cannot wake an effect.** The route map gated its draw on
+`map.current`, which Leaflet fills in asynchronously — legs always arrive
+first, so it never drew anything. The ready map is state now.
+
+**Return effect cleanups from the effect, not the async IIFE inside it.**
+React never receives the latter, and layers accumulate.
+
+**IndexedDB stores are not all keyed on `id`.** `user_preferences` is keyed on
+`user_id`. Both the local store (`ALTERNATE_KEY`) and the sync engine
+(`primaryKeyOf`) know this; new tables with a natural key must be added to
+both.
+
+**Never await a read inside an IndexedDB readwrite transaction.** It
+auto-commits before your writes land.
+
+**The dev server can serve stale CSS.** Tailwind output predating new files
+made every `lg:` layout collapse to one column and looked exactly like a code
+bug. If a responsive layout is inexplicably single-column, restart `next dev`
+before debugging the component.
+
+---
+
+## 5. Migrations added after the original schema
+
+| # | What and why |
+|---|---|
+| `020` | Rail fare matrix seed |
+| `021` | `commit_schedule` RPC — transactional, `security invoker` |
+| `022` | Table privileges. RLS was right but no `GRANT`s existed |
+| `023` | **Withholds** grades, attendance and their views from `service_role`, and revokes `v_today`. "No administrative override for academic data" is a database privilege, not a convention |
+| `024` | Absence limit 5 → 3 (3 absences is UD) |
+| `025` | 11 new campus places, 22 places mapped to tour scenes |
+| `026` | Origin hubs for two legs that started from a district with no hub |
+| `027` | Deduplicates campus places, unique index on `tour_scene_url` |
+
+`023` is the one to read before touching privileges. It is load-bearing for a
+published privacy commitment.
+
+---
+
+## 6. What is not built
+
+- **Study packs (M9).** Spaced repetition logic exists in core and is tested;
+  nothing surfaces it.
+- **Grounded knowledge-base retrieval** for Ask OneTUP.
+- **ERS grades scraper.** Confirmed feasible — grades are at
+  `grades.php?mainID=106` and remain visible for past semesters.
+- **Faculty evaluation submission.** The form is built; there is no open
+  evaluation period in ERS to test against.
+- **Deployment.** No hosting, no domain, no CI deploy step.
+- **Real commute geometry.** No leg has a traced path. The map draws dashed
+  lines between real stops and says so. Do not replace those with generated
+  paths — a straight line presented as a route is a wrong answer about a real
+  city.
+
+---
+
+## 7. Waiting on the owner
+
+1. **`gh auth refresh -h github.com -s workflow`** — must be run in your own
+   terminal. The current token cannot push `.github/workflows/ci.yml`, which
+   blocks every push.
+2. **Supabase Singapore project.** Region chosen; the connected MCP token is
+   scoped to a different organisation, so the project must be created by hand.
+   Four keys are needed, then `pnpm db:push && pnpm db:check && pnpm db:types`.
+3. **TUPniverse permission.** `github.com/smnthegr/TUPniverse` has no licence
+   and the campus tour embeds their work. Get written permission before
+   shipping publicly. Attribution is already in the UI.
+
+---
+
+## 8. Security constraints that must not regress
+
+These are commitments, not preferences. Several are enforced mechanically.
+
+- **ERS credentials are never persisted server-side.** `pnpm db:check` fails
+  the build if any column looks like a credential store.
+- **The worker holds no Supabase credentials.** `sync-env.mjs` enforces this.
+- **`service_role` cannot read grades or attendance** (migration `023`).
+- **`sync_jobs.error_detail` is sanitised** before write.
+- **Client credential state lives only in component-local `useState`** and is
+  cleared on both success and failure paths.
+- **Numbers are computed, never generated** (ADR-007). Anything a model
+  produces carries a generated marker; anything derived from the student's own
+  records says so instead.
+
+**Action item:** the ERS password used during development was shared in plain
+text in a working transcript. It is not in the repository — history was
+checked — but it should still be rotated.
+
+---
+
+## 9. Where to look first
+
+| Question | File |
+|---|---|
+| How a screen should look | `src/components/today/today-view.tsx` — the reference for density |
+| How data flows offline | `src/lib/offline/sync.ts` |
+| How ERS is scraped | `apps/worker/src/scrape.ts` |
+| Why the schema is shaped this way | `docs/04-DATA-MODEL.md`, `docs/02-ARD.md` |
+| What the numbers mean | `packages/core/src/**` and its tests |
