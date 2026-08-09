@@ -199,7 +199,17 @@ export function CampusView({
 
         <span className="flex-1" />
 
-        <div className="safe-bottom flex flex-col items-center gap-[var(--space-2)] p-[var(--space-3)]">
+        {/* The tour draws its own scene strip and caption along the bottom of
+            the frame, and our controls were landing on top of both. The extra
+            bottom padding clears that chrome — a fixed offset, because it is
+            someone else's UI and we cannot measure it through the iframe. */}
+        <div
+          className="safe-bottom flex flex-col items-center gap-[var(--space-2)] p-[var(--space-3)]"
+          // Inline, because `.safe-bottom` is written as plain CSS and plain
+          // CSS outranks anything in Tailwind's utilities layer — the class
+          // form of this padding was silently dropped.
+          style={{ paddingBottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}
+        >
           {/* Deliberately not keyed on the panel: switching tools swaps the
               contents of one card rather than tearing it down and building
               another, which is both calmer to watch and what keeps the focus
@@ -298,6 +308,31 @@ export function CampusView({
             </div>
           )}
 
+          {/* Above the tools, not below them: underneath it landed on the
+              tour's own caption row and became unreadable. The scrim is
+              because the backdrop is a photograph of any brightness. */}
+          <p
+            className="type-caption-1 squircle w-full max-w-[34rem] text-balance px-[var(--space-3)] py-[var(--space-2)]"
+            style={{
+              color: 'var(--label-secondary)',
+              background: 'color-mix(in srgb, var(--bg) 86%, transparent)',
+              backdropFilter: 'blur(12px)',
+            }}
+          >
+            {current ? `Showing ${current.name}. ` : ''}
+            Tour by{' '}
+            <a
+              href="https://github.com/smnthegr/TUPniverse"
+              className="pointer-events-auto underline"
+              style={{ color: 'var(--accent)' }}
+              rel="noreferrer noopener"
+              target="_blank"
+            >
+              TUPniverse
+            </a>
+            . Rooms move between terms — check with the office if it matters.
+          </p>
+
           <nav
             aria-label="Campus tools"
             className="no-scrollbar pointer-events-auto flex w-full max-w-[34rem] gap-[var(--space-2)] overflow-x-auto"
@@ -314,23 +349,6 @@ export function CampusView({
             ))}
           </nav>
 
-          <p
-            className="type-caption-1 w-full max-w-[34rem] text-balance"
-            style={{ color: 'var(--label-secondary)' }}
-          >
-            {current ? `Showing ${current.name}. ` : ''}
-            Tour by{' '}
-            <a
-              href="https://github.com/smnthegr/TUPniverse"
-              className="pointer-events-auto underline"
-              style={{ color: 'var(--accent)' }}
-              rel="noreferrer noopener"
-              target="_blank"
-            >
-              TUPniverse
-            </a>
-            . Community-maintained — verify prices before relying on them.
-          </p>
         </div>
       </div>
 
