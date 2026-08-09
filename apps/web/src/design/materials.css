@@ -270,7 +270,13 @@ a.list-row:active {
   gap: 2px;
 }
 
+/*
+ * 32px is the iOS segmented-control height and the control looks wrong at 44.
+ * The touch target is extended past the paint instead, so a thumb lands on it
+ * at the size the guidelines ask for without the row growing to match.
+ */
 .segmented-item {
+  position: relative;
   min-height: 32px;
   padding: 0 var(--space-3);
   border-radius: calc(var(--radius-sm) - 2px);
@@ -281,6 +287,15 @@ a.list-row:active {
   transition:
     background-color var(--duration-fast) var(--ease-standard),
     color var(--duration-fast) var(--ease-standard);
+}
+
+.segmented-item::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: var(--target-min);
+  transform: translateY(-50%);
 }
 
 .segmented-item[aria-selected='true'],

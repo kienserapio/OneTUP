@@ -5,9 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { NavBar } from '@/components/app/nav-bar'
 import { Button } from '@/components/ui/button'
-import { Badge, Card } from '@/components/ui/surfaces'
+import { Card, GeneratedMark, SectionHeader } from '@/components/ui/surfaces'
 import { Field, FormError } from '@/components/auth/auth-form'
-import { IconSparkleSmall } from '@/components/ui/icon'
 
 /**
  * Sharing an announcement into OneTUP.
@@ -16,6 +15,10 @@ import { IconSparkleSmall } from '@/components/ui/icon'
  * before anything reaches a section, and below 0.5 confidence the fields arrive
  * blank rather than pre-filled — a low-confidence read that quietly fills in a
  * plausible wrong date is worse than one that admits it could not tell.
+ *
+ * The read is what carries the generated marker. What the student types over it
+ * is theirs, so the original message sits beside the fields on a wide screen and
+ * the two can be compared without scrolling.
  */
 
 interface Proposal {
@@ -33,9 +36,25 @@ interface Proposal {
   term_id: string | null
 }
 
+const KINDS: [string, string][] = [
+  ['quiz', 'Quiz'],
+  ['exam', 'Exam'],
+  ['deadline', 'Deadline'],
+  ['room_change', 'Room change'],
+  ['suspension', 'No class'],
+  ['schedule_change', 'Schedule change'],
+  ['general', 'Something else'],
+]
+
 export function ShareIntake() {
   return (
-    <Suspense fallback={<div className="app-container"><div className="skeleton h-64 rounded-[var(--radius-lg)]" /></div>}>
+    <Suspense
+      fallback={
+        <div className="app-container pt-2">
+          <div className="skeleton h-64 rounded-[var(--radius-md)]" />
+        </div>
+      }
+    >
       <ShareIntakeInner />
     </Suspense>
   )
@@ -100,7 +119,10 @@ function ShareIntakeInner() {
 
     const supabase = supabaseBrowser()
     const { data } = await supabase.auth.getUser()
-    if (!data.user) return
+    if (!data.user) {
+      setBusy(false)
+      return
+    }
 
     const { error: insertError } = await supabase.from('announcements').insert({
       course_id: proposal.course_id,
@@ -118,9 +140,7 @@ function ShareIntakeInner() {
     setBusy(false)
 
     if (insertError) {
-      setError(
-        "That couldn't be posted — check the subject is one you're actually enrolled in.",
-      )
+      setError("That couldn't be posted — check the subject is one you're actually enrolled in.")
       return
     }
 
@@ -131,7 +151,7 @@ function ShareIntakeInner() {
     return (
       <>
         <NavBar title="Already shared" back={{ href: '/announcements' }} largeTitle={false} />
-        <div className="app-container stack pt-2">
+        <div className="app-container stack max-w-[36rem] pt-2">
           <Card>
             <p className="type-body">
               Someone in your section already shared this. We&rsquo;ve counted yours as a
@@ -150,137 +170,159 @@ function ShareIntakeInner() {
     <>
       <NavBar
         title="Share an announcement"
+        subtitle={
+          proposal
+            ? 'Check every field before your section sees it'
+            : 'Paste what your beadle posted'
+        }
         back={{ href: '/announcements', label: 'Announcements' }}
         largeTitle={false}
       />
 
-      <div className="app-container stack pt-2">
-        {error && <FormError>{error}</FormError>}
+      <div className="app-container pb-6">
+        {error && (
+          <div className="pb-4">
+            <FormError>{error}</FormError>
+          </div>
+        )}
 
         {!proposal ? (
-          <>
-            <p className="type-body text-[var(--label-secondary)]">
-              Paste what your beadle posted. We&rsquo;ll pull out the subject, the date and what it
-              is, and you check it before anyone else sees it.
-            </p>
-
-            <label htmlFor="announcement-text" className="sr-only">
-              The announcement
-            </label>
-            <textarea
-              id="announcement-text"
-              rows={8}
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              placeholder="Paste the message here"
-              className="field resize-none"
-            />
-
-            <Button
-              variant="accent"
-              block
-              onClick={() => void read()}
-              disabled={busy || !text.trim()}
-            >
-              {busy ? 'Reading…' : 'Read it'}
-            </Button>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center gap-2">
-              <Badge tone="generated">
-                <IconSparkleSmall size={11} />
-                Generated
-              </Badge>
-              <span className="type-footnote text-[var(--label-secondary)]">
-                {proposal.low_confidence
-                  ? 'Not much to go on — fill in what you know.'
-                  : 'Check this before posting.'}
-              </span>
-            </div>
-
-            <Field
-              id="summary"
-              label="What is it?"
-              value={proposal.summary}
-              onChange={(value) => setProposal({ ...proposal, summary: value })}
-            />
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="event-date" className="type-subheadline mb-1.5 block font-medium">
-                  Date
-                </label>
-                <input
-                  id="event-date"
-                  type="date"
-                  value={proposal.event_date ?? ''}
-                  onChange={(event) =>
-                    setProposal({ ...proposal, event_date: event.target.value || null })
-                  }
-                  className="field"
-                />
-              </div>
-              <div>
-                <label htmlFor="event-time" className="type-subheadline mb-1.5 block font-medium">
-                  Time
-                </label>
-                <input
-                  id="event-time"
-                  type="time"
-                  value={proposal.event_time ?? ''}
-                  onChange={(event) =>
-                    setProposal({ ...proposal, event_time: event.target.value || null })
-                  }
-                  className="field"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="type" className="type-subheadline mb-1.5 block font-medium">
-                Kind
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+            <Card className="flex flex-col gap-3">
+              <label htmlFor="announcement-text" className="type-subheadline font-medium">
+                The message
               </label>
-              <select
-                id="type"
-                value={proposal.type}
-                onChange={(event) => setProposal({ ...proposal, type: event.target.value })}
-                className="field"
+              <textarea
+                id="announcement-text"
+                rows={10}
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                placeholder="Paste the message here"
+                className="field resize-none"
+              />
+              <Button
+                variant="accent"
+                block
+                onClick={() => void read()}
+                disabled={busy || !text.trim()}
               >
-                {[
-                  ['quiz', 'Quiz'],
-                  ['exam', 'Exam'],
-                  ['deadline', 'Deadline'],
-                  ['room_change', 'Room change'],
-                  ['suspension', 'No class'],
-                  ['schedule_change', 'Schedule change'],
-                  ['general', 'Something else'],
-                ].map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
+                {busy ? 'Reading…' : 'Read it'}
+              </Button>
+            </Card>
 
-            {!proposal.course_id && (
-              <Card>
+            {/* The offset clears the sticky top bar, which is drawn above this. */}
+            <aside
+              className="lg:sticky"
+              style={{ top: 'calc(var(--topbar-height) + var(--space-4))' }}
+            >
+              <Card className="flex flex-col gap-2">
+                <h2 className="type-headline">What happens next</h2>
+                <p className="type-footnote text-[var(--label-secondary)]">
+                  We pull out the subject, the date and what kind of thing it is. You check every
+                  field, and nothing reaches your section until you post it.
+                </p>
+                <p className="type-footnote text-[var(--label-secondary)]">
+                  You can only post into subjects you&rsquo;re enrolled in.
+                </p>
+              </Card>
+            </aside>
+          </div>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+            <Card className="flex flex-col gap-3">
+              <GeneratedMark>
+                <span className="type-footnote text-[var(--label-secondary)]">
+                  {proposal.low_confidence
+                    ? 'Not much to go on — fill in what you know.'
+                    : 'Check this before posting.'}
+                </span>
+              </GeneratedMark>
+
+              <Field
+                id="summary"
+                label="What is it?"
+                value={proposal.summary}
+                onChange={(value) => setProposal({ ...proposal, summary: value })}
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="event-date" className="type-subheadline mb-1.5 block font-medium">
+                    Date
+                  </label>
+                  <input
+                    id="event-date"
+                    type="date"
+                    value={proposal.event_date ?? ''}
+                    onChange={(event) =>
+                      setProposal({ ...proposal, event_date: event.target.value || null })
+                    }
+                    className="field type-data"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="event-time" className="type-subheadline mb-1.5 block font-medium">
+                    Time
+                  </label>
+                  <input
+                    id="event-time"
+                    type="time"
+                    value={proposal.event_time ?? ''}
+                    onChange={(event) =>
+                      setProposal({ ...proposal, event_time: event.target.value || null })
+                    }
+                    className="field type-data"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="type" className="type-subheadline mb-1.5 block font-medium">
+                  Kind
+                </label>
+                <select
+                  id="type"
+                  value={proposal.type}
+                  onChange={(event) => setProposal({ ...proposal, type: event.target.value })}
+                  className="field"
+                >
+                  {KINDS.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {!proposal.course_id && (
                 <p className="type-footnote text-[var(--label-secondary)]">
                   We couldn&rsquo;t match this to one of your subjects, so it will post without one.
                   You can only post into subjects you&rsquo;re enrolled in.
                 </p>
-              </Card>
-            )}
+              )}
 
-            <div className="flex gap-2">
-              <Button variant="plain" onClick={() => setProposal(null)} disabled={busy}>
-                Back
-              </Button>
-              <Button variant="accent" block onClick={() => void publish()} disabled={busy}>
-                {busy ? 'Posting…' : 'Post to my section'}
-              </Button>
-            </div>
-          </>
+              <div className="flex gap-2 pt-1">
+                <Button variant="plain" onClick={() => setProposal(null)} disabled={busy}>
+                  Back
+                </Button>
+                <Button variant="accent" block onClick={() => void publish()} disabled={busy}>
+                  {busy ? 'Posting…' : 'Post to my section'}
+                </Button>
+              </div>
+            </Card>
+
+            <section
+              className="lg:sticky"
+              style={{ top: 'calc(var(--topbar-height) + var(--space-4))' }}
+            >
+              <SectionHeader>What you pasted</SectionHeader>
+              <Card>
+                <p className="type-footnote max-h-[24rem] overflow-y-auto whitespace-pre-wrap text-[var(--label-secondary)]">
+                  {text || proposal.detail}
+                </p>
+              </Card>
+            </section>
+          </div>
         )}
       </div>
     </>

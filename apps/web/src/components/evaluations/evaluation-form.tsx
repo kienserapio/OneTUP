@@ -6,9 +6,9 @@ import { supabaseBrowser } from '@/lib/supabase/client'
 import { spring, transition } from '@/design/motion'
 import { NavBar } from '@/components/app/nav-bar'
 import { Button } from '@/components/ui/button'
-import { Badge, Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
+import { Card, EmptyState, GeneratedMark, SectionHeader } from '@/components/ui/surfaces'
 import { FormError } from '@/components/auth/auth-form'
-import { IconCheck, IconSparkleSmall } from '@/components/ui/icon'
+import { IconCheck } from '@/components/ui/icon'
 import { cx } from '@/lib/cx'
 
 /**
@@ -50,9 +50,9 @@ export interface EvaluationFormProps {
 }
 
 const AUTOSAVE_DEBOUNCE_MS = 400
+const SCALE = [1, 2, 3, 4, 5]
 
 export function EvaluationForm({
-  instrumentId,
   questions,
   subject,
   initialAnswers,
@@ -189,8 +189,7 @@ export function EvaluationForm({
       `Subject: ${subject.courseCode}`,
       '',
       ...questions.map(
-        (question, index) =>
-          `${index + 1}. ${question.text}\n   ${answers[question.id] ?? '—'}`,
+        (question, index) => `${index + 1}. ${question.text}\n   ${answers[question.id] ?? '—'}`,
       ),
       '',
       'Comment:',
@@ -214,153 +213,200 @@ export function EvaluationForm({
         back={{ href: '/evaluations', label: 'Evaluations' }}
       />
 
-      <div className="app-container stack">
-        <Card>
-          <p className="type-body">
-            OneTUP fills nothing in for you. The ratings are yours, and the comment stays your own
-            words — we only tidy the sentences if you ask.
-          </p>
-        </Card>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="type-footnote text-[var(--label-secondary)]">
-            {answered} of {questions.length} answered
-          </span>
-          <span className="type-footnote text-[var(--label-tertiary)]">
-            · press 1&ndash;5 to answer and move on
-          </span>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <span className="type-footnote self-center text-[var(--label-secondary)]">
-            Start everything at
-          </span>
-          {[1, 2, 3, 4, 5].map((value) => (
-            <Button key={value} size="sm" onClick={() => baseline(value)}>
-              {value}
-            </Button>
-          ))}
-        </div>
-
-        {error && <FormError>{error}</FormError>}
-
-        <section>
-          <SectionHeader>Questions</SectionHeader>
-          <div className="stack">
-            {questions.map((question, index) => (
-              <div
-                key={question.id}
-                ref={(node) => {
-                  rowRefs.current[index] = node
-                }}
-                onFocus={() => setFocused(index)}
-              >
-                <Card
-                  className={cx(index === focused && 'ring-1')}
-                  {...(index === focused
-                    ? { style: { boxShadow: 'var(--shadow-card), 0 0 0 1.5px var(--accent)' } }
-                    : {})}
-                >
-                  <p className="type-body">
-                    <span className="type-data text-[var(--label-tertiary)]">{index + 1}.</span>{' '}
-                    {question.text}
-                  </p>
-
-                  <div
-                    role="radiogroup"
-                    aria-label={question.text}
-                    className="mt-3 flex gap-2"
-                  >
-                    {[1, 2, 3, 4, 5].map((value) => {
-                      const selected = answers[question.id] === value
-                      return (
-                        <motion.button
-                          key={value}
-                          type="button"
-                          role="radio"
-                          aria-checked={selected}
-                          whileTap={{ scale: 0.94 }}
-                          transition={transition(spring.snap)}
-                          onClick={() => {
-                            setAnswers((prev) => ({ ...prev, [question.id]: value }))
-                            setFocused(Math.min(index + 1, questions.length - 1))
-                          }}
-                          className={cx(
-                            'glass min-h-[var(--target-min)] flex-1 justify-center !px-0',
-                            selected && 'glass-accent',
-                          )}
-                        >
-                          {value}
-                        </motion.button>
-                      )
-                    })}
-                  </div>
-                </Card>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <SectionHeader>Comment</SectionHeader>
-          <Card className="space-y-3">
-            <div>
-              <label htmlFor="bullets" className="type-subheadline mb-1.5 block font-medium">
-                Your points
-              </label>
-              <textarea
-                id="bullets"
-                rows={5}
-                value={bullets}
-                onChange={(event) => setBullets(event.target.value)}
-                placeholder={'quizzes announced too late\nexplains examples well\nstarts on time'}
-                className="field resize-none"
-              />
-              <p className="type-footnote mt-1.5 text-[var(--label-secondary)]">
-                Rough notes are fine. These stay saved even if you replace them below.
-              </p>
-            </div>
-
-            <Button block onClick={() => void polish()} disabled={polishing || !bullets.trim()}>
-              {polishing ? 'Rewriting…' : 'Turn my points into sentences'}
-            </Button>
-
-            {draft && (
-              <div>
-                <div className="mb-1.5 flex items-center gap-2">
-                  <label htmlFor="final" className="type-subheadline font-medium">
-                    Draft
-                  </label>
-                  <Badge tone="generated">
-                    <IconSparkleSmall size={11} />
-                    Generated
-                  </Badge>
-                </div>
-                <textarea
-                  id="final"
-                  rows={5}
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  className="field resize-none"
-                />
-                <p className="type-footnote mt-1.5 text-[var(--label-secondary)]">
-                  Edit it however you like. Nothing goes anywhere until you send it yourself.
+      <div className="app-container pb-6">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+          {/* First in the DOM so a phone gets the progress and the baseline
+              before the questions; placed to the right on a wide screen. */}
+          <aside
+            className="flex flex-col gap-4 lg:sticky lg:col-start-2 lg:row-start-1"
+            style={{ top: 'calc(var(--topbar-height) + var(--space-4))' }}
+          >
+            <Card className="flex flex-col gap-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="type-subheadline font-medium">
+                  <span className="type-data">{answered}</span> of{' '}
+                  <span className="type-data">{questions.length}</span> answered
                 </p>
+                {savedAt && (
+                  <span
+                    className="type-caption-1 inline-flex items-center gap-1"
+                    style={{ color: 'var(--label-tertiary)' }}
+                    role="status"
+                  >
+                    <IconCheck size={13} />
+                    Saved
+                  </span>
+                )}
               </div>
-            )}
-          </Card>
-        </section>
 
-        <Button variant="accent" block onClick={() => void exportResponses()} disabled={!complete}>
-          {complete ? 'Copy for the official form' : `Answer all ${questions.length} first`}
-        </Button>
+              <div
+                className="h-1.5 w-full overflow-hidden rounded-[var(--radius-pill)]"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={questions.length}
+                aria-valuenow={answered}
+                aria-label="Questions answered"
+                style={{ background: 'var(--fill-tertiary)' }}
+              >
+                <motion.span
+                  className="block h-full rounded-[var(--radius-pill)]"
+                  style={{ background: 'var(--accent)' }}
+                  initial={false}
+                  animate={{
+                    width: `${questions.length ? (answered / questions.length) * 100 : 0}%`,
+                  }}
+                  transition={transition(spring.ui)}
+                />
+              </div>
 
-        {savedAt && (
-          <p className="type-caption-1 flex items-center justify-center gap-1.5 text-[var(--label-tertiary)]">
-            <IconCheck size={13} />
-            Saved
-          </p>
-        )}
+              <p className="type-footnote text-[var(--label-secondary)]">
+                Press 1&ndash;5 to answer and move on. Arrow keys change the row.
+              </p>
+            </Card>
+
+            <Card className="flex flex-col gap-2.5">
+              <p className="type-subheadline font-medium">Start everything at</p>
+              <div className="flex gap-1.5">
+                {SCALE.map((value) => (
+                  <Button
+                    key={value}
+                    className="min-w-[var(--target-min)] flex-1 !px-0"
+                    onClick={() => baseline(value)}
+                  >
+                    {value}
+                  </Button>
+                ))}
+              </div>
+              <p className="type-footnote text-[var(--label-secondary)]">
+                This only fills the ones you have not answered yet.
+              </p>
+            </Card>
+          </aside>
+
+          <div className="flex flex-col gap-4 lg:col-start-1 lg:row-start-1">
+            {error && <FormError>{error}</FormError>}
+
+            <section>
+              <SectionHeader>Questions</SectionHeader>
+              <Card padded={false} className="overflow-hidden">
+                {questions.map((question, index) => {
+                  const active = index === focused
+                  return (
+                    <div
+                      key={question.id}
+                      ref={(node) => {
+                        rowRefs.current[index] = node
+                      }}
+                      onFocus={() => setFocused(index)}
+                      className="flex flex-col gap-2.5 px-4 py-3 transition-colors sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                      style={{
+                        // A tinted row and an accent edge, rather than a ring —
+                        // a ring inside a bordered list reads as a second border.
+                        background: active ? 'var(--accent-subtle)' : undefined,
+                        borderTop: index === 0 ? undefined : '1px solid var(--separator)',
+                        boxShadow: active ? 'inset 3px 0 0 0 var(--accent)' : undefined,
+                      }}
+                    >
+                      <p className="type-subheadline min-w-0">
+                        <span className="type-data mr-1.5 text-[var(--label-tertiary)]">
+                          {index + 1}
+                        </span>
+                        {question.text}
+                      </p>
+
+                      <div
+                        role="radiogroup"
+                        aria-label={question.text}
+                        className="flex shrink-0 gap-1.5"
+                      >
+                        {SCALE.map((value) => {
+                          const selected = answers[question.id] === value
+                          return (
+                            <motion.button
+                              key={value}
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              aria-label={`${value} out of 5`}
+                              whileTap={{ scale: 0.94 }}
+                              transition={transition(spring.snap)}
+                              onClick={() => {
+                                setAnswers((prev) => ({ ...prev, [question.id]: value }))
+                                setFocused(Math.min(index + 1, questions.length - 1))
+                              }}
+                              className={cx(
+                                'glass min-h-[var(--target-min)] min-w-[var(--target-min)] flex-1 justify-center !px-0 sm:flex-none',
+                                selected && 'glass-accent',
+                              )}
+                            >
+                              <span className="type-subheadline font-semibold">{value}</span>
+                            </motion.button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </Card>
+            </section>
+
+            <section>
+              <SectionHeader>Comment</SectionHeader>
+              <Card className="flex flex-col gap-3">
+                <div>
+                  <label htmlFor="bullets" className="type-subheadline mb-1.5 block font-medium">
+                    Your points
+                  </label>
+                  <textarea
+                    id="bullets"
+                    rows={5}
+                    value={bullets}
+                    onChange={(event) => setBullets(event.target.value)}
+                    placeholder={'quizzes announced too late\nexplains examples well\nstarts on time'}
+                    className="field resize-none"
+                  />
+                  <p className="type-footnote mt-1.5 text-[var(--label-secondary)]">
+                    Rough notes are fine. These stay saved even if you replace them below.
+                  </p>
+                </div>
+
+                <Button block onClick={() => void polish()} disabled={polishing || !bullets.trim()}>
+                  {polishing ? 'Rewriting…' : 'Turn my points into sentences'}
+                </Button>
+
+                {draft && (
+                  <div>
+                    <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                      <label htmlFor="final" className="type-subheadline font-medium">
+                        Draft
+                      </label>
+                      <GeneratedMark />
+                    </div>
+                    <textarea
+                      id="final"
+                      rows={5}
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value)}
+                      className="field resize-none"
+                    />
+                    <p className="type-footnote mt-1.5 text-[var(--label-secondary)]">
+                      Edit it however you like. Nothing goes anywhere until you send it yourself.
+                    </p>
+                  </div>
+                )}
+              </Card>
+            </section>
+
+            <Button
+              variant="accent"
+              block
+              onClick={() => void exportResponses()}
+              disabled={!complete}
+            >
+              {complete ? 'Copy for the official form' : `Answer all ${questions.length} first`}
+            </Button>
+          </div>
+        </div>
       </div>
     </>
   )
@@ -370,7 +416,7 @@ export function NoInstrument() {
   return (
     <>
       <NavBar title="Faculty evaluation" />
-      <div className="app-container">
+      <div className="app-container pb-6">
         <Card>
           <EmptyState title="The evaluation form for this term hasn't been set up yet. It'll appear here when the evaluation period opens." />
         </Card>

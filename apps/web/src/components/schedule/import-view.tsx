@@ -68,7 +68,7 @@ export function ScheduleImport({
         back={{ href: '/schedule', label: 'Schedule' }}
       />
 
-      <div className="app-container pb-4">
+      <div className="app-container pb-6">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -146,41 +146,45 @@ function ChooseStep({
     <div className="stack">
       <header>
         <h2 className="type-title-2">Bring in your schedule</h2>
-        <p className="type-subheadline mt-1 text-[var(--label-secondary)]">
+        <p className="type-subheadline mt-1 max-w-[60ch] text-[var(--label-secondary)]">
           {termLabel
             ? `Whatever you import lands in ${termLabel}. You review every row before anything saves.`
             : 'You review every row before anything saves.'}
         </p>
       </header>
 
-      <ListGroup>
-        <ListRow
-          onClick={onConnect}
-          title="Connect ERS"
-          subtitle="We sign in once, read the schedule page, and discard your password"
-        />
-        <ListRow
-          onClick={onPaste}
-          title="Paste it instead"
-          subtitle="Copy the table out of ERS. No password, works when the portal is down"
-        />
-      </ListGroup>
+      {/* Two ways in, and the promise that governs both — side by side once
+          there is room, because they are read as one decision. */}
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+        <ListGroup>
+          <ListRow
+            onClick={onConnect}
+            title="Connect ERS"
+            subtitle="We sign in once, read the schedule page, and discard your password"
+          />
+          <ListRow
+            onClick={onPaste}
+            title="Paste it instead"
+            subtitle="Copy the table out of ERS. No password, works when the portal is down"
+          />
+        </ListGroup>
 
-      <Card>
-        <p className="type-subheadline">Either way:</p>
-        <ul className="mt-2 space-y-2">
-          {[
-            'Nothing is saved until you have checked it.',
-            'Anything the reader was unsure about is flagged for you.',
-            'Blocks you added by hand are left exactly as they are.',
-          ].map((point) => (
-            <li key={point} className="type-subheadline flex gap-2.5">
-              <IconCheck size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--ok)' }} />
-              <span>{point}</span>
-            </li>
-          ))}
-        </ul>
-      </Card>
+        <Card>
+          <p className="type-subheadline font-medium">Either way:</p>
+          <ul className="mt-2 space-y-2">
+            {[
+              'Nothing is saved until you have checked it.',
+              'Anything the reader was unsure about is flagged for you.',
+              'Blocks you added by hand are left exactly as they are.',
+            ].map((point) => (
+              <li key={point} className="type-subheadline flex gap-2.5">
+                <IconCheck size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--ok)' }} />
+                <span>{point}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
     </div>
   )
 }

@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring, transition } from '@/design/motion'
 import { NavBar } from '@/components/app/nav-bar'
-import { Badge, Card, EmptyState } from '@/components/ui/surfaces'
-import { IconAsk, IconSparkleSmall } from '@/components/ui/icon'
+import { Card, EmptyState, GeneratedMark, SectionHeader } from '@/components/ui/surfaces'
+import { IconAsk } from '@/components/ui/icon'
 import { cx } from '@/lib/cx'
 
 /**
@@ -107,59 +107,117 @@ export function AskView() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <>
       <NavBar title="Ask" largeTitle={turns.length === 0} />
 
-      <div className="app-container flex-1">
-        {turns.length === 0 ? (
-          <Card className="mt-2">
-            <EmptyState
-              icon={<IconAsk size={30} />}
-              title="Ask about your own schedule, cuts, grades and deadlines, or about getting to campus. English or Filipino, whichever comes out."
-            />
-            <div className="flex flex-wrap justify-center gap-2 pb-2">
-              {SUGGESTIONS.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  onClick={() => void send(suggestion)}
-                  className="glass glass-sm"
-                >
-                  {suggestion}
-                </button>
-              ))}
+      <div className="app-container">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-6">
+          {/* The thread owns the column height so the composer can sit at the
+              bottom of it rather than at the bottom of the whole page. */}
+          <div className="flex min-h-[72dvh] flex-col">
+            <div className="flex-1">
+              {turns.length === 0 ? (
+                <Card>
+                  <EmptyState
+                    icon={<IconAsk size={30} />}
+                    title="Ask about your own schedule, cuts, grades and deadlines, or about getting to campus. English or Filipino, whichever comes out."
+                  />
+                  <div className="flex flex-wrap justify-center gap-2 pb-2 lg:hidden">
+                    {SUGGESTIONS.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onClick={() => void send(suggestion)}
+                        className="glass"
+                      >
+                        <span className="type-subheadline font-medium">{suggestion}</span>
+                      </button>
+                    ))}
+                  </div>
+                </Card>
+              ) : (
+                <div className="stack">
+                  <AnimatePresence initial={false}>
+                    {turns.map((turn) => (
+                      <motion.div
+                        key={turn.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={transition(spring.snap)}
+                        className={cx(
+                          'flex',
+                          turn.role === 'student' ? 'justify-end' : 'justify-start',
+                        )}
+                      >
+                        <TurnBubble turn={turn} />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+
+                  {pending && <Thinking />}
+                  <div ref={endRef} />
+                </div>
+              )}
             </div>
-          </Card>
-        ) : (
-          <div className="stack pt-2">
-            <AnimatePresence initial={false}>
-              {turns.map((turn) => (
-                <motion.div
-                  key={turn.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={transition(spring.snap)}
-                  className={cx('flex', turn.role === 'student' ? 'justify-end' : 'justify-start')}
-                >
-                  <TurnBubble turn={turn} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
 
-            {pending && <Thinking />}
-            <div ref={endRef} />
+            <Composer
+              ref={inputRef}
+              value={draft}
+              onChange={setDraft}
+              onSubmit={() => void send(draft)}
+              disabled={pending}
+            />
           </div>
-        )}
-      </div>
 
-      <Composer
-        ref={inputRef}
-        value={draft}
-        onChange={setDraft}
-        onSubmit={() => void send(draft)}
-        disabled={pending}
-      />
-    </div>
+          <Rail onPick={(suggestion) => void send(suggestion)} />
+        </div>
+      </div>
+    </>
+  )
+}
+
+/**
+ * The desktop rail. It carries the two things a chat window usually hides: what
+ * to ask, and what this thing will refuse to do.
+ */
+function Rail({ onPick }: { onPick: (suggestion: string) => void }) {
+  return (
+    // The offset clears the sticky top bar, which is drawn above this rail.
+    <aside
+      className="hidden lg:sticky lg:block"
+      style={{ top: 'calc(var(--topbar-height) + var(--space-4))' }}
+    >
+      <section>
+        <SectionHeader>Try asking</SectionHeader>
+        <div className="flex flex-col gap-2">
+          {SUGGESTIONS.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              onClick={() => onPick(suggestion)}
+              className="type-subheadline card flex min-h-[var(--target-min)] items-center px-3.5 py-2.5 text-left transition-colors"
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-5">
+        <SectionHeader>What it can answer</SectionHeader>
+        <Card className="flex flex-col gap-2">
+          <p className="type-footnote text-[var(--label-secondary)]">
+            It works out your cuts, your GWA, what&rsquo;s due and when you&rsquo;re free from the
+            rows already in your account. Those numbers are arithmetic, not a guess, which is why
+            they arrive unlabelled.
+          </p>
+          <p className="type-footnote text-[var(--label-secondary)]">
+            It does not invent grades, prerequisites or university policy. If it has nothing to work
+            from, it says so instead of filling the gap.
+          </p>
+        </Card>
+      </section>
+    </aside>
   )
 }
 
@@ -176,12 +234,12 @@ function TurnBubble({ turn }: { turn: Turn }) {
   }
 
   return (
-    <div className="max-w-[92%]">
+    <div className="max-w-[92%] lg:max-w-[46rem]">
       <div
-        className="squircle rounded-[var(--radius-lg)] px-4 py-3"
+        className="squircle rounded-[var(--radius-lg)] border px-4 py-3"
         style={{
           background: 'var(--bg-grouped-secondary)',
-          boxShadow: 'var(--shadow-chip)',
+          borderColor: 'var(--separator)',
           color: turn.error ? 'var(--label-secondary)' : undefined,
         }}
       >
@@ -198,14 +256,17 @@ function TurnBubble({ turn }: { turn: Turn }) {
         )}
       </div>
 
-      {turn.labelled && (
+      {/* Only a model-written answer is marked. A computed one says where its
+          numbers came from, which is a provenance note, not a generated mark. */}
+      {turn.labelled ? (
         <p className="mt-1.5 pl-1">
-          <Badge tone="generated">
-            <IconSparkleSmall size={11} />
-            Generated
-          </Badge>
+          <GeneratedMark />
         </p>
-      )}
+      ) : turn.computed ? (
+        <p className="type-caption-2 mt-1.5 pl-1 text-[var(--label-tertiary)]">
+          Worked out from your own records
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -240,15 +301,9 @@ interface ComposerProps {
 
 function Composer({ value, onChange, onSubmit, disabled, ref }: ComposerProps) {
   return (
-    <div
-      className="material material-large sticky bottom-0 z-20 mt-3"
-      style={{
-        paddingBottom: 'calc(var(--tab-bar-height) + var(--tab-bar-inset) * 2 + env(safe-area-inset-bottom))',
-        borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0',
-      }}
-    >
+    <div className="sticky bottom-0 z-20 pt-3">
       <form
-        className="app-container flex items-end gap-2 py-3"
+        className="material material-large flex items-end gap-2 rounded-[var(--radius-xl)] p-2"
         onSubmit={(event) => {
           event.preventDefault()
           onSubmit()
@@ -285,6 +340,16 @@ function Composer({ value, onChange, onSubmit, disabled, ref }: ComposerProps) {
           <IconAsk size={20} />
         </button>
       </form>
+
+      {/* Clears the floating bar, which only exists below the shell breakpoint. */}
+      <div
+        className="mobile-only"
+        aria-hidden
+        style={{
+          height:
+            'calc(var(--tab-bar-height) + var(--tab-bar-inset) * 2 + env(safe-area-inset-bottom))',
+        }}
+      />
     </div>
   )
 }

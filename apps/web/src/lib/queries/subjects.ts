@@ -87,6 +87,10 @@ export interface SubjectsData {
   subjects: SubjectSummary[]
   catchUpCount: number
   defaults: SubjectDefaults
+  /** Units enrolled this term, graded or not — the load, not the denominator. */
+  termUnits: number
+  /** Every term, so the headline figure on Subjects matches the one on /gwa. */
+  cumulative: GwaResult
 }
 
 export interface SubjectDetail extends SubjectSummary {
@@ -155,6 +159,29 @@ export async function loadSubjects(now = new Date()): Promise<SubjectsData> {
     subjects,
     catchUpCount: catchUp.length,
     defaults,
+    termUnits: subjects.reduce((sum, subject) => sum + subject.units, 0),
+    cumulative: computeGwa(enrollments.map((enrollment) => gradedFrom(enrollment, context))),
+  }
+}
+
+/**
+ * An enrolment as the GWA arithmetic wants it.
+ *
+ * A projection is the student saying what they expect, not what they got, so it
+ * is dropped here. It reaches the figure only through the planner, where it is
+ * labelled as a projection.
+ */
+function gradedFrom(enrollment: Enrollment, context: SubjectContext): GradedCourse {
+  const course = context.courseById.get(enrollment.course_id)
+  const grade = context.gradeByEnrollment.get(enrollment.id)
+  const usable = grade && grade.value !== null && !grade.is_projected
+
+  return {
+    enrollmentId: enrollment.id,
+    code: course?.code ?? '—',
+    units: Number(course?.units ?? 0),
+    value: usable ? Number(grade.value) : null,
+    mark: (grade?.mark as NonNumericMark | null) ?? null,
   }
 }
 

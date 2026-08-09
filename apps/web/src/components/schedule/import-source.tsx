@@ -210,7 +210,7 @@ export function PasteBox({ title, submitLabel, onParsed, onCancel }: PasteBoxPro
         value={text}
         onChange={(event) => setText(event.target.value)}
         placeholder="Paste here"
-        className="field type-data font-mono text-[0.9375rem]"
+        className="field type-data type-subheadline font-mono"
       />
 
       <Button variant="accent" block onClick={() => void parse()} disabled={busy || !text.trim()}>

@@ -466,12 +466,18 @@ GET /v1/campus/places?campus=manila&category=printing
       "hours": { "mon_fri": "07:00-19:00" },
       "price_min": 2.00, "price_max": 2.00, "price_unit": "per_page",
       "last_verified_at": "2026-08-03T00:00:00+08:00",
-      "freshness": "fresh"
+      "freshness": "fresh",
+      "tour_scene_url": "692fbd3b9ddbb5ae94eb9a81"
     }
   ],
   "attribution": "Community-maintained. Verify prices before relying on them."
 }
 ```
+
+`tour_scene_url` is a scene identifier in the 360° campus tour, not a URL. The
+tour's base address is configuration, so a move to another host is an
+environment edit rather than a data migration. A place with no scene is one the
+tour does not cover yet.
 
 ### 4.7 `GET /v1/campus/rooms/:number`
 

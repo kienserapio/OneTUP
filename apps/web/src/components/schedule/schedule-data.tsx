@@ -32,11 +32,23 @@ export interface ScheduleBlockView extends ScheduleBlock {
   units: number
 }
 
+/** One enrolled subject, counted once however many times a week it meets. */
+export interface SubjectView {
+  enrollmentId: string
+  code: string
+  title: string | null
+  units: number
+  colorKey: number | null
+}
+
 export interface ScheduleSnapshot {
   blocks: ScheduleBlockView[]
   bounds: DayBounds
   /** Week order, honouring the student's week-start preference. */
   weekOrder: Weekday[]
+  /** Distinct enrolled subjects — blocks would count a subject once per meeting. */
+  subjects: SubjectView[]
+  totalUnits: number
 }
 
 export async function loadSchedule(): Promise<ScheduleSnapshot> {
@@ -73,6 +85,20 @@ export async function loadSchedule(): Promise<ScheduleSnapshot> {
 
   const preferences = prefsRows[0] ?? null
 
+  const subjects: SubjectView[] = enrollments.flatMap((enrollment) => {
+    const course = courseById.get(enrollment.course_id)
+    if (!course) return []
+    return [
+      {
+        enrollmentId: enrollment.id,
+        code: course.code,
+        title: course.title,
+        units: Number(course.units ?? 0),
+        colorKey: enrollment.color_key,
+      },
+    ]
+  })
+
   return {
     blocks,
     bounds: {
@@ -80,6 +106,8 @@ export async function loadSchedule(): Promise<ScheduleSnapshot> {
       dayEnd: preferences?.day_end?.slice(0, 5) ?? DEFAULT_DAY_BOUNDS.dayEnd,
     },
     weekOrder: weekOrderFrom(preferences?.week_starts_monday ?? true),
+    subjects,
+    totalUnits: subjects.reduce((sum, subject) => sum + subject.units, 0),
   }
 }
 
@@ -213,4 +241,9 @@ export function formatMinutes(minutes: number): string {
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
+}
+
+/** Units are usually whole; a 1.5-unit lab should not print as "1.5000". */
+export function formatUnits(units: number): string {
+  return Number.isInteger(units) ? String(units) : units.toFixed(1)
 }

@@ -53,7 +53,22 @@ export function CatchUpView() {
 
   return (
     <>
-      <NavBar title="Catch up" subtitle="The past 7 days" back={{ href: '/subjects' }} />
+      <NavBar
+        title="Catch up"
+        subtitle={
+          gaps.length === 0
+            ? 'The past 7 days'
+            : `${gaps.length} class${gaps.length === 1 ? '' : 'es'} from the past 7 days`
+        }
+        back={{ href: '/subjects', label: 'Subjects' }}
+        trailing={
+          gaps.length > 0 ? (
+            <ButtonLink href="/subjects" size="sm" variant="plain">
+              Done for now
+            </ButtonLink>
+          ) : undefined
+        }
+      />
 
       <div className="app-container stack pb-4">
         {gaps.length === 0 ? (
@@ -72,13 +87,15 @@ export function CatchUpView() {
           <>
             <p className="type-footnote px-1 text-[var(--label-secondary)]">
               Reminders don&rsquo;t always arrive, especially on iPhone. Anything that slipped
-              through is here.
+              through is here, newest first.
             </p>
 
             {[...byDate.entries()].map(([date, entries]) => (
               <section key={date}>
                 <SectionHeader>{relativeDate(date, today)}</SectionHeader>
-                <div className="stack">
+                {/* Two-up above lg: these cards are short and a 68rem column of
+                    single ones is scrolling for its own sake. */}
+                <div className="grid gap-3 lg:grid-cols-2">
                   {entries.map((gap) => (
                     <AttendancePrompt
                       key={`${gap.block.id}-${gap.date}`}
@@ -104,10 +121,12 @@ function relativeDate(date: string, today: string): string {
 function CatchUpSkeleton() {
   return (
     <>
-      <NavBar title="Catch up" back={{ href: '/subjects' }} />
+      <NavBar title="Catch up" back={{ href: '/subjects', label: 'Subjects' }} />
       <div className="app-container stack" aria-busy="true" aria-label="Loading catch-up">
-        <div className="skeleton h-32 rounded-[var(--radius-lg)]" />
-        <div className="skeleton h-32 rounded-[var(--radius-lg)]" />
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="skeleton h-32 rounded-[var(--radius-md)]" />
+          <div className="skeleton h-32 rounded-[var(--radius-md)]" />
+        </div>
       </div>
     </>
   )

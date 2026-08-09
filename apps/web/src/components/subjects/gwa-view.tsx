@@ -20,16 +20,21 @@ import { spring, transition } from '@/design/motion'
 import { Badge, Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { NavBar } from '@/components/app/nav-bar'
+import { StatCard } from '@/components/subjects/stat-card'
 import { ThresholdSheet } from '@/components/subjects/threshold-sheet'
 import { WhatIfPlanner } from '@/components/subjects/what-if-planner'
 
 /**
  * GWA.
  *
- * One figure, then everything that qualifies it: what it covers, what it left
- * out and why, where it has been, and what it would take to move it. The
- * qualifications are not fine print — a GWA computed over thirteen units when a
- * student is carrying eighteen is alarming until it is explained.
+ * Two figures, then everything that qualifies them: what they cover, what they
+ * left out and why, and where the number has been. The qualifications are not
+ * fine print — a GWA computed over thirteen units when a student is carrying
+ * eighteen is alarming until it is explained.
+ *
+ * Above `lg` the planner sits beside the figures rather than below them,
+ * because the whole point of a target is to read it against what you already
+ * have.
  */
 export function GwaView() {
   const [data, setData] = useState<GwaData | null>(null)
@@ -82,120 +87,119 @@ export function GwaView() {
         back={{ href: '/subjects', label: 'Subjects' }}
       />
 
-      <div className="app-container stack pb-4">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={transition(spring.ui)}
-        >
-          <Card className="stack">
-            <div>
-              <p className="type-section-header">This term</p>
-              <p className="type-figure mt-1">{formatGwa(data.term.gwa)}</p>
-              <p className="type-footnote text-[var(--label-secondary)]">
-                Over {data.term.gradedUnits} unit{data.term.gradedUnits === 1 ? '' : 's'} in{' '}
-                {data.term.gradedCourses} subject{data.term.gradedCourses === 1 ? '' : 's'}
-              </p>
-            </div>
-
-            <ExclusionNote result={data.term} courses={data.termCourses} />
-
-            {data.projected.includesProjection && data.projected.gwa !== null && (
-              <p className="type-subheadline">
-                With the grades you expect, this term lands at{' '}
-                <span className="type-data font-semibold">{formatGwa(data.projected.gwa)}</span>.
-              </p>
-            )}
-
-            <div
-              className="flex items-baseline justify-between gap-3 pt-1"
-              style={{ boxShadow: 'inset 0 1px 0 0 var(--separator)', paddingTop: 'var(--space-3)' }}
+      <div className="app-container pb-4">
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+          <div className="stack">
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={transition(spring.ui)}
+              className="grid grid-cols-2 gap-3"
             >
-              <span className="type-subheadline text-[var(--label-secondary)]">
-                All terms
-                <span className="type-footnote block">
-                  {data.cumulative.gradedUnits} unit
-                  {data.cumulative.gradedUnits === 1 ? '' : 's'} graded so far
-                </span>
-              </span>
-              <span className="type-title-2 type-data">
-                {formatGwa(data.cumulative.gwa)}
-              </span>
-            </div>
-          </Card>
-        </motion.div>
+              <StatCard
+                label="This term"
+                value={formatGwa(data.term.gwa)}
+                emphasis
+                note={`${data.term.gradedUnits} unit${
+                  data.term.gradedUnits === 1 ? '' : 's'
+                } in ${data.term.gradedCourses} subject${
+                  data.term.gradedCourses === 1 ? '' : 's'
+                }`}
+              />
+              <StatCard
+                label="All terms"
+                value={formatGwa(data.cumulative.gwa)}
+                emphasis
+                note={`${data.cumulative.gradedUnits} unit${
+                  data.cumulative.gradedUnits === 1 ? '' : 's'
+                } graded so far`}
+              />
+            </motion.div>
 
-        {data.trend.length > 1 && (
-          <section>
-            <SectionHeader>Term by term</SectionHeader>
             <Card className="stack">
-              {data.trend.map((standing, index) => {
-                const previous = index > 0 ? data.trend[index - 1].result.gwa : null
-                return (
-                  <TrendRow
-                    key={standing.termId}
-                    label={standing.label}
-                    gwa={standing.result.gwa}
-                    previous={previous}
-                    isCurrent={standing.isCurrent}
-                  />
-                )
-              })}
+              <ExclusionNote result={data.term} courses={data.termCourses} />
+
+              {data.projected.includesProjection && data.projected.gwa !== null && (
+                <p className="type-subheadline">
+                  With the grades you expect, this term lands at{' '}
+                  <span className="type-data font-semibold">{formatGwa(data.projected.gwa)}</span>.
+                </p>
+              )}
+
               <p className="type-footnote text-[var(--label-secondary)]">
-                A longer bar is a better GWA. Only your own record is shown here — OneTUP never
-                compares you with anyone.
+                Lower is better on the TUP scale: 1.00 is the highest mark and 3.00 is the pass.
+                Only your own record is shown here — OneTUP never compares you with anyone.
               </p>
             </Card>
-          </section>
-        )}
 
-        <WhatIfPlanner
-          graded={data.termCourses}
-          ungraded={data.ungraded}
-          initialPins={data.projections}
-        />
+            {data.trend.length > 1 && (
+              <section>
+                <SectionHeader>Term by term</SectionHeader>
+                <Card className="stack">
+                  {data.trend.map((standing, index) => (
+                    <TrendRow
+                      key={standing.termId}
+                      label={standing.label}
+                      gwa={standing.result.gwa}
+                      previous={index > 0 ? data.trend[index - 1].result.gwa : null}
+                      isCurrent={standing.isCurrent}
+                    />
+                  ))}
+                </Card>
+              </section>
+            )}
+          </div>
 
-        <section>
-          <SectionHeader
-            action={
-              data.thresholds.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setAdding(true)}
-                  className="type-footnote min-h-[var(--target-min)] font-medium text-[var(--accent)]"
-                >
-                  Add
-                </button>
-              ) : undefined
-            }
-          >
-            Thresholds
-          </SectionHeader>
+          <div className="stack">
+            <WhatIfPlanner
+              graded={data.termCourses}
+              ungraded={data.ungraded}
+              initialPins={data.projections}
+            />
 
-          {data.thresholds.length === 0 ? (
-            <Card>
-              <EmptyState
-                title="Set what you're trying to hold — Dean's List, a scholarship, a retention floor — and OneTUP will tell you the moment a projection puts it at risk."
+            <section>
+              <SectionHeader
                 action={
-                  <Button variant="accent" onClick={() => setAdding(true)}>
-                    Add a threshold
-                  </Button>
+                  data.thresholds.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setAdding(true)}
+                      className="type-footnote min-h-[var(--target-min)] font-medium text-[var(--accent)]"
+                    >
+                      Add
+                    </button>
+                  ) : undefined
                 }
-              />
-            </Card>
-          ) : (
-            <ListGroup>
-              {data.thresholds.map((threshold) => (
-                <ThresholdRow
-                  key={threshold.id}
-                  threshold={threshold}
-                  data={data}
-                  onEdit={() => setEditing(threshold)}
-                />
-              ))}
-            </ListGroup>
-          )}
-        </section>
+              >
+                Thresholds
+              </SectionHeader>
+
+              {data.thresholds.length === 0 ? (
+                <Card>
+                  <EmptyState
+                    title="Set what you're trying to hold — Dean's List, a scholarship, a retention floor — and OneTUP will tell you the moment a projection puts it at risk."
+                    action={
+                      <Button variant="accent" onClick={() => setAdding(true)}>
+                        Add a threshold
+                      </Button>
+                    }
+                  />
+                </Card>
+              ) : (
+                <ListGroup>
+                  {data.thresholds.map((threshold) => (
+                    <ThresholdRow
+                      key={threshold.id}
+                      threshold={threshold}
+                      data={data}
+                      onEdit={() => setEditing(threshold)}
+                    />
+                  ))}
+                </ListGroup>
+              )}
+            </section>
+          </div>
+        </div>
       </div>
 
       <ThresholdSheet
@@ -212,9 +216,9 @@ export function GwaView() {
 }
 
 /**
- * Why the denominator does not match the unit load. Stated in the same card as
- * the figure, because a student who has to go looking for the explanation has
- * already been alarmed by it (TDD §5.2).
+ * Why the denominator does not match the unit load. Stated beside the figure,
+ * because a student who has to go looking for the explanation has already been
+ * alarmed by it (TDD §5.2).
  */
 function ExclusionNote({
   result,
@@ -254,8 +258,7 @@ function TrendRow({
   isCurrent: boolean
 }) {
   // 1.00 fills the bar, 5.00 empties it — the scale is inverted, and so is this.
-  const fill =
-    gwa === null ? 0 : ((GRADE_LOWEST - gwa) / (GRADE_LOWEST - GRADE_HIGHEST)) * 100
+  const fill = gwa === null ? 0 : ((GRADE_LOWEST - gwa) / (GRADE_LOWEST - GRADE_HIGHEST)) * 100
   const delta = gwa !== null && previous !== null ? previous - gwa : null
 
   return (
@@ -344,9 +347,7 @@ function ThresholdRow({
       }
       subtitle={describeThreshold(state, ceiling, data.ungraded.length)}
       trailing={
-        <Badge tone="neutral">
-          {threshold.scope === 'cumulative' ? 'All terms' : 'This term'}
-        </Badge>
+        <Badge tone="neutral">{threshold.scope === 'cumulative' ? 'All terms' : 'This term'}</Badge>
       }
     />
   )
@@ -397,9 +398,17 @@ function GwaSkeleton() {
   return (
     <>
       <NavBar title="GWA" back={{ href: '/subjects', label: 'Subjects' }} />
-      <div className="app-container stack" aria-busy="true" aria-label="Loading GWA">
-        <div className="skeleton h-48 rounded-[var(--radius-lg)]" />
-        <div className="skeleton h-40 rounded-[var(--radius-lg)]" />
+      <div className="app-container" aria-busy="true" aria-label="Loading GWA">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="stack">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="skeleton h-32 rounded-[var(--radius-md)]" />
+              <div className="skeleton h-32 rounded-[var(--radius-md)]" />
+            </div>
+            <div className="skeleton h-40 rounded-[var(--radius-md)]" />
+          </div>
+          <div className="skeleton h-56 rounded-[var(--radius-md)]" />
+        </div>
       </div>
     </>
   )

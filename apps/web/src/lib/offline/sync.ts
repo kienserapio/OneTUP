@@ -238,7 +238,9 @@ async function applyMutation(supabase: SupabaseClient, mutation: Mutation): Prom
   const target = table(supabase, mutation.entity)
 
   if (mutation.operation === 'delete') {
-    const { error } = await target.delete().eq('id', mutation.payload.id as string)
+    const { error } = await target
+      .delete()
+      .eq(primaryKeyOf(mutation.entity), mutation.payload[primaryKeyOf(mutation.entity)] as string)
     if (error) throw new Error(error.message)
     return false
   }
@@ -254,8 +256,16 @@ async function applyMutation(supabase: SupabaseClient, mutation: Mutation): Prom
   }
 
   // Update. Read the server row first so a genuinely newer value can be kept.
-  const id = mutation.payload.id as string
-  const { data } = (await target.select('*').eq('id', id)) as unknown as {
+  //
+  // Not every table is keyed on `id` — `user_preferences` is one row per student
+  // keyed on `user_id` — so the column is looked up rather than assumed. Getting
+  // this wrong is silent: `.eq('id', undefined)` matches nothing and the write
+  // simply never lands.
+  const keyColumn = primaryKeyOf(mutation.entity)
+  const id = mutation.payload[keyColumn] as string
+  if (!id) throw new Error(`Cannot update ${mutation.entity}: payload has no ${keyColumn}`)
+
+  const { data } = (await target.select('*').eq(keyColumn, id)) as unknown as {
     data: StoredRecord[] | null
   }
   const serverRow = data?.[0] ?? null
@@ -289,9 +299,14 @@ async function applyMutation(supabase: SupabaseClient, mutation: Mutation): Prom
     }
   }
 
-  const { error } = await target.update(mutation.payload).eq('id', id)
+  const { error } = await target.update(mutation.payload).eq(keyColumn, id)
   if (error) throw new Error(error.message)
   return false
+}
+
+/** The column an update targets. Everything not listed is keyed on `id`. */
+function primaryKeyOf(entity: EntityName): string {
+  return entity === 'user_preferences' ? 'user_id' : 'id'
 }
 
 function naturalKeyFor(entity: EntityName): string | undefined {
@@ -300,6 +315,8 @@ function naturalKeyFor(entity: EntityName): string | undefined {
       return 'user_id,enrollment_id,session_date,block_id'
     case 'grades':
       return 'user_id,enrollment_id'
+    case 'user_preferences':
+      return 'user_id'
     default:
       return undefined
   }

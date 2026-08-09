@@ -203,7 +203,7 @@ export function ScheduleResync({
         back={{ href: '/schedule', label: 'Schedule' }}
       />
 
-      <div className="app-container pb-4">
+      <div className="app-container pb-6">
         {error && (
           <p
             role="alert"
@@ -314,25 +314,43 @@ function SourceStep({
     <div className="stack">
       <header>
         <h2 className="type-title-2">Check ERS for changes</h2>
-        <p className="type-subheadline mt-1 text-[var(--label-secondary)]">
+        <p className="type-subheadline mt-1 max-w-[60ch] text-[var(--label-secondary)]">
           We read your schedule again and show you what moved. Nothing changes until you say so, and
           blocks you added by hand are never touched.
         </p>
       </header>
 
-      <ListGroup>
-        <ListRow
-          onClick={onConnect}
-          leading={<IconRefresh size={20} />}
-          title="Connect ERS"
-          subtitle="Password used once, then discarded"
-        />
-        <ListRow
-          onClick={onPaste}
-          title="Paste the current schedule"
-          subtitle="No password needed"
-        />
-      </ListGroup>
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+        <ListGroup>
+          <ListRow
+            onClick={onConnect}
+            leading={<IconRefresh size={20} />}
+            title="Connect ERS"
+            subtitle="Password used once, then discarded"
+          />
+          <ListRow
+            onClick={onPaste}
+            title="Paste the current schedule"
+            subtitle="No password needed"
+          />
+        </ListGroup>
+
+        <Card>
+          <p className="type-subheadline font-medium">What a re-sync will not do:</p>
+          <ul className="mt-2 space-y-2">
+            {[
+              'Overwrite anything before you have accepted it.',
+              'Touch a block you added by hand.',
+              'Ask you again about a change you already rejected.',
+            ].map((point) => (
+              <li key={point} className="type-subheadline flex gap-2.5">
+                <IconCheck size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--ok)' }} />
+                <span>{point}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
     </div>
   )
 }
@@ -376,13 +394,16 @@ function ReviewStep({
         <h2 className="type-title-2">
           {changes.length} change{changes.length === 1 ? '' : 's'}
         </h2>
-        <p className="type-subheadline mt-1 text-[var(--label-secondary)]">
+        <p className="type-subheadline mt-1 max-w-[60ch] text-[var(--label-secondary)]">
           Decide on each one. Anything you reject will not be proposed again unless ERS changes it
-          afresh.
+          afresh. <span className="type-data">{decided}</span> of{' '}
+          <span className="type-data">{changes.length}</span> decided.
         </p>
       </header>
 
-      <div className="stack">
+      {/* Changes are independent decisions, so they tile rather than stack once
+          the column is wide enough to fit two side by side. */}
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         {changes.map((change) => (
           <ChangeCard
             key={change.hash}

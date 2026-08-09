@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion, useMotionValue, useTransform } from 'motion/react'
 import { describeTimeLeft, urgencyOf, type Urgency } from '@onetup/core'
-import { DRAG_THRESHOLD_PX, rubberband, spring, transition } from '@/design/motion'
+import { rubberband, spring, transition } from '@/design/motion'
 import { IconCheck } from '@/components/ui/icon'
 import { cx } from '@/lib/cx'
 
@@ -17,6 +17,11 @@ import { cx } from '@/lib/cx'
  *
  * The swipe is never the only path. The checkbox does the same thing in one
  * tap, and it is what a keyboard or a screen reader uses.
+ *
+ * The row is always a real link to `/deadlines/[id]`, so a direct link and a
+ * phone both work. Where a detail pane is on screen, `onOpen` intercepts the
+ * navigation and selects instead — the destination is already visible, so
+ * leaving the list would be a step backwards.
  */
 
 export const URGENCY_COLOR: Record<Urgency, string> = {
@@ -37,6 +42,9 @@ export interface DeadlineRowProps {
   fromAnnouncement?: boolean
   now: Date
   onComplete: (id: string) => void
+  /** Provided only while a detail pane is mounted beside the list. */
+  onOpen?: (id: string) => void
+  selected?: boolean
 }
 
 const COMMIT_DISTANCE = 96
@@ -50,6 +58,8 @@ export function DeadlineRow({
   fromAnnouncement,
   now,
   onComplete,
+  onOpen,
+  selected,
 }: DeadlineRowProps) {
   const x = useMotionValue(0)
   const [dragging, setDragging] = useState(false)
@@ -72,8 +82,8 @@ export function DeadlineRow({
         className="absolute inset-y-0 left-0 flex w-full items-center gap-2 pl-5"
         style={{ background: 'var(--ok)', opacity: revealOpacity }}
       >
-        <IconCheck size={20} style={{ color: 'white' }} />
-        <span className="type-subheadline font-semibold" style={{ color: 'white' }}>
+        <IconCheck size={20} style={{ color: 'var(--on-accent)' }} />
+        <span className="type-subheadline font-semibold" style={{ color: 'var(--on-accent)' }}>
           Done
         </span>
       </motion.div>
@@ -83,7 +93,10 @@ export function DeadlineRow({
         dragDirectionLock
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={{ left: 0, right: 0.9 }}
-        style={{ x, background: 'var(--bg-grouped-secondary)' }}
+        style={{
+          x,
+          background: selected ? 'var(--accent-subtle)' : 'var(--bg-grouped-secondary)',
+        }}
         onDragStart={() => setDragging(true)}
         onDrag={(_, info) => {
           // Rubber-banding past the commit point: the row keeps moving, but
@@ -105,14 +118,24 @@ export function DeadlineRow({
           <button
             type="button"
             onClick={() => onComplete(id)}
-            aria-label={`Mark ${title} done`}
+            aria-pressed={status === 'done'}
+            aria-label={status === 'done' ? `Reopen ${title}` : `Mark ${title} done`}
             className="grid size-[26px] shrink-0 place-items-center rounded-full border-2"
             style={{ borderColor: URGENCY_COLOR[urgency] }}
           >
             {status === 'done' && <IconCheck size={15} style={{ color: URGENCY_COLOR[urgency] }} />}
           </button>
 
-          <Link href={`/deadlines/${id}`} className="min-w-0 flex-1">
+          <Link
+            href={`/deadlines/${id}` as never}
+            aria-current={selected ? 'true' : undefined}
+            onClick={(event) => {
+              if (!onOpen) return
+              event.preventDefault()
+              onOpen(id)
+            }}
+            className="min-w-0 flex-1"
+          >
             <span
               className={cx(
                 'type-body block truncate',
@@ -124,7 +147,10 @@ export function DeadlineRow({
             <span className="type-footnote flex items-center gap-1.5 truncate text-[var(--label-secondary)]">
               {courseCode && <span className="type-data">{courseCode}</span>}
               {courseCode && <span aria-hidden>·</span>}
-              <span style={{ color: urgency === 'overdue' ? 'var(--danger)' : undefined }}>
+              <span
+                className="type-data"
+                style={{ color: urgency === 'overdue' ? 'var(--danger)' : undefined }}
+              >
                 {describeTimeLeft(dueAt, now)}
               </span>
               {fromAnnouncement && (

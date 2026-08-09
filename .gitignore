@@ -23,3 +23,6 @@ test-results/
 .playwright-mcp/
 AGENTS.md
 CLAUDE.md
+
+# Playwright MCP scratch output
+.playwright-mcp/

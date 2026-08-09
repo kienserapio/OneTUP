@@ -421,7 +421,18 @@ This section states experience constraints only. It deliberately does not specif
 
 ### 9.2 Visual direction
 
-The intended feel: **institutional but warm; dense with information but calm.** TUP crimson used sparingly as the single saturated colour so that it always means something; white and warm-grey surfaces; generous whitespace; monospace type for data that is scanned rather than read (times, room numbers, course codes, fares, grades). Glass-style translucency on floating navigation and controls. The design system will be specified separately.
+The intended feel: **institutional but warm; dense with information but calm.** TUP crimson (`#A51C30`) used sparingly as the single saturated colour so that it always means something; generous whitespace; glass-style translucency on floating navigation and controls.
+
+As built, two details differ from the original intent and the code is the
+authority:
+
+- **Every surface is white**, not white-and-warm-grey. Cards therefore carry a
+  hairline border, because a shadow alone is not separation on white and
+  disappears in high-contrast mode.
+- **Data that is scanned uses tabular figures in SF Pro**, not a monospace face.
+  Columns still align; the interface keeps one voice.
+
+There is no dark theme. The design system lives in `apps/web/src/design/`.
 
 ### 9.3 Language
 

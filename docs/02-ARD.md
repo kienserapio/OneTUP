@@ -297,6 +297,8 @@ The critical property: **numbers are computed, not generated.** A model never pr
 
 **Decision.** Campus data is served from a public, unauthenticated endpoint and rendered on a standalone public page, independent of the authenticated app.
 
+**Amendment, August 2026.** The map and the 360° tour were built as two screens and are now one. A student looking for a room wants to *see* it, and a flat map that then links to a tour is two answers to a single question. `/campus` is the tour; each building opens on the scene that shows it; room search resolves to a building and offers to walk there. The Leaflet layer was removed from the campus module — it remains only in commute, where a route genuinely is a line on a map.
+
 **Consequences.** Serves the highest-anxiety moment (arriving without knowing anything) with zero friction, and doubles as an acquisition surface. Cost: a separate moderation path for public submissions.
 
 ---

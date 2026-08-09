@@ -42,7 +42,12 @@ export const GET = authenticated(async (request) => {
     .from('commute_routes')
     .select(
       'id, label, direction, status, verified_count, last_verified_at, ' +
-        'route_legs(ordinal, commute_legs(*))',
+        'route_legs(ordinal, commute_legs(*, ' +
+        // Two foreign keys point at the same table, so each embed has to name
+        // the constraint it travels. The hubs carry the only real coordinates
+        // in the graph: leg geometry is crowdsourced and mostly still absent.
+        'from_hub:commute_hubs!commute_legs_from_hub_id_fkey(lat, lng), ' +
+        'to_hub:commute_hubs!commute_legs_to_hub_id_fkey(lat, lng)))',
     )
     .eq('direction', direction)
     .eq('status', 'approved')
@@ -77,6 +82,8 @@ export const GET = authenticated(async (request) => {
         geometry: unknown
         notes: string | null
         last_verified_at: string | null
+        from_hub: { lat: number; lng: number } | null
+        to_hub: { lat: number; lng: number } | null
       } | null
     }[])
       .filter((entry) => entry.commute_legs)
@@ -107,6 +114,8 @@ export const GET = authenticated(async (request) => {
         fare_rule: fare.ruleCode,
         discount_applied: fare.discountApplied,
         geometry: leg.geometry,
+        from_point: leg.from_hub,
+        to_point: leg.to_hub,
         notes: leg.notes,
         freshness: freshnessOf(leg.last_verified_at),
       }

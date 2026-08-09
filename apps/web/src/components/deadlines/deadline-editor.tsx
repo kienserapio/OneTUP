@@ -101,7 +101,7 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
 
   const progress = subtaskProgress(subtasks.map((subtask) => ({ isDone: subtask.is_done })))
 
-  async function save() {
+  async function save(status: 'open' | 'done' = 'open') {
     setError(null)
     if (!title.trim()) {
       setError('Give it a title so you know what it is later.')
@@ -131,7 +131,8 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
       title: title.trim(),
       notes: notes.trim() || null,
       due_at: dueAt,
-      status: 'open' as const,
+      status,
+      completed_at: status === 'done' ? new Date().toISOString() : null,
       source: source as never,
       reminder_offsets: offsets,
     }
@@ -143,8 +144,10 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
       optimistic: { ...payload, updated_at: new Date().toISOString() },
     })
 
+    // Reminders for something already finished are pure noise.
     const course = courses.find((entry) => entry.id === enrollmentId)
-    await scheduleDeadlineReminders(id, title.trim(), dueAt, offsets, course?.code)
+    if (status === 'done') await cancelDeadlineReminders(id)
+    else await scheduleDeadlineReminders(id, title.trim(), dueAt, offsets, course?.code)
 
     await syncNow()
     setBusy(false)
@@ -215,170 +218,188 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
         largeTitle={false}
       />
 
-      <div className="app-container stack pt-2">
-        {error && <FormError>{error}</FormError>}
-
-        {source === 'announcement' && (
-          <Card>
-            <p className="type-footnote text-[var(--label-secondary)]">
-              Added from an announcement someone shared.
-            </p>
-          </Card>
+      <div className="app-container pb-4 pt-2">
+        {error && (
+          <div className="pb-4">
+            <FormError>{error}</FormError>
+          </div>
         )}
 
-        <Field id="deadline-title" label="What is it?" value={title} onChange={setTitle} required />
-
-        <div>
-          <label htmlFor="deadline-course" className="type-subheadline mb-1.5 block font-medium">
-            Subject
-          </label>
-          <select
-            id="deadline-course"
-            value={enrollmentId}
-            onChange={(event) => setEnrollmentId(event.target.value)}
-            className="field"
-          >
-            <option value="">No subject</option>
-            {courses.map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.code} — {course.title}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="deadline-date" className="type-subheadline mb-1.5 block font-medium">
-              Due date
-            </label>
-            <input
-              id="deadline-date"
-              type="date"
-              value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
-              className="field"
-            />
-          </div>
-          <div>
-            <label htmlFor="deadline-time" className="type-subheadline mb-1.5 block font-medium">
-              Time
-            </label>
-            <input
-              id="deadline-time"
-              type="time"
-              value={dueTime}
-              onChange={(event) => setDueTime(event.target.value)}
-              className="field"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="deadline-notes" className="type-subheadline mb-1.5 block font-medium">
-            Notes
-          </label>
-          <textarea
-            id="deadline-notes"
-            rows={3}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            className="field resize-none"
-          />
-        </div>
-
-        <section>
-          <SectionHeader>Remind me</SectionHeader>
-          <ListGroup>
-            {REMINDER_CHOICES.map((choice) => {
-              const on = offsets.includes(choice.seconds)
-              return (
-                <button
-                  key={choice.seconds}
-                  type="button"
-                  className="list-row"
-                  aria-pressed={on}
-                  onClick={() =>
-                    setOffsets((prev) =>
-                      on
-                        ? prev.filter((value) => value !== choice.seconds)
-                        : [...prev, choice.seconds].sort((a, b) => b - a),
-                    )
-                  }
-                >
-                  <span className="type-body flex-1 text-left">{choice.label}</span>
-                  {on && <IconCheck size={20} style={{ color: 'var(--accent)' }} />}
-                </button>
-              )
-            })}
-          </ListGroup>
-        </section>
-
-        {!isNew && (
-          <section>
-            <SectionHeader>
-              {progress.total > 0 ? `Steps · ${progress.done} of ${progress.total}` : 'Steps'}
-            </SectionHeader>
-
-            {subtasks.length > 0 && (
-              <ListGroup>
-                {subtasks.map((subtask) => (
-                  <button
-                    key={subtask.id}
-                    type="button"
-                    className="list-row"
-                    onClick={() => void toggleSubtask(subtask.id)}
-                  >
-                    <span
-                      aria-hidden
-                      className="grid size-[22px] shrink-0 place-items-center rounded-full border-2"
-                      style={{ borderColor: 'var(--label-tertiary)' }}
-                    >
-                      {subtask.is_done && (
-                        <IconCheck size={13} style={{ color: 'var(--ok)' }} />
-                      )}
-                    </span>
-                    <span
-                      className={`type-body flex-1 text-left ${subtask.is_done ? 'line-through opacity-50' : ''}`}
-                    >
-                      {subtask.title}
-                    </span>
-                  </button>
-                ))}
-              </ListGroup>
-            )}
-
-            {progress.allDone && (
-              <Card className="mt-2 flex items-center gap-3">
-                <p className="type-subheadline flex-1">Every step is done. Mark the whole thing done?</p>
-                <Button size="sm" variant="plain" onClick={() => void save()}>
-                  Not yet
-                </Button>
+        {/* The thing on the left, everything that fires about it on the right. */}
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+          <div className="stack">
+            {source === 'announcement' && (
+              <Card>
+                <p className="type-footnote text-[var(--label-secondary)]">
+                  Added from an announcement someone shared.
+                </p>
               </Card>
             )}
 
-            <div className="mt-2 flex gap-2">
-              <input
-                value={newSubtask}
-                onChange={(event) => setNewSubtask(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    void addSubtask()
-                  }
-                }}
-                placeholder="Add a step"
-                aria-label="Add a step"
-                className="field flex-1"
-              />
-              <Button onClick={() => void addSubtask()} aria-label="Add step">
-                <IconPlus size={18} />
-              </Button>
-            </div>
-          </section>
-        )}
+            <Field id="deadline-title" label="What is it?" value={title} onChange={setTitle} required />
 
-        <div className="flex gap-2 pt-2">
+            <div>
+              <label htmlFor="deadline-course" className="type-subheadline mb-1.5 block font-medium">
+                Subject
+              </label>
+              <select
+                id="deadline-course"
+                value={enrollmentId}
+                onChange={(event) => setEnrollmentId(event.target.value)}
+                className="field"
+              >
+                <option value="">No subject</option>
+                {courses.map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.code} — {course.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="deadline-date" className="type-subheadline mb-1.5 block font-medium">
+                  Due date
+                </label>
+                <input
+                  id="deadline-date"
+                  type="date"
+                  value={dueDate}
+                  onChange={(event) => setDueDate(event.target.value)}
+                  className="field"
+                />
+              </div>
+              <div>
+                <label htmlFor="deadline-time" className="type-subheadline mb-1.5 block font-medium">
+                  Time
+                </label>
+                <input
+                  id="deadline-time"
+                  type="time"
+                  value={dueTime}
+                  onChange={(event) => setDueTime(event.target.value)}
+                  className="field"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="deadline-notes" className="type-subheadline mb-1.5 block font-medium">
+                Notes
+              </label>
+              <textarea
+                id="deadline-notes"
+                rows={3}
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                className="field resize-none"
+              />
+            </div>
+          </div>
+
+          <div className="stack">
+            <section>
+              <SectionHeader>Remind me</SectionHeader>
+              <ListGroup>
+                {REMINDER_CHOICES.map((choice) => {
+                  const on = offsets.includes(choice.seconds)
+                  return (
+                    <button
+                      key={choice.seconds}
+                      type="button"
+                      className="list-row"
+                      aria-pressed={on}
+                      onClick={() =>
+                        setOffsets((prev) =>
+                          on
+                            ? prev.filter((value) => value !== choice.seconds)
+                            : [...prev, choice.seconds].sort((a, b) => b - a),
+                        )
+                      }
+                    >
+                      <span className="type-body flex-1 text-left">{choice.label}</span>
+                      {on && <IconCheck size={20} style={{ color: 'var(--accent)' }} />}
+                    </button>
+                  )
+                })}
+              </ListGroup>
+            </section>
+
+            {!isNew && (
+              <section>
+                <SectionHeader>
+                  {progress.total > 0 ? `Steps · ${progress.done} of ${progress.total}` : 'Steps'}
+                </SectionHeader>
+
+                {subtasks.length > 0 && (
+                  <ListGroup>
+                    {subtasks.map((subtask) => (
+                      <button
+                        key={subtask.id}
+                        type="button"
+                        className="list-row"
+                        aria-pressed={subtask.is_done}
+                        onClick={() => void toggleSubtask(subtask.id)}
+                      >
+                        <span
+                          aria-hidden
+                          className="grid size-[22px] shrink-0 place-items-center rounded-full border-2"
+                          style={{
+                            borderColor: subtask.is_done ? 'var(--ok)' : 'var(--label-tertiary)',
+                          }}
+                        >
+                          {subtask.is_done && (
+                            <IconCheck size={13} style={{ color: 'var(--ok)' }} />
+                          )}
+                        </span>
+                        <span
+                          className={`type-body flex-1 text-left ${subtask.is_done ? 'line-through opacity-50' : ''}`}
+                        >
+                          {subtask.title}
+                        </span>
+                      </button>
+                    ))}
+                  </ListGroup>
+                )}
+
+                {/* Proposed, never done for them: a student may well have one more
+                    thing to do that never made it onto the list. */}
+                {progress.allDone && (
+                  <Card className="mt-2 flex flex-wrap items-center gap-3">
+                    <p className="type-subheadline flex-1">
+                      Every step is done. Mark the whole thing done?
+                    </p>
+                    <Button size="sm" variant="accent" onClick={() => void save('done')} disabled={busy}>
+                      Mark it done
+                    </Button>
+                  </Card>
+                )}
+
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={newSubtask}
+                    onChange={(event) => setNewSubtask(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        void addSubtask()
+                      }
+                    }}
+                    placeholder="Add a step"
+                    aria-label="Add a step"
+                    className="field flex-1"
+                  />
+                  <Button onClick={() => void addSubtask()} aria-label="Add step">
+                    <IconPlus size={18} />
+                  </Button>
+                </div>
+              </section>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 flex gap-2">
           {!isNew && (
             <Button variant="destructive" onClick={() => void remove()} disabled={busy}>
               <IconClose size={17} />
