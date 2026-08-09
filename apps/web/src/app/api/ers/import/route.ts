@@ -146,13 +146,33 @@ export const POST = authenticated(async (request, { user, requestId }) => {
     if (error instanceof ApiError) throw error
 
     const aborted = error instanceof Error && error.name === 'AbortError'
+
+    /*
+     * A connection refused here means *our* worker is down, not the portal.
+     * Reporting that as "ERS isn't responding" sends whoever is on call to
+     * debug a system that is working fine, so the two are separated: the
+     * student sees an honest "our end" message, and the log says which.
+     */
+    const unreachable = !aborted && isConnectionFailure(error)
+
     const code = aborted ? 'ERS_TIMEOUT' : 'ERS_UNAVAILABLE'
 
     await finishJob(jobId, 'failed', {
-      error_code: code,
+      error_code: unreachable ? 'WORKER_UNREACHABLE' : code,
       error_detail: sanitiseDetail(error instanceof Error ? error.message : null),
     })
     await recordAttempt(user.id, 'ers_import', 'ok')
+
+    if (unreachable) {
+      log('error', 'ers.import.worker_unreachable', {
+        request_id: requestId,
+        worker_url: process.env.WORKER_URL ?? '(unset)',
+      })
+      throw new ApiError(
+        'ERS_UNAVAILABLE',
+        "Importing from ERS is down on our end right now. Paste your schedule instead — it works the same.",
+      )
+    }
 
     throw new ApiError(code)
   } finally {
@@ -170,4 +190,18 @@ async function finishJob(
     .from('sync_jobs')
     .update({ status, finished_at: new Date().toISOString(), ...fields })
     .eq('id', jobId)
+}
+
+/**
+ * `fetch` reports a refused or unresolvable connection as a bare
+ * "fetch failed" TypeError, with the real reason on `cause`.
+ */
+function isConnectionFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const cause = (error as { cause?: { code?: string } }).cause
+  const code = cause?.code ?? ''
+  return (
+    ['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'UND_ERR_SOCKET'].includes(code) ||
+    /fetch failed/i.test(error.message)
+  )
 }

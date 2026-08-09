@@ -62,6 +62,23 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (!signedIn && !isPublic(pathname)) {
+    // An API route answers in its own error envelope. Redirecting it would send
+    // a `fetch` an HTML sign-in page, which then fails at `response.json()`
+    // somewhere far from the actual cause.
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'UNAUTHENTICATED',
+            message: 'You need to sign in first.',
+            retryable: false,
+            request_id: request.headers.get('X-Request-Id') ?? 'req_proxy',
+          },
+        },
+        { status: 401 },
+      )
+    }
+
     const url = request.nextUrl.clone()
     url.pathname = '/sign-in'
     // Come back to where they were trying to go, not to a generic home.
