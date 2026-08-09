@@ -43,15 +43,22 @@ export interface Credentials {
 export const SCRAPER_CONFIG = {
   version: DEFAULT_PARSER_CONFIG.version,
   loginPath: 'index.php',
-  schedulePath: 'index.php?page=schedule',
+  /** A successful login already lands here; navigating is belt and braces. */
+  schedulePath: 'schedule.php?mainID=105&menuDesc=Schedule',
   selectors: {
     loginForm: 'form[name="frmLogin"]',
     studentNumber: 'input[name="username"]',
     password: 'input[name="password"]',
     birthdate: 'input[name="bdate"]',
     submit: 'form[name="frmLogin"] button[type="submit"]',
-    table: 'table.dbtable',
-    row: 'table.dbtable tr',
+    /**
+     * The schedule table carries no class or id — `table.dbtable` matches
+     * nothing on the live portal. Its data rows are the ones marked
+     * `bgcolor="white"`, which is the only stable handle the markup offers.
+     */
+    row: 'tr[bgcolor="white"]',
+    /** Used when the bgcolor convention changes; rows are then found by shape. */
+    rowFallback: 'tr',
   },
   /**
    * The portal's birthdate field is a jQuery UI datepicker declared without a
@@ -73,6 +80,9 @@ export function toPortalBirthdate(isoDate: string): string {
   if (!year || !month || !day) return isoDate
   return `${month}/${day}/${year}`
 }
+
+/** Slow enough that the page's own keyup handlers keep up. */
+const TYPING_DELAY_MS = 40
 
 let browser: Browser | null = null
 
@@ -97,7 +107,38 @@ export interface ScrapeResult extends ScheduleParseResult {
   parserVersion: string
 }
 
+/**
+ * The portal drops roughly one automated login in three, seemingly at random —
+ * a click that never lands, a page that never settles. A student experiences
+ * that as "it didn't work", so a transient failure is retried once with a fresh
+ * context before it is reported.
+ *
+ * An authentication failure is never retried: the credentials are wrong, asking
+ * again will not change that, and repeating it burns one of the three attempts
+ * before the lockout that protects the portal from credential testing.
+ */
 export async function scrapeSchedule(credentials: Credentials): Promise<ScrapeResult> {
+  let lastError: unknown = null
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await attemptScrape(credentials)
+    } catch (error) {
+      lastError = error
+      if (error instanceof ScrapeError && error.code === 'ERS_AUTH_FAILED') throw error
+      if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 1500))
+    }
+  }
+
+  throw lastError instanceof ScrapeError
+    ? lastError
+    : new ScrapeError(
+        'ERS_UNAVAILABLE',
+        "ERS isn't responding right now. Try again in a bit, or paste your schedule.",
+      )
+}
+
+async function attemptScrape(credentials: Credentials): Promise<ScrapeResult> {
   const baseUrl = (process.env.ERS_BASE_URL ?? 'https://ers.tup.edu.ph/aims/students/').replace(
     /\/?$/,
     '/',
@@ -111,7 +152,18 @@ export async function scrapeSchedule(credentials: Credentials): Promise<ScrapeRe
       // Images are the bulk of the page weight and none of the signal.
       serviceWorkers: 'block',
       javaScriptEnabled: true,
-      viewport: { width: 1280, height: 900 },
+      viewport: { width: 1440, height: 900 },
+      locale: 'en-PH',
+      timezoneId: 'Asia/Manila',
+      userAgent:
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+    })
+
+    // `navigator.webdriver` is the most common automation tell. We are acting
+    // for the student, on their own account, with their consent — but a portal
+    // that refuses headless browsers refuses this legitimate use with it.
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined })
     })
     await context.route('**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf}', (route) => route.abort())
 
@@ -125,33 +177,62 @@ export async function scrapeSchedule(credentials: Credentials): Promise<ScrapeRe
     })
 
     await page.waitForSelector(SCRAPER_CONFIG.selectors.studentNumber)
-    await page.fill(SCRAPER_CONFIG.selectors.studentNumber, credentials.studentNumber)
-    await page.fill(SCRAPER_CONFIG.selectors.password, credentials.password)
+
+    // Typed, not filled. The portal rejects a login whose fields were assigned
+    // programmatically — `page.fill()` sets `value` without producing the key
+    // events the page listens for, and the result is indistinguishable from a
+    // wrong password. This cost an hour to find; do not "simplify" it back.
+    await page.click(SCRAPER_CONFIG.selectors.studentNumber)
+    await page.type(SCRAPER_CONFIG.selectors.studentNumber, credentials.studentNumber, {
+      delay: TYPING_DELAY_MS,
+    })
+    await page.click(SCRAPER_CONFIG.selectors.password)
+    await page.type(SCRAPER_CONFIG.selectors.password, credentials.password, {
+      delay: TYPING_DELAY_MS,
+    })
 
     await setBirthdate(page, toPortalBirthdate(credentials.birthdate))
 
-    await Promise.all([
-      page.waitForLoadState('domcontentloaded').catch(() => undefined),
-      page.click(SCRAPER_CONFIG.selectors.submit),
-    ])
-    await page.waitForTimeout(1500)
+    await page.click(SCRAPER_CONFIG.selectors.submit)
 
-    // The portal answers a bad login with 200, the form still on screen, and
-    // "Invalid credentials." in the body. The form's presence is the reliable
-    // signal — the URL is unchanged on both success and failure, so comparing
-    // URLs would report every login as failed.
-    if (await page.$(SCRAPER_CONFIG.selectors.loginForm)) {
-      const rejected = await page
-        .locator('body')
-        .innerText()
-        .then((text) => /invalid credentials/i.test(text))
-        .catch(() => false)
+    /*
+     * Wait for an actual outcome rather than for a fixed interval.
+     *
+     * A timed wait is what produced the worst failure this scraper had: the
+     * page had not finished navigating when we looked, the login form was still
+     * on screen, and a student with perfectly good credentials was told their
+     * password was wrong — and charged one of the three attempts before lockout.
+     *
+     * The portal leaves the URL unchanged either way, so the two real signals
+     * are the form detaching (success) and the error text appearing (rejection).
+     */
+    const outcome = await Promise.race([
+      page
+        .waitForSelector(SCRAPER_CONFIG.selectors.loginForm, {
+          state: 'detached',
+          timeout: SCRAPER_CONFIG.timeouts.selector,
+        })
+        .then(() => 'signed_in' as const),
+      page
+        .waitForFunction(() => /invalid credentials/i.test(document.body.innerText), {
+          timeout: SCRAPER_CONFIG.timeouts.selector,
+        })
+        .then(() => 'rejected' as const),
+    ]).catch(() => 'unknown' as const)
 
+    if (outcome === 'rejected') {
       throw new ScrapeError(
         'ERS_AUTH_FAILED',
-        rejected
-          ? "Those details didn't work on ERS. Check your password and birthdate — the birthdate has to match your record exactly."
-          : "We couldn't get past the ERS sign-in. Try again, or paste your schedule instead.",
+        "Those details didn't work on ERS. Check your password and birthdate — the birthdate has to match your record exactly.",
+      )
+    }
+
+    // Neither signal arrived. That is our problem, not the student's, so it is
+    // reported as an outage and retried rather than as a bad password.
+    if (outcome === 'unknown' && (await page.$(SCRAPER_CONFIG.selectors.loginForm))) {
+      throw new ScrapeError(
+        'ERS_UNAVAILABLE',
+        "We couldn't get past the ERS sign-in. Try again, or paste your schedule instead.",
       )
     }
 
@@ -160,25 +241,25 @@ export async function scrapeSchedule(credentials: Credentials): Promise<ScrapeRe
       timeout: SCRAPER_CONFIG.timeouts.navigation,
     })
 
-    const table = await page.$(SCRAPER_CONFIG.selectors.table)
-    if (!table) {
+    // The table is populated after DOMContentLoaded, so reading immediately
+    // finds an empty page and reports a schedule that does not exist.
+    await page
+      .waitForSelector(SCRAPER_CONFIG.selectors.row, { timeout: SCRAPER_CONFIG.timeouts.selector })
+      .catch(() => undefined)
+
+    let rows = await extractRows(page, SCRAPER_CONFIG.selectors.row)
+    if (rows.length === 0) {
+      // The bgcolor convention is the portal's, not a standard, so a layout
+      // change should degrade to finding rows by shape rather than to failure.
+      rows = await extractRows(page, SCRAPER_CONFIG.selectors.rowFallback)
+    }
+
+    if (rows.length === 0) {
       throw new ScrapeError(
         'SCHEDULE_NOT_FOUND',
         "We got in, but couldn't find a schedule. You may not be enrolled yet this term.",
       )
     }
-
-    const rows: string[][] = await page.$$eval(SCRAPER_CONFIG.selectors.row, (elements) =>
-      elements.map((row) =>
-        Array.from(row.querySelectorAll('td, th')).map((cell: Element) =>
-          (cell.textContent ?? '')
-            // The portal emits non-breaking spaces inside its table cells.
-            .replace(/\u00a0/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim(),
-        ),
-      ),
-    )
 
     // Header rows and spacers come back with too few cells; the parser flags
     // them rather than throwing, and they are dropped here.
@@ -236,3 +317,18 @@ async function setBirthdate(page: import('playwright').Page, birthdate: string):
   )
 }
 
+
+/** Reads a table's rows as arrays of cell text. */
+async function extractRows(page: import('playwright').Page, selector: string): Promise<string[][]> {
+  return page.$$eval(selector, (elements) =>
+    elements.map((row) =>
+      Array.from(row.querySelectorAll('td, th')).map((cell: Element) =>
+        (cell.textContent ?? '')
+          // The portal emits non-breaking spaces inside its table cells.
+          .replace(/ /g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim(),
+      ),
+    ),
+  )
+}

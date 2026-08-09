@@ -1,6 +1,8 @@
 import 'server-only'
 
 import {
+  DEFAULT_ALLOWED_ABSENCES,
+  DEFAULT_LATES_PER_ABSENCE,
   computeGwa,
   formatGwa,
   formatTime12,
@@ -125,8 +127,8 @@ const absencesRemaining: Template = {
         },
         {
           allowedAbsences:
-            enrollment.allowed_absences ?? preferences?.default_allowed_absences ?? 5,
-          latesPerAbsence: enrollment.lates_per_absence ?? preferences?.lates_per_absence ?? 3,
+            enrollment.allowed_absences ?? preferences?.default_allowed_absences ?? DEFAULT_ALLOWED_ABSENCES,
+          latesPerAbsence: enrollment.lates_per_absence ?? preferences?.lates_per_absence ?? DEFAULT_LATES_PER_ABSENCE,
         },
       )
       return { code: enrollment.courses?.code ?? '—', summary }

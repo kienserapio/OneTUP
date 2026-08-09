@@ -1,5 +1,7 @@
 'use client'
 
+import { DEFAULT_ALLOWED_ABSENCES, DEFAULT_LATES_PER_ABSENCE } from '@onetup/core'
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabaseBrowser } from '@/lib/supabase/client'
@@ -163,14 +165,14 @@ export function SettingsView() {
               id="allowed"
               label="Absences allowed"
               inputMode="numeric"
-              value={String(preferences?.default_allowed_absences ?? 5)}
+              value={String(preferences?.default_allowed_absences ?? DEFAULT_ALLOWED_ABSENCES)}
               onChange={(value) => save({ default_allowed_absences: Number(value) || 0 })}
             />
             <Field
               id="lates"
               label="Lates per absence"
               inputMode="numeric"
-              value={String(preferences?.lates_per_absence ?? 3)}
+              value={String(preferences?.lates_per_absence ?? DEFAULT_LATES_PER_ABSENCE)}
               onChange={(value) => save({ lates_per_absence: Number(value) || 1 })}
             />
           </Card>

@@ -32,6 +32,18 @@ export interface AttendanceSummary extends AttendanceCounts {
   latesUntilNextUnit: number
 }
 
+/**
+ * Three absences is an unofficial drop at TUP, and three lates make one
+ * absence. These mirror the column defaults in migration 024 and exist so a
+ * client with no preferences loaded yet cannot quietly assume a laxer limit
+ * than the student actually has.
+ *
+ * The real limit still comes from each syllabus, so both are per-course
+ * overridable.
+ */
+export const DEFAULT_ALLOWED_ABSENCES = 3
+export const DEFAULT_LATES_PER_ABSENCE = 3
+
 export const ATTENDANCE_THRESHOLDS = {
   caution: 0.5,
   warning: 0.8,

@@ -1,6 +1,8 @@
 'use client'
 
 import {
+  DEFAULT_ALLOWED_ABSENCES,
+  DEFAULT_LATES_PER_ABSENCE,
   computeGwa,
   evaluateThreshold,
   shouldNotifyAttendance,
@@ -72,8 +74,8 @@ export async function evaluateAlerts(): Promise<{ fired: number }> {
         excused: records.filter((r) => r.status === 'excused').length,
       },
       {
-        allowedAbsences: enrollment.allowed_absences ?? preferences?.default_allowed_absences ?? 5,
-        latesPerAbsence: enrollment.lates_per_absence ?? preferences?.lates_per_absence ?? 3,
+        allowedAbsences: enrollment.allowed_absences ?? preferences?.default_allowed_absences ?? DEFAULT_ALLOWED_ABSENCES,
+        latesPerAbsence: enrollment.lates_per_absence ?? preferences?.lates_per_absence ?? DEFAULT_LATES_PER_ABSENCE,
       },
     )
 
