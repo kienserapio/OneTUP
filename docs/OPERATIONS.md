@@ -24,7 +24,7 @@ does at least one query.
    pnpm db:push      # applies all migrations in order
    pnpm db:check     # RLS coverage, policies, view safety, no credential columns
    pnpm db:types     # regenerates packages/core/src/database.types.ts
-   pnpm env          # rewrites apps/web/.env.local
+   pnpm run env:sync          # rewrites apps/web/.env.local
    ```
 
 4. Re-run the RLS suite against the new project: `pnpm test`.
@@ -37,7 +37,7 @@ so the new project comes up identical.
 Quarterly, and immediately if a worker compromise is suspected.
 
 1. `openssl rand -hex 32`
-2. Replace `WORKER_SECRET` in `.env`, run `pnpm env`.
+2. Replace `WORKER_SECRET` in `.env`, run `pnpm run env:sync`.
 3. Redeploy the worker, then the web app. In that order — the worker rejecting
    an old secret for a few seconds is a failed import; the reverse is an outage.
 

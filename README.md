@@ -24,20 +24,40 @@ promise.
 
 ## Running it
 
+Day to day, once the repo is set up, this is the whole thing:
+
 ```sh
-pnpm install
-cp .env.example .env      # fill in Supabase and OpenRouter
-pnpm env                  # derives apps/web/.env.local and apps/worker/.env
-pnpm db:push              # applies migrations
-pnpm db:check             # RLS coverage, policy existence, view safety
 pnpm dev
 ```
 
-The sync worker runs separately, and only when you are testing ERS import:
+That derives the per-app env files from the root `.env` and starts the web app
+on http://localhost:3000 — or the next free port, which Next prints on startup.
+
+First time on a machine:
 
 ```sh
-pnpm worker:dev
+pnpm install
+cp .env.example .env      # fill in Supabase and OpenRouter
+pnpm db:push              # applies every migration in order
+pnpm db:check             # RLS coverage, policies, view safety
+pnpm dev
 ```
+
+Then open the app, create an account at `/sign-up`, and paste a schedule — the
+paste importer needs no credentials and no worker.
+
+The sync worker is separate, and only needed to import from ERS directly:
+
+```sh
+pnpm worker:dev           # a second terminal, port 8787
+```
+
+Signing up sends a verification email. Until the Supabase project has SMTP
+configured, confirm the address from the Supabase dashboard under
+**Authentication → Users**, or create the account there with *Auto Confirm*.
+
+`pnpm test` runs the suite. `pnpm db:status` shows which migrations have been
+applied.
 
 ### Database access
 
@@ -113,7 +133,7 @@ preference.
 
 ## Deploying
 
-**Web app** — Vercel. Set the same variables `pnpm env` derives into
+**Web app** — Vercel. Set the same variables `pnpm run env:sync` derives into
 `apps/web/.env.local`. `NEXT_PUBLIC_*` reach the browser; nothing else may.
 
 **Worker** — any container host:
