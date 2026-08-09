@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TUPian</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --red:#A6122B;--red-dark:#6E0C1D;--red-soft:#D14356;--tint:#FBECEE;
+  --ink:#171313;--body:#4A4340;--muted:#8A817C;--line:#E9E4E0;--line-soft:#F3EFEC;--surface:#FAF8F7;
+  --ok:#1B7A4B;--ok-tint:#E9F5EE;--warn:#9A6206;--warn-tint:#FDF2E0;
+  --sans:'Mona Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --r:14px;
+  --glass:rgba(255,255,255,.72);--glass-strong:rgba(255,255,255,.86);--glass-line:rgba(255,255,255,.65);
+  --shadow:0 4px 24px rgba(30,18,20,.09);--shadow-lg:0 10px 40px rgba(30,18,20,.16);
+  --nav-h:88px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--sans);background:#fff;color:var(--body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+h1,h2,h3,h4{color:var(--ink);line-height:1.18;font-weight:650;letter-spacing:-0.022em}
+h1{font-size:26px}h2{font-size:20px}h3{font-size:16px}h4{font-size:14px}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px;border-radius:6px}
+.mono{font-family:var(--mono);font-variant-ligatures:none}
+
+.shell{display:block;min-height:100vh}
+.sidebar{display:none}
+.topbar{
+  position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;
+  padding:calc(12px + env(safe-area-inset-top)) 18px 12px;
+  background:var(--glass-strong);backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);
+  border-bottom:1px solid var(--line-soft);
+}
+.brand-mark{width:32px;height:32px;border-radius:10px;background:var(--red);color:#fff;font-weight:750;font-size:16px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 2px 10px rgba(166,18,43,.28)}
+.topbar-title{font-size:16px;font-weight:650;color:var(--ink);letter-spacing:-0.02em}
+.topbar-date{font-size:11.5px;color:var(--muted);margin-top:-2px}
+.topbar-actions{margin-left:auto;display:flex;gap:6px}
+.gbtn{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);color:var(--body);position:relative;transition:.15s}
+.gbtn:hover{background:#fff;border-color:#DDD6D1}
+.dot{position:absolute;top:8px;right:8px;width:6px;height:6px;border-radius:50%;background:var(--red);box-shadow:0 0 0 2px #fff}
+
+.page{padding:18px 18px calc(var(--nav-h) + 28px);max-width:1080px;margin:0 auto}
+.page[hidden]{display:none}
+.page-head{margin-bottom:18px}
+.page-head p{color:var(--muted);font-size:13.5px;margin-top:4px;max-width:62ch}
+
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.card-tight{padding:13px}
+.card-glass{background:var(--glass);backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);border:1px solid var(--glass-line);box-shadow:var(--shadow)}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.card-head h3{font-size:15px}
+.grid{display:grid;gap:12px}
+.g2,.g3,.g4{grid-template-columns:minmax(0,1fr)}
+.split{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center;gap:9px}
+.spread{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.wrap{flex-wrap:wrap}
+.muted{color:var(--muted)}.small{font-size:12.5px}.tiny{font-size:11.5px}
+.sec-title{font-size:12.5px;font-weight:650;color:var(--ink);margin-bottom:9px;display:flex;align-items:center;gap:9px;letter-spacing:-0.01em}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--line)}
+
+.btn{display:inline-flex;align-items:center;gap:6px;justify-content:center;padding:9px 15px;border-radius:11px;font-size:13.5px;font-weight:550;border:1px solid var(--line);color:var(--ink);transition:.15s;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.btn:hover{background:#fff;border-color:#D9D1CC;transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn:active{transform:translateY(0)}
+.btn-primary{background:linear-gradient(180deg,#B8203A,var(--red));border-color:var(--red-dark);color:#fff;box-shadow:0 3px 14px rgba(166,18,43,.26)}
+.btn-primary:hover{background:linear-gradient(180deg,var(--red),var(--red-dark));border-color:var(--red-dark)}
+.btn-sm{padding:6px 11px;font-size:12.5px;border-radius:9px}
+.btn-ghost{border-color:transparent;background:transparent;box-shadow:none}
+.btn-ghost:hover{background:var(--line-soft);border-color:transparent;box-shadow:none}
+.btn-full{width:100%}
+
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:550;background:var(--surface);color:var(--body);border:1px solid var(--line)}
+.pill-red{background:var(--tint);color:var(--red-dark);border-color:#F3D6DA}
+.pill-ok{background:var(--ok-tint);color:var(--ok);border-color:#CFE7DA}
+.pill-warn{background:var(--warn-tint);color:var(--warn);border-color:#F2E2C4}
+
+.stat{background:var(--surface);border-radius:var(--r);padding:13px 15px}
+.stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;font-weight:650}
+.stat .val{font-size:25px;font-weight:700;color:var(--ink);line-height:1.15;margin-top:2px;letter-spacing:-0.03em}
+.stat .sub{font-size:11.5px;color:var(--muted)}
+
+.list{display:flex;flex-direction:column}
+.item{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line-soft)}
+.item:last-child{border-bottom:none;padding-bottom:0}
+.item:first-child{padding-top:0}
+.item-main{flex:1;min-width:0}
+.item-title{color:var(--ink);font-weight:550;font-size:14px}
+.item-meta{font-size:12px;color:var(--muted);margin-top:1px}
+.code{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--red-dark);background:var(--tint);padding:2px 6px;border-radius:5px;letter-spacing:-0.03em;white-space:nowrap}
+.bar{height:6px;border-radius:20px;background:var(--line);overflow:hidden}
+.bar span{display:block;height:100%;border-radius:20px;background:var(--red)}
+.bar.ok span{background:var(--ok)}
+.bar.warn span{background:#C9860E}
+.ai-tag{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:2px 8px;border-radius:20px}
+.ico{width:17px;height:17px;flex:0 0 auto;stroke-width:1.7;fill:none;stroke:currentColor}
+
+/* --- next class hero --- */
+.nowcard{border-radius:20px;padding:19px;color:#fff;position:relative;overflow:hidden;background:linear-gradient(145deg,#8E0F24 0%,#A6122B 45%,#C22540 100%);box-shadow:0 8px 30px rgba(166,18,43,.3)}
+.nowcard::after{content:'';position:absolute;right:-55px;top:-80px;width:230px;height:230px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.17),transparent 68%)}
+.nc-top{display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative;z-index:1}
+.nc-lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:0.11em;font-weight:700;opacity:.85}
+.nc-count{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.28);border-radius:20px;padding:3px 11px;font-size:11.5px;font-weight:650;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);white-space:nowrap}
+.nc-code{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:-0.04em;opacity:.9;margin-top:15px;position:relative;z-index:1}
+.nc-name{font-size:27px;font-weight:750;letter-spacing:-0.032em;line-height:1.08;margin-top:2px;position:relative;z-index:1}
+.nc-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;position:relative;z-index:1}
+.nc-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.24);border-radius:10px;padding:6px 10px;font-size:12px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.nc-chip .ico{width:14px;height:14px;opacity:.85}
+.nc-foot{margin-top:15px;padding-top:13px;border-top:1px solid rgba(255,255,255,.24);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;position:relative;z-index:1;font-size:12.5px}
+.nc-btn{background:#fff;color:var(--red-dark);border-radius:10px;padding:7px 14px;font-size:12.5px;font-weight:650;transition:.15s}
+.nc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.nc-next{margin-top:12px;position:relative;z-index:1;font-size:12px;opacity:.88;display:flex;align-items:center;gap:7px}
+
+/* --- square quick actions --- */
+.qgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:14px 0}
+.qtile{border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;font-size:11px;font-weight:600;color:var(--ink);text-align:center;padding:10px 6px;min-height:88px;line-height:1.25;background:var(--glass);backdrop-filter:blur(12px) saturate(1.3);-webkit-backdrop-filter:blur(12px) saturate(1.3);border:1px solid var(--line);box-shadow:var(--shadow);transition:.15s}
+.qtile:hover{transform:translateY(-2px);border-color:var(--red-soft);background:#fff}
+.qtile .ico{width:22px;height:22px;color:var(--red);stroke-width:1.6}
+@media(max-width:759px){.qtile{aspect-ratio:1/1;min-height:0}}
+
+/* --- compact departure card --- */
+.dline{display:flex;margin-top:13px}
+.dl{flex:1;text-align:center;position:relative}
+.dl::before{content:'';position:absolute;top:7px;left:-50%;width:100%;height:2px;background:var(--line)}
+.dl:first-child::before{display:none}
+.dl-dot{width:8px;height:8px;border-radius:50%;background:var(--red);margin:3px auto 6px;position:relative;z-index:1}
+.dl.dim .dl-dot{background:var(--line)}
+.dl-t{font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--ink);letter-spacing:-0.035em}
+.dl-l{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em}
+
+.ribbon-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.ribbon{position:relative;height:50px;margin:12px 0 4px}
+.ribbon-track{position:absolute;inset:0;border-radius:9px;background:#fff;border:1px solid var(--line)}
+.blk{position:absolute;top:6px;bottom:6px;border-radius:7px;background:var(--tint);border:1px solid #F0D2D7;padding:4px 7px;overflow:hidden}
+.blk b{display:block;font-family:var(--mono);font-size:10px;color:var(--red-dark);font-weight:700;letter-spacing:-0.04em}
+.blk i{display:block;font-style:normal;font-size:9px;color:var(--red-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blk.done{background:#F6F3F1;border-color:var(--line)}
+.blk.done b,.blk.done i{color:var(--muted)}
+.blk.other{background:#F1F4F7;border-color:#DFE6ED}
+.blk.other b{color:#3E5875}.blk.other i{color:#7089A3}
+.nowline{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--red);border-radius:2px;z-index:3}
+.nowline::before{content:'';position:absolute;top:-4px;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--red)}
+.ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9.5px;color:var(--muted)}
+
+#map{height:340px;width:100%;border-radius:var(--r);border:1px solid var(--line);z-index:1;background:#EDEAE7}
+.leaflet-container{font-family:var(--sans)}
+.map-wrap{position:relative;margin-bottom:12px}
+.map-badge{position:absolute;left:12px;top:12px;z-index:400;background:var(--glass-strong);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-line);border-radius:11px;padding:7px 11px;box-shadow:var(--shadow);font-size:11.5px;font-weight:650;color:var(--ink)}
+.map-legend{position:absolute;right:12px;bottom:22px;z-index:400;background:var(--glass-strong);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-line);border-radius:11px;padding:9px 11px;box-shadow:var(--shadow);font-size:10.5px;display:flex;flex-direction:column;gap:4px}
+.lg{display:flex;align-items:center;gap:6px;color:var(--body)}
+.lg em{width:16px;height:3px;border-radius:2px;display:block;font-style:normal}
+.pin{background:var(--red);color:#fff;border-radius:9px;padding:3px 8px;font-size:10.5px;font-weight:650;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.22);border:1.5px solid #fff;display:inline-block}
+.pin.b{background:#2E6FB5}.pin.g{background:var(--ok)}.pin.k{background:#3B3330}
+.leaflet-div-icon{background:none;border:none}
+
+.route-card{border:1px solid var(--line);border-radius:var(--r);padding:14px;background:#fff;transition:.15s;cursor:pointer}
+.route-card:hover{border-color:var(--red-soft);box-shadow:var(--shadow)}
+.route-card.on{border-color:var(--red);box-shadow:0 4px 18px rgba(166,18,43,.14)}
+.leg{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px 10px;align-items:center;font-size:13px;padding:3px 0}
+.leg-ico{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;font-family:var(--mono)}
+.leg-cost{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+
+.alert{border-radius:var(--r);padding:12px 14px;display:flex;gap:11px;align-items:flex-start;border:1px solid #F2E2C4;background:var(--warn-tint)}
+.alert.hot{border-color:#F0CDD2;background:var(--tint)}
+.alert b{color:var(--ink);font-size:13.5px;display:block;margin-bottom:1px}
+.alert p{font-size:12.5px;color:var(--body)}
+
+.chat{display:flex;flex-direction:column;gap:11px;margin-bottom:14px}
+.msg{max-width:86%;padding:11px 14px;border-radius:16px;font-size:14px;line-height:1.5}
+.msg.me{align-self:flex-end;background:linear-gradient(180deg,#B8203A,var(--red));color:#fff;border-bottom-right-radius:5px;box-shadow:0 2px 10px rgba(166,18,43,.22)}
+.msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:5px}
+.msg.ai b{color:var(--ink);font-weight:650}
+.src{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.composer{display:flex;gap:7px;align-items:center;border:1px solid var(--line);border-radius:15px;padding:6px 6px 6px 14px;background:var(--glass-strong);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:var(--shadow)}
+.composer input{flex:1;border:none;background:none;outline:none;font-size:14px;min-width:0}
+.composer input::placeholder{color:var(--muted)}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:13px}
+.chip{padding:7px 13px;border-radius:20px;font-size:12.5px;color:var(--body);background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);transition:.15s}
+.chip:hover{border-color:var(--red-soft);color:var(--red-dark);background:var(--tint)}
+
+.tt{width:100%;border-collapse:collapse;font-size:11.5px}
+.tt th{font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);font-weight:650;padding:0 3px 7px;text-align:center}
+.tt th:first-child{width:40px}
+.tt td{border-top:1px solid var(--line-soft);height:32px;vertical-align:top;padding:2px}
+.tt .hr{font-family:var(--mono);font-size:9.5px;color:var(--muted);text-align:right;padding-right:6px;vertical-align:top;border-top:1px solid var(--line-soft)}
+.slot{border-radius:6px;padding:3px 5px;height:100%;background:var(--tint);border-left:2.5px solid var(--red)}
+.slot b{display:block;font-family:var(--mono);font-size:9.5px;color:var(--red-dark);letter-spacing:-0.04em}
+.slot i{font-style:normal;font-size:9px;color:var(--red-soft)}
+.slot.b{background:#F1F4F7;border-left-color:#3E5875}.slot.b b{color:#2E4360}.slot.b i{color:#7089A3}
+.slot.c{background:#F2F1F7;border-left-color:#5B4E8C}.slot.c b{color:#453A6E}.slot.c i{color:#8479B0}
+
+.att-row{display:flex;flex-direction:column;gap:9px;padding:12px 0;border-bottom:1px solid var(--line-soft)}
+.att-row:last-child{border-bottom:none}
+.att-btns{display:flex;gap:6px}
+.att-btn{flex:1;padding:7px 9px;border:1px solid var(--line);border-radius:10px;font-size:12.5px;background:#fff;transition:.13s}
+.att-btn.sel-p{background:var(--ok-tint);border-color:#BEDECD;color:var(--ok);font-weight:600}
+.att-btn.sel-a{background:var(--tint);border-color:#F0CDD2;color:var(--red-dark);font-weight:600}
+.att-btn.sel-l{background:var(--warn-tint);border-color:#EFDDBE;color:var(--warn);font-weight:600}
+
+.eval-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:3px}
+.eval-q{font-size:13px;padding:6px 0 2px;color:var(--body)}
+.eval-scale{display:flex;gap:5px;padding-bottom:7px}
+.sq{flex:1;height:32px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:.12s;background:#fff}
+.sq.on{background:var(--tint);border-color:var(--red);color:var(--red-dark);font-weight:700}
+
+.mode{border:1px solid var(--line);border-radius:var(--r);padding:13px;transition:.15s;cursor:pointer;background:#fff}
+.mode:hover{border-color:var(--red-soft);background:var(--tint)}
+.mode p{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.mode-ico{width:30px;height:30px;border-radius:9px;background:var(--tint);color:var(--red);display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.flash{border:1px solid var(--line);border-radius:var(--r);padding:24px 18px;text-align:center;background:#fff}
+.flash .q{font-size:18px;font-weight:650;color:var(--ink);margin-bottom:5px}
+
+.navwrap{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:0 14px calc(12px + env(safe-area-inset-bottom));pointer-events:none}
+.navbar{pointer-events:auto;display:flex;align-items:center;justify-content:space-around;gap:2px;background:var(--glass-strong);backdrop-filter:blur(22px) saturate(1.7);-webkit-backdrop-filter:blur(22px) saturate(1.7);border:1px solid var(--glass-line);border-radius:26px;padding:8px 10px;box-shadow:var(--shadow-lg);max-width:520px;margin:0 auto;position:relative}
+.nb{display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 8px;border-radius:14px;font-size:9.5px;font-weight:600;color:var(--muted);transition:.15s;min-width:52px}
+.nb .ico{width:20px;height:20px}
+.nb.on{color:var(--red);background:var(--tint)}
+.nb:hover{color:var(--ink)}
+.nb.on:hover{color:var(--red)}
+.ai-fab{pointer-events:auto;width:58px;height:58px;border-radius:50%;flex:0 0 auto;background:linear-gradient(150deg,#C22540,#A6122B 55%,#7C0E20);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px rgba(166,18,43,.42),inset 0 1px 0 rgba(255,255,255,.28);border:2px solid rgba(255,255,255,.5);margin-top:-26px;transition:.18s}
+.ai-fab .ico{width:25px;height:25px;stroke-width:1.9}
+.ai-fab:hover{transform:translateY(-2px) scale(1.03)}
+.ai-fab.on{background:linear-gradient(150deg,#7C0E20,#5C0A18)}
+
+.radial{position:fixed;inset:0;z-index:55;pointer-events:none}
+.radial-scrim{position:absolute;inset:0;background:rgba(23,19,19,.4);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;transition:opacity .22s}
+.radial.open{pointer-events:auto}
+.radial.open .radial-scrim{opacity:1}
+.radial-hub{position:absolute;left:50%;bottom:calc(52px + env(safe-area-inset-bottom));width:0;height:0}
+.rb{position:absolute;left:-30px;top:-30px;width:60px;height:60px;border-radius:50%;background:var(--glass-strong);backdrop-filter:blur(16px) saturate(1.6);-webkit-backdrop-filter:blur(16px) saturate(1.6);border:1px solid var(--glass-line);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:8.5px;font-weight:650;color:var(--ink);transform:translate(0,0) scale(.3);opacity:0;transition:transform .3s cubic-bezier(.2,1.2,.4,1),opacity .2s}
+.rb .ico{width:19px;height:19px;color:var(--red)}
+.radial.open .rb{opacity:1}
+.radial.open .rb:nth-child(1){transform:translate(-116px,-21px) scale(1);transition-delay:.02s}
+.radial.open .rb:nth-child(2){transform:translate(-94px,-71px) scale(1);transition-delay:.05s}
+.radial.open .rb:nth-child(3){transform:translate(-52px,-106px) scale(1);transition-delay:.08s}
+.radial.open .rb:nth-child(4){transform:translate(0px,-122px) scale(1);transition-delay:.11s}
+.radial.open .rb:nth-child(5){transform:translate(52px,-106px) scale(1);transition-delay:.14s}
+.radial.open .rb:nth-child(6){transform:translate(94px,-71px) scale(1);transition-delay:.17s}
+.radial.open .rb:nth-child(7){transform:translate(116px,-21px) scale(1);transition-delay:.2s}
+
+@media(min-width:900px){
+  .shell{display:flex}
+  .sidebar{display:flex;flex-direction:column;width:244px;flex:0 0 244px;border-right:1px solid var(--line);background:var(--surface);position:sticky;top:0;height:100vh;overflow-y:auto}
+  .brand{padding:20px 18px 16px;display:flex;align-items:center;gap:10px}
+  .brand-name{font-weight:750;font-size:18px;color:var(--ink);letter-spacing:-0.035em}
+  .brand-sub{font-size:10px;color:var(--muted);letter-spacing:0.09em;text-transform:uppercase;margin-top:-3px}
+  .nav{padding:0 11px 18px;flex:1}
+  .nav-label{font-size:10px;letter-spacing:0.11em;text-transform:uppercase;color:var(--muted);padding:12px 10px 6px;font-weight:700}
+  .nav-item{display:flex;align-items:center;gap:11px;width:100%;padding:8px 10px;border-radius:10px;font-size:13.5px;color:var(--body);transition:.13s;text-align:left}
+  .nav-item .ico{color:var(--muted)}
+  .nav-item:hover{background:var(--line-soft);color:var(--ink)}
+  .nav-item.on{background:var(--tint);color:var(--red-dark);font-weight:600}
+  .nav-item.on .ico{color:var(--red)}
+  .nav-item .badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:650;padding:1px 6px;border-radius:20px}
+  .side-foot{padding:13px 18px 18px;border-top:1px solid var(--line)}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--red-dark);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:650;flex:0 0 auto}
+  .main{flex:1;min-width:0}
+  .topbar{padding:14px 28px}
+  .topbar .brand-mark{display:none}
+  .page{padding:24px 28px 60px}
+  .navwrap,.radial{display:none}
+  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .split{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:14px}
+  h1{font-size:29px}
+  #map{height:440px}
+  .att-row{flex-direction:row;align-items:center;gap:12px}
+  .att-btns{flex:0 0 auto}
+  .att-btn{flex:0 0 auto}
+  .eval-grid{grid-template-columns:minmax(0,1fr) auto;gap:2px 16px;align-items:center}
+  .eval-scale{padding-bottom:0}
+  .sq{width:30px;height:30px;flex:0 0 auto}
+  .tt{font-size:12.5px}
+  .tt th:first-child{width:52px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">T</div>
+    <div><div class="brand-name">TUPian</div><div class="brand-sub">TUP Manila</div></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-label">Daily</div>
+    <button class="nav-item on" data-page="today"><svg class="ico" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>Today</button>
+    <button class="nav-item" data-page="commute"><svg class="ico" viewBox="0 0 24 24"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>Commute</button>
+    <button class="nav-item" data-page="schedule"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Schedule</button>
+    <button class="nav-item" data-page="deadlines"><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3 6-6"/><rect x="3" y="4" width="18" height="17" rx="2"/></svg>Deadlines<span class="badge">4</span></button>
+    <button class="nav-item" data-page="announcements"><svg class="ico" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zM16 9a4 4 0 010 6"/></svg>Announcements<span class="badge">2</span></button>
+    <div class="nav-label">Academics</div>
+    <button class="nav-item" data-page="attendance"><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>Attendance</button>
+    <button class="nav-item" data-page="grades"><svg class="ico" viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>Grades &amp; GWA</button>
+    <button class="nav-item" data-page="study"><svg class="ico" viewBox="0 0 24 24"><path d="M4 5a2 2 0 012-2h13v18H6a2 2 0 01-2-2z"/><path d="M9 7h7M9 11h7"/></svg>Study</button>
+    <button class="nav-item" data-page="eval"><svg class="ico" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6.1L12 16.8 6.7 19.7l1.1-6.1L3.4 9.4l6-.8z"/></svg>Faculty eval</button>
+    <div class="nav-label">More</div>
+    <button class="nav-item" data-page="assistant"><svg class="ico" viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-8 8H4l2.2-2.8A8 8 0 1121 12z"/></svg>Ask TUPian</button>
+    <a class="nav-item" href="campus.html"><svg class="ico" viewBox="0 0 24 24"><path d="M9 3L3 5.5v15L9 18l6 3 6-2.5v-15L15 6z"/><path d="M9 3v15M15 6v15"/></svg>Campus map</a>
+    <button class="nav-item" data-page="settings"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8a2 2 0 11-2.8 2.8a1.6 1.6 0 00-2.7 1.1V21a2 2 0 11-4 0a1.6 1.6 0 00-2.7-1.1a2 2 0 11-2.8-2.8A1.6 1.6 0 003 15a2 2 0 010-4a1.6 1.6 0 001.7-2.7a2 2 0 112.8-2.8A1.6 1.6 0 0011 3a2 2 0 014 0a1.6 1.6 0 002.7 1.1a2 2 0 112.8 2.8A1.6 1.6 0 0021 11a2 2 0 010 4z"/></svg>Settings</button>
+  </nav>
+  <div class="side-foot">
+    <div class="row">
+      <div class="avatar">KS</div>
+      <div><b style="font-size:13px;color:var(--ink)">Kien Serapio</b><div class="tiny muted">BSCS 3-1 · 2nd sem</div></div>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <div class="brand-mark">T</div>
+    <div>
+      <div class="topbar-title" id="topTitle">Today</div>
+      <div class="topbar-date">Monday, 3 August</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="gbtn" aria-label="Search"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+      <button class="gbtn" aria-label="Notifications"><svg class="ico" viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span class="dot"></span></button>
+    </div>
+  </header>
+
+  <!-- TODAY -->
+  <section class="page" id="p-today">
+    <div class="page-head">
+      <h1>Magandang umaga, Kien</h1>
+      <p>Three classes, one quiz on Friday, and rain on the way in.</p>
+    </div>
+
+    <!-- 1. NEXT CLASS -->
+    <div class="nowcard">
+      <div class="nc-top">
+        <span class="nc-lbl">Up next</span>
+        <span class="nc-count">in 40 minutes</span>
+      </div>
+      <div class="nc-code">CS 3105</div>
+      <div class="nc-name">Software engineering</div>
+      <div class="nc-meta">
+        <span class="nc-chip"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>10:00 – 12:00</span>
+        <span class="nc-chip"><svg class="ico" viewBox="0 0 24 24"><path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M10 21v-6h4v6"/></svg>Rm 312 · CoS 3F</span>
+        <span class="nc-chip"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>Prof. Dela Cruz</span>
+      </div>
+      <div class="nc-next">
+        <svg class="ico" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M13 5l7 7-7 7M4 12h16"/></svg>
+        Then CS 3107 at 2:00 in Lab 4 — your last class today
+      </div>
+      <div class="nc-foot">
+        <span>Leave the library by <b class="mono">9:52</b> — 6 minute walk</span>
+        <button class="nc-btn" data-page="attendance">Log attendance</button>
+      </div>
+    </div>
+
+    <!-- 2. QUICK ACTIONS -->
+    <div class="qgrid">
+      <button class="qtile" data-page="attendance">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>Log attendance
+      </button>
+      <button class="qtile">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>Snap a deadline
+      </button>
+      <button class="qtile" data-page="commute">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>Plan my trip
+      </button>
+      <button class="qtile" data-page="study">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M4 5a2 2 0 012-2h13v18H6a2 2 0 01-2-2z"/><path d="M9 7h7M9 11h7"/></svg>Study now
+      </button>
+      <button class="qtile">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M12 14h4"/></svg>Find free block
+      </button>
+      <button class="qtile" data-page="assistant">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-8 8H4l2.2-2.8A8 8 0 1121 12z"/><path d="M9 11h.01M13 11h.01M17 11h.01"/></svg>Ask TUPian
+      </button>
+    </div>
+
+    <!-- 3. TOMORROW'S DEPARTURE -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="spread" style="margin-bottom:2px">
+        <h3 style="font-size:14px">Tomorrow's 7:00 class</h3>
+        <span class="pill pill-red">leave 5:40 AM</span>
+      </div>
+      <p class="small muted">Rush hour adds ~20 min on LRT-1 and rain is forecast at 6 AM, so your alarm moved 15 minutes earlier.</p>
+      <div class="dline">
+        <div class="dl"><div class="dl-dot"></div><div class="dl-t">4:55</div><div class="dl-l">wake</div></div>
+        <div class="dl"><div class="dl-dot"></div><div class="dl-t">5:40</div><div class="dl-l">leave</div></div>
+        <div class="dl dim"><div class="dl-dot"></div><div class="dl-t">6:45</div><div class="dl-l">arrive</div></div>
+        <div class="dl dim"><div class="dl-dot"></div><div class="dl-t">7:00</div><div class="dl-l">class</div></div>
+      </div>
+      <div class="row wrap" style="margin-top:13px">
+        <button class="btn btn-sm" data-page="commute">See the route</button>
+        <button class="btn btn-sm btn-ghost">Change my alarm</button>
+      </div>
+    </div>
+
+    <!-- 4. REST OF DAY -->
+    <div class="ribbon-wrap" style="margin-bottom:14px">
+      <div class="spread"><h3 style="font-size:14px">Rest of your day</h3><span class="tiny muted">2 classes left</span></div>
+      <div class="ribbon">
+        <div class="ribbon-track"></div>
+        <div class="blk done" style="left:1%;width:15%"><b>MATH</b><i>7:00</i></div>
+        <div class="blk" style="left:24.5%;width:15.5%"><b>CS3105</b><i>Rm 312</i></div>
+        <div class="blk other" style="left:41.5%;width:7%"><b>LUNCH</b><i></i></div>
+        <div class="blk" style="left:57.5%;width:23%"><b>CS3107</b><i>Lab 4</i></div>
+        <div class="nowline" style="left:22.5%"></div>
+      </div>
+      <div class="ticks"><span>7am</span><span>10am</span><span>1pm</span><span>4pm</span><span>7pm</span></div>
+    </div>
+
+    <div class="split">
+      <div class="stack">
+        <div class="card">
+          <div class="card-head"><h3>Due soon</h3><button class="btn btn-sm" data-page="deadlines">See all</button></div>
+          <div class="list">
+            <div class="item"><span class="pill pill-red">2 days</span><div class="item-main"><div class="item-title">SE project — sprint 2 docs</div><div class="item-meta"><span class="mono">CS 3105</span> · Wed 11:59 PM</div></div></div>
+            <div class="item"><span class="pill pill-warn">4 days</span><div class="item-main"><div class="item-title">Long quiz — automata</div><div class="item-meta"><span class="mono">CS 3107</span> · Fri 2:00 PM</div></div></div>
+            <div class="item"><span class="pill">next wk</span><div class="item-main"><div class="item-title">Reaction paper</div><div class="item-meta"><span class="mono">TECHNO 1</span> · Mon 10 Aug</div></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Announcements</h3><span class="tiny muted">2 new</span></div>
+          <div class="list">
+            <div class="item"><div class="item-main">
+              <div class="row wrap" style="gap:6px;margin-bottom:3px"><span class="code">CS 3107</span><span class="pill pill-ok" style="font-size:10px">verified beadle</span></div>
+              <div class="item-title">Long quiz moved to Friday. Coverage up to pumping lemma.</div>
+              <div class="item-meta">2 hours ago</div>
+              <div class="row wrap" style="margin-top:8px"><button class="btn btn-sm btn-primary">Add to deadlines</button><button class="btn btn-sm">Remind me</button></div>
+            </div></div>
+            <div class="item"><div class="item-main">
+              <div class="row wrap" style="gap:6px;margin-bottom:3px"><span class="code" style="background:#F1F4F7;color:#2E4360">UNIVERSITY</span></div>
+              <div class="item-title">Enrollment for 1st sem opens 17 August.</div>
+              <div class="item-meta">Yesterday · Registrar</div>
+            </div></div>
+          </div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3 style="font-size:14px;margin-bottom:12px">Am I okay?</h3>
+          <div class="stack" style="gap:12px">
+            <div><div class="spread small"><span>Projected GWA</span><b class="mono" style="color:var(--ink)">1.68</b></div><div class="bar ok" style="margin-top:5px"><span style="width:78%"></span></div><div class="tiny muted" style="margin-top:4px">Above your 1.75 target</div></div>
+            <div><div class="spread small"><span>Absences used</span><b class="mono" style="color:var(--warn)">5 / 12</b></div><div class="bar warn" style="margin-top:5px"><span style="width:42%"></span></div><div class="tiny muted" style="margin-top:4px">CS 3105 is closest to the limit</div></div>
+            <div><div class="spread small"><span>This week's load</span><b class="mono" style="color:var(--ink)">3 tasks</b></div><div class="bar" style="margin-top:5px"><span style="width:35%"></span></div><div class="tiny muted" style="margin-top:4px">Lighter than last week</div></div>
+          </div>
+        </div>
+        <div class="card card-tight card-glass">
+          <div class="item-title" style="font-size:13.5px;margin-bottom:2px">Install TUPian</div>
+          <p class="tiny muted" style="margin-bottom:10px">Add it to your home screen so reminders work and your schedule loads without signal.</p>
+          <button class="btn btn-sm btn-primary btn-full">Add to home screen</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMUTE -->
+  <section class="page" id="p-commute" hidden>
+    <div class="page-head"><h1>Commute</h1><p>Ask how to get anywhere around TUP. Routes appear on the map with real fares and times.</p></div>
+
+    <div class="alert hot" style="margin-bottom:12px">
+      <svg class="ico" viewBox="0 0 24 24" style="color:var(--red);margin-top:2px"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 001.7 3h16.6A2 2 0 0022 18L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+      <div><b>Rush hour, and it's raining</b><p>LRT-1 queues at Monumento are long right now. Add 20–25 minutes, or take the bus route instead.</p></div>
+    </div>
+
+    <div class="map-wrap">
+      <div id="map"></div>
+      <div class="map-badge" id="mapBadge">Caloocan → TUP Manila</div>
+      <div class="map-legend">
+        <div class="lg"><em style="background:#A6122B"></em>Fastest</div>
+        <div class="lg"><em style="background:#2E6FB5"></em>Cheapest</div>
+        <div class="lg"><em style="background:#1B7A4B"></em>Fewest transfers</div>
+      </div>
+    </div>
+
+    <div class="composer" style="margin-bottom:12px">
+      <input id="commuteAsk" placeholder="Ask: how do I get to TUP from Caloocan?">
+      <button class="gbtn" aria-label="Voice"><svg class="ico" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></button>
+      <button class="btn btn-primary btn-sm">Ask</button>
+    </div>
+
+    <div class="chips">
+      <button class="chip" data-route="fast">Fastest from Caloocan</button>
+      <button class="chip" data-route="cheap">Cheapest route</button>
+      <button class="chip" data-route="few">Fewest transfers</button>
+      <button class="chip" data-route="fast">Going home tonight</button>
+    </div>
+
+    <div class="chat">
+      <div class="msg me">how do I get to TUP from Caloocan?</div>
+      <div class="msg ai">Three ways work from Grace Park. The <b>fastest</b> is a jeep to Monumento, LRT-1 down to Central Terminal, then an 8-minute walk — about 55 minutes for <b>₱41</b> with your student discount. All three are on the map; tap a card to switch.</div>
+    </div>
+
+    <div class="stack" style="margin-bottom:12px">
+      <div class="route-card on" data-route="fast">
+        <div class="spread" style="margin-bottom:11px"><span class="pill pill-red">Fastest</span><span class="small">~55 min · <b class="mono" style="color:var(--ink)">₱41</b></span></div>
+        <div class="leg"><div class="leg-ico" style="background:#3B3330">J</div><span>Jeep to Monumento</span><span class="leg-cost">12 min · ₱11</span></div>
+        <div class="leg"><div class="leg-ico" style="background:#A6122B">L1</div><span>LRT-1 → Central Terminal</span><span class="leg-cost">32 min · ₱30</span></div>
+        <div class="leg"><div class="leg-ico" style="background:#8A817C">W</div><span>Walk via Ayala Blvd</span><span class="leg-cost">8 min · free</span></div>
+        <div class="spread tiny muted" style="border-top:1px solid var(--line);margin-top:11px;padding-top:8px"><span>20% student discount applied</span><span>Verified 12 days ago</span></div>
+      </div>
+      <div class="route-card" data-route="cheap">
+        <div class="spread" style="margin-bottom:11px"><span class="pill">Cheapest</span><span class="small">~75 min · <b class="mono" style="color:var(--ink)">₱26</b></span></div>
+        <div class="leg"><div class="leg-ico" style="background:#3B3330">J</div><span>Jeep to Monumento</span><span class="leg-cost">12 min · ₱11</span></div>
+        <div class="leg"><div class="leg-ico" style="background:#2E6FB5">B</div><span>Bus, EDSA → Lawton</span><span class="leg-cost">48 min · ₱15</span></div>
+        <div class="leg"><div class="leg-ico" style="background:#8A817C">W</div><span>Walk from Lawton</span><span class="leg-cost">15 min · free</span></div>
+        <p class="tiny" style="border-top:1px solid var(--line);margin-top:11px;padding-top:8px;color:var(--warn)">Heavy traffic on EDSA before 8 AM — add 20–30 min.</p>
+      </div>
+      <div class="route-card" data-route="few">
+        <div class="spread" style="margin-bottom:11px"><span class="pill">Fewest transfers</span><span class="small">~65 min · <b class="mono" style="color:var(--ink)">₱60</b></span></div>
+        <div class="leg"><div class="leg-ico" style="background:#1B7A4B">UV</div><span>UV Express to Lawton</span><span class="leg-cost">50 min · ₱60</span></div>
+        <div class="leg"><div class="leg-ico" style="background:#8A817C">W</div><span>Walk from Lawton</span><span class="leg-cost">15 min · free</span></div>
+        <p class="tiny muted" style="border-top:1px solid var(--line);margin-top:11px;padding-top:8px">Terminal queues get long between 6 and 7 AM.</p>
+      </div>
+    </div>
+
+    <div class="card card-tight" style="background:var(--surface);margin-bottom:12px">
+      <div class="spread wrap">
+        <div><div class="item-title" style="font-size:13.5px">Know a better route?</div><p class="tiny muted">Fares and times come from students who ride them daily.</p></div>
+        <button class="btn btn-sm">Add a route</button>
+      </div>
+    </div>
+
+    <div class="sec-title">Departure alerts</div>
+    <div class="card">
+      <div class="list">
+        <div class="item"><div class="item-main"><div class="item-title">Wake-up alarm</div><div class="item-meta">45 min to prepare before you leave</div></div><span class="pill pill-ok">on</span></div>
+        <div class="item"><div class="item-main"><div class="item-title">Leave-now nudge</div><div class="item-meta">Adjusted for rush hour and weather</div></div><span class="pill pill-ok">on</span></div>
+        <div class="item"><div class="item-main"><div class="item-title">Arrive-early buffer</div><div class="item-meta">Before class starts</div></div><span class="pill mono">15 min</span></div>
+        <div class="item"><div class="item-main"><div class="item-title">Disruption alerts</div><div class="item-meta">Rail outages, road closures, heavy rain</div></div><span class="pill pill-ok">on</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ASSISTANT -->
+  <section class="page" id="p-assistant" hidden>
+    <div class="page-head"><h1>Ask TUPian</h1><p>Your schedule, your grades, your campus. Ask in English or Filipino.</p></div>
+    <div class="chips">
+      <button class="chip">When am I free this week?</button>
+      <button class="chip">Ilang cuts pa meron ako?</button>
+      <button class="chip">What do I need on the SE final?</button>
+      <button class="chip">Is CS 3105 a prereq for capstone?</button>
+      <button class="chip">Where is Room 312?</button>
+    </div>
+    <div class="chat">
+      <div class="msg me">ilang cuts pa meron ako sa software eng?</div>
+      <div class="msg ai">Tatlo sa lima na ang nagamit mo sa CS 3105 — <b>dalawa na lang</b> ang natitira. Iyan ang pinakamalapit sa limit mo ngayong term; ang iba nasa 1 o 0 pa lang.</div>
+      <div class="msg me">when am I free for at least 2 hours this week?</div>
+      <div class="msg ai">Three blocks fit:<br><b>Thursday 1:00–5:00 PM</b> — your longest, nothing after<br><b>Tuesday 12:00–2:00 PM</b> — right after TECHNO 1<br><b>Friday 9:00 AM–1:00 PM</b> — but the automata quiz is at 2:00, so you may want this for review.</div>
+      <div class="msg me">is CS 3105 a prereq for capstone?</div>
+      <div class="msg ai">Yes. Software engineering is a prerequisite for Capstone Project 1, together with Data Structures. You've finished Data Structures, so passing CS 3105 this term clears you for capstone next year.
+        <div class="src">BSCS curriculum checklist (2023 revision) · <b style="color:var(--red-dark)">View source</b></div>
+      </div>
+    </div>
+    <div class="composer">
+      <input placeholder="Ask about your classes, grades, or campus">
+      <button class="gbtn" aria-label="Voice"><svg class="ico" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></button>
+      <button class="btn btn-primary btn-sm">Send</button>
+    </div>
+    <p class="tiny muted" style="margin-top:8px">Answers about grades, prerequisites, and fares come from your data or TUP's documents. Double-check anything that matters.</p>
+  </section>
+
+  <!-- SCHEDULE -->
+  <section class="page" id="p-schedule" hidden>
+    <div class="page-head"><h1>Schedule</h1><p>Imported from ERS on 28 July. Everything else reads from this.</p></div>
+    <div class="row wrap" style="margin-bottom:14px"><button class="btn btn-sm btn-primary">Re-import from ERS</button><button class="btn btn-sm">Add a block</button></div>
+    <div class="card" style="overflow-x:auto;margin-bottom:12px">
+      <table class="tt">
+        <thead><tr><th></th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr></thead>
+        <tbody>
+          <tr><td class="hr">7:00</td><td rowspan="2"><div class="slot b"><b>MATH</b><i>208</i></div></td><td></td><td rowspan="2"><div class="slot b"><b>MATH</b><i>208</i></div></td><td></td><td></td></tr>
+          <tr><td class="hr">8:00</td><td></td><td></td><td></td><td></td></tr>
+          <tr><td class="hr">9:00</td><td></td><td rowspan="2"><div class="slot c"><b>TECHNO</b><i>401</i></div></td><td></td><td rowspan="2"><div class="slot c"><b>TECHNO</b><i>401</i></div></td><td></td></tr>
+          <tr><td class="hr">10:00</td><td rowspan="2"><div class="slot"><b>CS3105</b><i>312</i></div></td><td rowspan="2"><div class="slot"><b>CS3105</b><i>312</i></div></td><td></td></tr>
+          <tr><td class="hr">11:00</td><td></td><td></td></tr>
+          <tr><td class="hr">12:00</td><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td class="hr">1:00</td><td></td><td></td><td rowspan="3"><div class="slot"><b>CS3107</b><i>Lab 4</i></div></td><td></td><td rowspan="3"><div class="slot"><b>CS3107</b><i>Lab 4</i></div></td></tr>
+          <tr><td class="hr">2:00</td><td rowspan="2"><div class="slot"><b>CS3107</b><i>Lab 4</i></div></td><td rowspan="2"><div class="slot b"><b>PE 4</b><i>Gym</i></div></td><td></td></tr>
+          <tr><td class="hr">3:00</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="grid g3">
+      <div class="stat"><div class="lbl">Units</div><div class="val mono">21</div><div class="sub">6 subjects</div></div>
+      <div class="stat"><div class="lbl">Contact hours</div><div class="val mono">27</div><div class="sub">per week</div></div>
+      <div class="stat"><div class="lbl">Longest free block</div><div class="val mono">4h</div><div class="sub">Thursday PM</div></div>
+    </div>
+  </section>
+
+  <!-- ATTENDANCE -->
+  <section class="page" id="p-attendance" hidden>
+    <div class="page-head"><h1>Attendance</h1><p>Only you can see this. Tap once after class.</p></div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-head"><h3>Today</h3><span class="tiny muted">1 of 3 logged</span></div>
+      <div class="att-row">
+        <div class="item-main"><div class="item-title"><span class="code">MATH 2103</span> Differential equations</div><div class="item-meta mono">7:00–9:00 · Rm 208</div></div>
+        <div class="att-btns"><button class="att-btn sel-p">Present</button><button class="att-btn">Absent</button><button class="att-btn">Late</button></div>
+      </div>
+      <div class="att-row">
+        <div class="item-main"><div class="item-title"><span class="code">CS 3105</span> Software engineering</div><div class="item-meta mono">10:00–12:00 · Rm 312</div></div>
+        <div class="att-btns"><button class="att-btn">Present</button><button class="att-btn">Absent</button><button class="att-btn">Late</button></div>
+      </div>
+      <div class="att-row">
+        <div class="item-main"><div class="item-title"><span class="code">CS 3107</span> Automata theory</div><div class="item-meta mono">2:00–5:00 · Lab 4</div></div>
+        <div class="att-btns"><button class="att-btn">Present</button><button class="att-btn">Absent</button><button class="att-btn">Late</button></div>
+      </div>
+    </div>
+    <div class="sec-title">Per subject</div>
+    <div class="grid g2">
+      <div class="card card-tight"><div class="spread" style="margin-bottom:8px"><span class="code">CS 3105</span><span class="pill pill-warn">2 left</span></div><div class="bar warn"><span style="width:60%"></span></div><div class="spread tiny muted" style="margin-top:5px"><span>3 absences used</span><span class="mono">limit 5</span></div></div>
+      <div class="card card-tight"><div class="spread" style="margin-bottom:8px"><span class="code">MATH 2103</span><span class="pill pill-ok">4 left</span></div><div class="bar ok"><span style="width:20%"></span></div><div class="spread tiny muted" style="margin-top:5px"><span>1 absence used</span><span class="mono">limit 5</span></div></div>
+      <div class="card card-tight"><div class="spread" style="margin-bottom:8px"><span class="code">CS 3107</span><span class="pill pill-ok">4 left</span></div><div class="bar ok"><span style="width:20%"></span></div><div class="spread tiny muted" style="margin-top:5px"><span>1 absence used</span><span class="mono">limit 5</span></div></div>
+      <div class="card card-tight"><div class="spread" style="margin-bottom:8px"><span class="code">PE 4</span><span class="pill pill-ok">3 left</span></div><div class="bar ok"><span style="width:0%"></span></div><div class="spread tiny muted" style="margin-top:5px"><span>0 absences used</span><span class="mono">limit 3</span></div></div>
+    </div>
+  </section>
+
+  <!-- GRADES -->
+  <section class="page" id="p-grades" hidden>
+    <div class="page-head"><h1>Grades &amp; GWA</h1><p>Your numbers, and what you'd need to hit the ones you want.</p></div>
+    <div class="grid g4" style="margin-bottom:14px">
+      <div class="stat"><div class="lbl">This term</div><div class="val mono">1.68</div><div class="sub">projected</div></div>
+      <div class="stat"><div class="lbl">Cumulative</div><div class="val mono">1.74</div><div class="sub">5 terms</div></div>
+      <div class="stat"><div class="lbl">Units earned</div><div class="val mono">108</div><div class="sub">of 168</div></div>
+      <div class="stat"><div class="lbl">Standing</div><div class="val" style="font-size:18px;padding-top:6px">Dean's list</div><div class="sub">if you hold 1.75</div></div>
+    </div>
+    <div class="split">
+      <div class="card">
+        <div class="card-head"><h3>This term</h3><span class="tiny muted">unit-weighted</span></div>
+        <div class="list">
+          <div class="item"><div class="item-main"><div class="item-title"><span class="code">CS 3105</span> Software engineering</div><div class="item-meta">3 units</div></div><b class="mono" style="color:var(--ink)">1.50</b></div>
+          <div class="item"><div class="item-main"><div class="item-title"><span class="code">CS 3107</span> Automata theory</div><div class="item-meta">3 units</div></div><b class="mono" style="color:var(--ink)">1.75</b></div>
+          <div class="item"><div class="item-main"><div class="item-title"><span class="code">MATH 2103</span> Differential equations</div><div class="item-meta">3 units</div></div><b class="mono" style="color:var(--ink)">2.00</b></div>
+          <div class="item"><div class="item-main"><div class="item-title"><span class="code">TECHNO 1</span> Technopreneurship</div><div class="item-meta">3 units</div></div><b class="mono" style="color:var(--ink)">1.25</b></div>
+          <div class="item"><div class="item-main"><div class="item-title"><span class="code">PE 4</span> Team sports</div><div class="item-meta">2 units</div></div><b class="mono muted">—</b></div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3 style="font-size:14px;margin-bottom:3px">What-if planner</h3>
+          <p class="small muted" style="margin-bottom:12px">Set a target, see what each subject needs.</p>
+          <div class="spread" style="margin-bottom:7px"><span class="small">Target GWA</span><b class="mono" style="color:var(--red);font-size:17px">1.50</b></div>
+          <input type="range" min="1" max="3" step="0.25" value="1.5" style="width:100%;accent-color:var(--red)">
+          <div class="list" style="margin-top:12px">
+            <div class="item" style="padding:8px 0"><div class="item-main small"><span class="code">PE 4</span> needs</div><b class="mono pill pill-ok">1.00</b></div>
+            <div class="item" style="padding:8px 0"><div class="item-main small"><span class="code">MATH 2103</span> needs</div><b class="mono pill pill-warn">1.50</b></div>
+          </div>
+          <p class="tiny muted" style="margin-top:10px">Possible but tight — you'd need to raise diff-eq by half a step.</p>
+        </div>
+        <div class="card card-tight">
+          <h3 style="font-size:14px;margin-bottom:9px">Course breakdown</h3>
+          <div class="small" style="margin-bottom:7px"><span class="code">CS 3105</span> current standing</div>
+          <div class="bar"><span style="width:87%"></span></div>
+          <div class="spread tiny muted" style="margin-top:5px"><span>87% weighted so far</span><span class="mono">final = 40%</span></div>
+          <p class="tiny" style="margin-top:9px;color:var(--body)">You need <b class="mono" style="color:var(--ink)">78%</b> on the final to keep 1.50.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEADLINES -->
+  <section class="page" id="p-deadlines" hidden>
+    <div class="page-head"><h1>Deadlines</h1><p>Everything due, across every subject.</p></div>
+    <div class="row wrap" style="margin-bottom:13px"><button class="btn btn-sm btn-primary">Add deadline</button><button class="btn btn-sm">Snap from photo</button></div>
+    <div class="card" style="border-color:#F0CDD2;background:var(--tint);margin-bottom:12px">
+      <div class="spread" style="margin-bottom:9px"><h3 style="font-size:14px;color:var(--red-dark)">Next 48 hours</h3><span class="pill pill-red">1 item</span></div>
+      <div class="item" style="border:none;padding:0">
+        <div class="item-main"><div class="item-title">SE project — sprint 2 documentation</div><div class="item-meta"><span class="mono">CS 3105</span> · Wed 11:59 PM · 3 subtasks left</div></div>
+        <button class="btn btn-sm btn-primary">Open</button>
+      </div>
+    </div>
+    <div class="sec-title">This week</div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="list">
+        <div class="item"><span class="pill pill-warn mono">Fri</span><div class="item-main"><div class="item-title">Long quiz — automata</div><div class="item-meta"><span class="mono">CS 3107</span> · 2:00 PM</div></div><button class="btn btn-sm" data-page="study">Study</button></div>
+        <div class="item"><span class="pill mono">Fri</span><div class="item-main"><div class="item-title">Problem set 4 — Laplace</div><div class="item-meta"><span class="mono">MATH 2103</span> · 7:00 AM</div></div></div>
+      </div>
+    </div>
+    <div class="sec-title">Next week</div>
+    <div class="card">
+      <div class="list">
+        <div class="item"><span class="pill mono">Mon</span><div class="item-main"><div class="item-title">Reaction paper</div><div class="item-meta"><span class="mono">TECHNO 1</span> · 1,500 words</div></div></div>
+        <div class="item"><span class="pill mono">Thu</span><div class="item-main"><div class="item-title">Capstone proposal defense</div><div class="item-meta"><span class="mono">CS 3105</span> · 4 members</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ANNOUNCEMENTS -->
+  <section class="page" id="p-announcements" hidden>
+    <div class="page-head"><h1>Announcements</h1><p>Shared from your group chats, sorted into the right subject.</p></div>
+    <div class="card card-tight card-glass" style="margin-bottom:14px">
+      <div class="row" style="align-items:flex-start;gap:10px">
+        <svg class="ico" viewBox="0 0 24 24" style="color:var(--red);margin-top:2px"><path d="M12 3v13M8 7l4-4 4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        <div><div class="item-title" style="font-size:13.5px">Share straight from Messenger</div><p class="tiny muted">Long-press a message → Share → TUPian. Screenshots work too.</p></div>
+      </div>
+    </div>
+    <div class="row wrap" style="margin-bottom:12px"><button class="btn btn-sm btn-primary">All</button><button class="btn btn-sm">Unread</button><button class="btn btn-sm">University</button></div>
+    <div class="stack">
+      <div class="card">
+        <div class="row wrap" style="margin-bottom:7px;gap:6px"><span class="code">CS 3107</span><span class="pill pill-ok">verified beadle</span><span class="tiny muted" style="margin-left:auto">2h ago</span></div>
+        <p style="color:var(--ink);font-size:14px">Long quiz moved to Friday, same time. Coverage is up to pumping lemma. Bring your own paper.</p>
+        <div class="row wrap" style="margin-top:11px"><button class="btn btn-sm btn-primary">Add to deadlines</button><button class="btn btn-sm">Remind me</button></div>
+      </div>
+      <div class="card">
+        <div class="row wrap" style="margin-bottom:7px;gap:6px"><span class="code" style="background:#F1F4F7;color:#2E4360">UNIVERSITY</span><span class="tiny muted" style="margin-left:auto">yesterday</span></div>
+        <p style="color:var(--ink);font-size:14px">Enrollment for 1st semester AY 2026–2027 opens 17 August. Check ERS for your slot.</p>
+        <div class="row" style="margin-top:11px"><button class="btn btn-sm">Add to calendar</button></div>
+      </div>
+      <div class="card">
+        <div class="row wrap" style="margin-bottom:7px;gap:6px"><span class="code">CS 3105</span><span class="pill">3 confirmed</span><span class="tiny muted" style="margin-left:auto">2d ago</span></div>
+        <p style="color:var(--ink);font-size:14px">Room change: Wednesday's class is in Rm 305, not 312. This week only.</p>
+        <div class="row wrap" style="margin-top:11px"><button class="btn btn-sm">Update my schedule</button><button class="btn btn-sm btn-ghost">Looks wrong</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STUDY -->
+  <section class="page" id="p-study" hidden>
+    <div class="page-head"><h1>Study</h1><p>Turn your own notes into something you can actually review.</p></div>
+    <div class="card" style="margin-bottom:14px;border-style:dashed;text-align:center;padding:22px">
+      <h3 style="font-size:15px;margin-bottom:4px">Drop your notes, module, or slides</h3>
+      <p class="small muted" style="margin-bottom:12px">PDF, images, or text. Your file stays in your account.</p>
+      <button class="btn btn-primary">Choose a file</button>
+    </div>
+    <div class="sec-title">Study packs</div>
+    <div class="grid g2" style="margin-bottom:18px">
+      <div class="card card-tight">
+        <div class="spread" style="margin-bottom:8px"><span class="code">CS 3107</span><span class="ai-tag">AI-generated</span></div>
+        <div class="item-title">Automata &amp; formal languages</div><div class="item-meta">42 flashcards · 18 questions</div>
+        <div class="bar" style="margin-top:10px"><span style="width:64%"></span></div>
+        <div class="spread tiny muted" style="margin-top:5px"><span>27 of 42 mastered</span><span class="mono">quiz Fri</span></div>
+        <button class="btn btn-sm btn-primary btn-full" style="margin-top:10px">Review 12 cards due</button>
+      </div>
+      <div class="card card-tight">
+        <div class="spread" style="margin-bottom:8px"><span class="code">MATH 2103</span><span class="ai-tag">AI-generated</span></div>
+        <div class="item-title">Laplace transforms</div><div class="item-meta">28 flashcards · 10 questions</div>
+        <div class="bar ok" style="margin-top:10px"><span style="width:89%"></span></div>
+        <div class="spread tiny muted" style="margin-top:5px"><span>25 of 28 mastered</span><span class="mono">none due</span></div>
+        <button class="btn btn-sm btn-full" style="margin-top:10px">Open pack</button>
+      </div>
+    </div>
+    <div class="sec-title">How do you want to study?</div>
+    <div class="grid g3" style="margin-bottom:18px">
+      <div class="mode"><div class="mode-ico"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></div><h4>Pomodoro</h4><p>25 on, 5 off. Logged against the subject.</p></div>
+      <div class="mode"><div class="mode-ico"><svg class="ico" viewBox="0 0 24 24"><path d="M3 5h18M3 12h11M3 19h7"/></svg></div><h4>Blurt</h4><p>Notes hidden. Write what you remember, see the gaps.</p></div>
+      <div class="mode"><div class="mode-ico"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 10h8M8 14h5"/></svg></div><h4>Flashcards</h4><p>Cards return right before you'd forget.</p></div>
+      <div class="mode"><div class="mode-ico"><svg class="ico" viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-8 8H4l2.2-2.8A8 8 0 1121 12z"/></svg></div><h4>Feynman</h4><p>Explain it simply. Get the awkward follow-ups.</p></div>
+      <div class="mode"><div class="mode-ico"><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l2 2 4-5"/><rect x="4" y="3" width="16" height="18" rx="2"/></svg></div><h4>Practice test</h4><p>Timed and scored, shaped like the real thing.</p></div>
+      <div class="mode"><div class="mode-ico"><svg class="ico" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div><h4>Cram mode</h4><p>Exam in hours? Condensed pack, sprint plan.</p></div>
+    </div>
+    <div class="sec-title">In progress</div>
+    <div class="flash">
+      <div class="tiny muted mono" style="margin-bottom:11px">CARD 13 OF 42 · CS 3107</div>
+      <div class="q">What condition does the pumping lemma test for?</div>
+      <p class="small muted" style="margin-bottom:16px">Tap to reveal the answer</p>
+      <div class="row wrap" style="justify-content:center"><button class="btn btn-sm">Again</button><button class="btn btn-sm">Hard</button><button class="btn btn-sm btn-primary">Good</button><button class="btn btn-sm">Easy</button></div>
+      <p class="tiny muted" style="margin-top:14px">Generated from your notes — check it against the source.</p>
+    </div>
+  </section>
+
+  <!-- EVAL -->
+  <section class="page" id="p-eval" hidden>
+    <div class="page-head"><h1>Faculty evaluation</h1><p>Your answers, entered faster. Set a baseline, then change what's different.</p></div>
+    <div class="row wrap" style="margin-bottom:13px"><span class="pill pill-red">Faculty 3 of 7</span><span class="pill">4 drafts saved</span></div>
+    <div class="card">
+      <div class="spread" style="margin-bottom:12px">
+        <div><h3>Prof. R. Dela Cruz</h3><div class="item-meta"><span class="mono">CS 3105</span> · Software engineering</div></div>
+        <span class="pill pill-ok">12 / 15</span>
+      </div>
+      <div class="card card-tight" style="background:var(--tint);border-color:#F3D6DA;margin-bottom:14px">
+        <div class="row wrap" style="gap:8px">
+          <span class="small" style="color:var(--red-dark)">Set all to</span>
+          <button class="att-btn" style="flex:0 0 auto;padding:4px 11px">3</button>
+          <button class="att-btn" style="flex:0 0 auto;padding:4px 11px">4</button>
+          <button class="att-btn" style="flex:0 0 auto;padding:4px 11px">5</button>
+          <span class="tiny muted">then adjust what's different</span>
+        </div>
+      </div>
+      <div class="eval-grid">
+        <div class="eval-q">1. Explains lessons clearly</div>
+        <div class="eval-scale"><button class="sq">1</button><button class="sq">2</button><button class="sq">3</button><button class="sq">4</button><button class="sq on">5</button></div>
+        <div class="eval-q">2. Starts and ends class on time</div>
+        <div class="eval-scale"><button class="sq">1</button><button class="sq">2</button><button class="sq on">3</button><button class="sq">4</button><button class="sq">5</button></div>
+        <div class="eval-q">3. Returns graded work promptly</div>
+        <div class="eval-scale"><button class="sq">1</button><button class="sq">2</button><button class="sq">3</button><button class="sq on">4</button><button class="sq">5</button></div>
+        <div class="eval-q">4. Encourages student participation</div>
+        <div class="eval-scale"><button class="sq">1</button><button class="sq">2</button><button class="sq">3</button><button class="sq">4</button><button class="sq on">5</button></div>
+        <div class="eval-q">5. Uses fair assessment methods</div>
+        <div class="eval-scale"><button class="sq">1</button><button class="sq">2</button><button class="sq">3</button><button class="sq on">4</button><button class="sq">5</button></div>
+      </div>
+      <p class="tiny muted" style="margin:8px 0 14px">10 more questions</p>
+      <div style="border-top:1px solid var(--line);padding-top:13px">
+        <div class="spread" style="margin-bottom:7px">
+          <span class="small">Your comment</span>
+          <button class="btn btn-sm btn-ghost"><svg class="ico" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M12 3l1.9 4.1L18 9l-4.1 1.9L12 15l-1.9-4.1L6 9l4.1-1.9z"/></svg>Polish my bullets</button>
+        </div>
+        <textarea rows="3" style="width:100%;border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:13.5px;resize:vertical;background:#fff">– good examples in lectures
+– quizzes announced too late</textarea>
+        <p class="tiny muted" style="margin-top:6px">You'll review the polished version before anything is saved.</p>
+      </div>
+      <div class="spread" style="margin-top:14px"><span class="tiny muted">Draft saved</span><button class="btn btn-primary btn-sm">Next faculty →</button></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="page" id="p-settings" hidden>
+    <div class="page-head"><h1>Settings</h1><p>Your account, your data, and what TUPian is allowed to do.</p></div>
+    <div class="split">
+      <div class="stack">
+        <div class="card">
+          <h3 style="font-size:14px;margin-bottom:12px">Account</h3>
+          <div class="list">
+            <div class="item"><div class="item-main"><div class="item-title">Kien Serapio</div><div class="item-meta">BSCS 3-1</div></div><button class="btn btn-sm">Edit</button></div>
+            <div class="item"><div class="item-main"><div class="item-title">Schedule source</div><div class="item-meta">ERS · 28 July 2026</div></div><button class="btn btn-sm">Re-import</button></div>
+            <div class="item"><div class="item-main"><div class="item-title">Home address</div><div class="item-meta">Grace Park, Caloocan · used for departure alerts</div></div><button class="btn btn-sm">Change</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:14px;margin-bottom:12px">Departure &amp; alarms</h3>
+          <div class="list">
+            <div class="item"><div class="item-main"><div class="item-title">Preparation time</div><div class="item-meta">How long you need before leaving</div></div><span class="pill mono">45 min</span></div>
+            <div class="item"><div class="item-main"><div class="item-title">Arrive-early buffer</div><div class="item-meta">Before class starts</div></div><span class="pill mono">15 min</span></div>
+            <div class="item"><div class="item-main"><div class="item-title">Rush-hour adjustment</div><div class="item-meta">Adds time during peak windows</div></div><span class="pill pill-ok">on</span></div>
+            <div class="item"><div class="item-main"><div class="item-title">Weather adjustment</div><div class="item-meta">Adds time when rain is forecast</div></div><span class="pill pill-ok">on</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3 style="font-size:14px;margin-bottom:4px">Your data</h3>
+          <p class="tiny muted" style="margin-bottom:11px">Grades and attendance are visible only to you. TUPian never stores your ERS password.</p>
+          <div class="stack" style="gap:6px">
+            <button class="btn btn-sm btn-full" style="justify-content:flex-start">Export everything</button>
+            <button class="btn btn-sm btn-full" style="justify-content:flex-start">Manage schedule sharing</button>
+            <button class="btn btn-sm btn-full" style="justify-content:flex-start;color:var(--red)">Delete my account</button>
+          </div>
+        </div>
+        <div class="card card-tight">
+          <h3 style="font-size:14px;margin-bottom:9px">Preferences</h3>
+          <div class="spread" style="padding:6px 0"><span class="small">Language</span><span class="pill">English</span></div>
+          <div class="spread" style="padding:6px 0"><span class="small">Theme</span><span class="pill">Light</span></div>
+          <div class="spread" style="padding:6px 0"><span class="small">Week starts</span><span class="pill">Monday</span></div>
+        </div>
+        <div class="card card-tight card-glass">
+          <div class="item-title" style="font-size:13.5px;margin-bottom:2px">Install TUPian</div>
+          <p class="tiny muted" style="margin-bottom:10px">Add to your home screen so reminders work and your schedule loads without signal.</p>
+          <button class="btn btn-sm btn-primary btn-full">Add to home screen</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</div>
+
+<div class="radial" id="radial">
+  <div class="radial-scrim" id="radialScrim"></div>
+  <div class="radial-hub">
+    <button class="rb" data-page="attendance"><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>Attend</button>
+    <button class="rb" data-page="grades"><svg class="ico" viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>Grades</button>
+    <button class="rb" data-page="announcements"><svg class="ico" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zM16 9a4 4 0 010 6"/></svg>News</button>
+    <button class="rb" data-page="study"><svg class="ico" viewBox="0 0 24 24"><path d="M4 5a2 2 0 012-2h13v18H6a2 2 0 01-2-2z"/><path d="M9 7h7M9 11h7"/></svg>Study</button>
+    <button class="rb" data-page="schedule"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Sched</button>
+    <a class="rb" href="campus.html"><svg class="ico" viewBox="0 0 24 24"><path d="M9 3L3 5.5v15L9 18l6 3 6-2.5v-15L15 6z"/><path d="M9 3v15M15 6v15"/></svg>Campus</a>
+    <button class="rb" data-page="settings"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8a2 2 0 11-2.8 2.8a1.6 1.6 0 00-2.7 1.1V21a2 2 0 11-4 0a1.6 1.6 0 00-2.7-1.1a2 2 0 11-2.8-2.8A1.6 1.6 0 003 15a2 2 0 010-4a1.6 1.6 0 001.7-2.7a2 2 0 112.8-2.8A1.6 1.6 0 0011 3a2 2 0 014 0a1.6 1.6 0 002.7 1.1a2 2 0 112.8 2.8A1.6 1.6 0 0021 11a2 2 0 010 4z"/></svg>Settings</button>
+  </div>
+</div>
+
+<div class="navwrap">
+  <div class="navbar">
+    <button class="nb on" data-page="today"><svg class="ico" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>Today</button>
+    <button class="nb" data-page="commute"><svg class="ico" viewBox="0 0 24 24"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>Commute</button>
+    <button class="ai-fab" id="aiFab" aria-label="Ask TUPian"><svg class="ico" viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-8 8H4l2.2-2.8A8 8 0 1121 12z"/><path d="M9 11h.01M13 11h.01M17 11h.01"/></svg></button>
+    <button class="nb" data-page="deadlines"><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3 6-6"/><rect x="3" y="4" width="18" height="17" rx="2"/></svg>Due</button>
+    <button class="nb" id="moreBtn"><svg class="ico" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>More</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+  var titles={today:'Today',commute:'Commute',assistant:'Ask TUPian',schedule:'Schedule',
+    attendance:'Attendance',grades:'Grades & GWA',deadlines:'Deadlines',
+    announcements:'Announcements',study:'Study',eval:'Faculty evaluation',settings:'Settings'};
+  var radial=document.getElementById('radial');
+  var mapReady=false, map=null, current=null;
+
+  function closeRadial(){ radial.classList.remove('open'); }
+
+  function go(page){
+    document.querySelectorAll('.page').forEach(function(p){ p.hidden = (p.id!=='p-'+page); });
+    document.querySelectorAll('.nav-item').forEach(function(b){ b.classList.toggle('on', b.dataset.page===page); });
+    document.querySelectorAll('.nb').forEach(function(b){ b.classList.toggle('on', b.dataset.page===page); });
+    document.getElementById('aiFab').classList.toggle('on', page==='assistant');
+    document.getElementById('topTitle').textContent = titles[page]||'TUPian';
+    closeRadial();
+    window.scrollTo(0,0);
+    if(page==='commute'){ initMap(); setTimeout(function(){ if(map) map.invalidateSize(); },150); }
+  }
+
+  document.querySelectorAll('[data-page]').forEach(function(b){
+    b.addEventListener('click', function(){ go(b.dataset.page); });
+  });
+  document.getElementById('aiFab').addEventListener('click', function(){ go('assistant'); });
+  document.getElementById('moreBtn').addEventListener('click', function(e){
+    e.stopPropagation(); radial.classList.toggle('open');
+  });
+  document.getElementById('radialScrim').addEventListener('click', closeRadial);
+
+  document.querySelectorAll('.att-btns').forEach(function(g){
+    var bs=g.querySelectorAll('.att-btn');
+    bs.forEach(function(b,i){
+      b.addEventListener('click',function(){
+        bs.forEach(function(x){x.className='att-btn';});
+        b.className='att-btn '+['sel-p','sel-a','sel-l'][i];
+      });
+    });
+  });
+  document.querySelectorAll('.eval-scale').forEach(function(g){
+    g.querySelectorAll('.sq').forEach(function(b){
+      b.addEventListener('click',function(){
+        g.querySelectorAll('.sq').forEach(function(x){x.classList.remove('on');});
+        b.classList.add('on');
+      });
+    });
+  });
+
+  var TUP=[14.5873,120.9877];
+  var ROUTES={
+    fast:{color:'#A6122B',label:'Fastest · 55 min · ₱41',
+      path:[[14.6600,120.9820],[14.6549,120.9840],[14.6410,120.9836],[14.6220,120.9826],[14.6050,120.9818],[14.5931,120.9812],[14.5900,120.9845],[14.5873,120.9877]],
+      pins:[{ll:[14.6600,120.9820],t:'Start · Grace Park',c:'k'},{ll:[14.6549,120.9840],t:'Jeep → Monumento · ₱11',c:'k'},{ll:[14.5931,120.9812],t:'LRT-1 Central Terminal · ₱30',c:''},{ll:TUP,t:'TUP Manila · 8 min walk',c:''}]},
+    cheap:{color:'#2E6FB5',label:'Cheapest · 75 min · ₱26',
+      path:[[14.6600,120.9820],[14.6549,120.9840],[14.6520,121.0010],[14.6300,121.0180],[14.6100,121.0210],[14.5990,121.0020],[14.5943,120.9800],[14.5873,120.9877]],
+      pins:[{ll:[14.6549,120.9840],t:'Monumento · ₱11',c:'b'},{ll:[14.6300,121.0180],t:'Bus via EDSA · ₱15',c:'b'},{ll:[14.5943,120.9800],t:'Lawton · 15 min walk',c:'b'},{ll:TUP,t:'TUP Manila',c:''}]},
+    few:{color:'#1B7A4B',label:'Fewest transfers · 65 min · ₱60',
+      path:[[14.6600,120.9820],[14.6400,120.9880],[14.6200,120.9860],[14.6000,120.9830],[14.5943,120.9800],[14.5873,120.9877]],
+      pins:[{ll:[14.6600,120.9820],t:'UV Express terminal',c:'g'},{ll:[14.5943,120.9800],t:'Lawton · ₱60',c:'g'},{ll:TUP,t:'TUP Manila · 15 min walk',c:''}]}
+  };
+
+  function pinIcon(text,cls){
+    return L.divIcon({html:'<span class="pin '+(cls||'')+'">'+text+'</span>',iconSize:[0,0],iconAnchor:[0,10]});
+  }
+  function drawRoute(key){
+    if(!map) return;
+    if(current){ map.removeLayer(current); current=null; }
+    var r=ROUTES[key]; if(!r) return;
+    var g=L.layerGroup().addTo(map);
+    L.polyline(r.path,{color:'#fff',weight:9,opacity:.9}).addTo(g);
+    L.polyline(r.path,{color:r.color,weight:5,opacity:1}).addTo(g);
+    r.pins.forEach(function(p){ L.marker(p.ll,{icon:pinIcon(p.t,p.c)}).addTo(g); });
+    current=g;
+    map.fitBounds(L.polyline(r.path).getBounds(),{padding:[50,50]});
+    document.getElementById('mapBadge').textContent=r.label;
+  }
+  function initMap(){
+    if(mapReady) return; mapReady=true;
+    map=L.map('map',{zoomControl:true,scrollWheelZoom:false});
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+      attribution:'&copy; OpenStreetMap contributors &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
+    map.setView([14.62,120.99],12);
+    drawRoute('fast');
+  }
+  document.querySelectorAll('.route-card').forEach(function(c){
+    c.addEventListener('click',function(){
+      document.querySelectorAll('.route-card').forEach(function(x){x.classList.remove('on');});
+      c.classList.add('on');
+      drawRoute(c.dataset.route);
+      document.getElementById('map').scrollIntoView({behavior:'smooth',block:'center'});
+    });
+  });
+  document.querySelectorAll('.chip[data-route]').forEach(function(c){
+    c.addEventListener('click',function(){
+      var card=document.querySelector('.route-card[data-route="'+c.dataset.route+'"]');
+      if(card) card.click();
+    });
+  });
+})();
+</script>
+</body>
+</html>

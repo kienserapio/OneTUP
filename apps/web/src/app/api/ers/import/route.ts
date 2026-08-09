@@ -92,6 +92,12 @@ export const POST = authenticated(async (request, { user, requestId }) => {
       courses?: unknown[]
       unparsed?: unknown[]
       warnings?: unknown[]
+      identity?: {
+        fullName: string | null
+        studentNumber: string | null
+        programName: string | null
+        termLabel: string | null
+      } | null
     }
 
     if (!response.ok) {
@@ -141,6 +147,9 @@ export const POST = authenticated(async (request, { user, requestId }) => {
       courses,
       unparsed,
       warnings: payload.warnings ?? [],
+      // The student's own name and program, as ERS holds them. Returned to the
+      // review screen so they can see what will be saved before it is.
+      identity: payload.identity ?? null,
     }
   } catch (error) {
     if (error instanceof ApiError) throw error

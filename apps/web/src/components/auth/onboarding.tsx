@@ -284,6 +284,11 @@ function ConnectStep({
         return
       }
 
+      // ERS knows the student's real name and program; the sign-up form only
+      // knows what they typed. Saving it here means announcements and class-rep
+      // verification have something true to work with.
+      if (body.identity) await saveIdentity(body.identity)
+
       onImported(
         {
           parserVersion: body.parser_version ?? 'unknown',
@@ -621,6 +626,28 @@ async function commitSchedule(
     const body = await response.json().catch(() => null)
     throw new Error(body?.error?.message ?? 'That did not save. Try again.')
   }
+}
+
+interface Identity {
+  fullName: string | null
+  studentNumber: string | null
+  programName: string | null
+}
+
+/** Fills in what the student would otherwise have to type, and correctly. */
+async function saveIdentity(identity: Identity): Promise<void> {
+  const supabase = supabaseBrowser()
+  const { data } = await supabase.auth.getUser()
+  if (!data.user) return
+
+  const patch = {
+    ...(identity.fullName ? { full_name: identity.fullName } : {}),
+    ...(identity.studentNumber ? { student_number: identity.studentNumber } : {}),
+    ...(identity.programName ? { program_code: identity.programName } : {}),
+  }
+  if (Object.keys(patch).length === 0) return
+
+  await supabase.from('profiles').update(patch).eq('id', data.user.id)
 }
 
 async function finishOnboarding(): Promise<void> {

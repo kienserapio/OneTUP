@@ -53,17 +53,6 @@ const STYLES = `
   outline-offset: 3px;
 }
 
-/* OSM's raster tiles are drawn for a white page. Dimming beats inverting:
-   an inverted map is unreadable to anyone who knows the real one. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .campus-map .leaflet-tile {
-    filter: brightness(0.7) contrast(1.06) saturate(0.8);
-  }
-}
-[data-theme='dark'] .campus-map .leaflet-tile {
-  filter: brightness(0.7) contrast(1.06) saturate(0.8);
-}
-
 .campus-pin {
   fill: var(--label);
   fill-opacity: 0.82;

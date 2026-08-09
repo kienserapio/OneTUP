@@ -1,20 +1,20 @@
 /*
  * OneTUP design tokens.
  *
- * The palette is Apple's system colour set, because it is the one students'
- * phones already speak: the same greens, oranges and greys iOS uses for the
- * same meanings. On top of it sits exactly one saturated brand colour — TUP
- * crimson — used sparingly enough that it always means something (PRD §9.2).
+ * Light only. The palette is Apple's system colour set — the one students'
+ * phones already speak, using the same greens and oranges for the same
+ * meanings — with exactly one saturated brand colour, TUP crimson, used
+ * sparingly enough that it always means something (PRD §9.2).
  *
- * Every colour is defined on bare `:root` first. The dark block only redefines
- * tokens, never introduces one, so a viewer whose system theme we cannot read
- * still gets a complete palette.
+ * There is deliberately no dark theme. Every token is defined once, on
+ * `:root`, and `color-scheme: light` stops the browser from darkening form
+ * controls and scrollbars on a device set to dark.
  */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
-  /* --- Apple system colours, light ------------------------------------- */
+  /* --- Apple system colours --------------------------------------------- */
   --ios-red: #ff3b30;
   --ios-orange: #ff9500;
   --ios-yellow: #ffcc00;
@@ -36,18 +36,22 @@
   --ios-gray-6: #f2f2f7;
 
   /* --- TUP crimson ------------------------------------------------------
-   * The only saturated colour in the product. It marks the active tab, the
-   * primary action, and the assistant. Nothing decorative is allowed to use it. */
-  --crimson-50: #fdf2f4;
-  --crimson-100: #fbe0e5;
-  --crimson-200: #f6c2cc;
-  --crimson-300: #ee92a5;
-  --crimson-400: #e05a76;
-  --crimson-500: #c62b4c;
-  --crimson-600: #a21c36;
-  --crimson-700: #871730;
-  --crimson-800: #71162b;
-  --crimson-900: #601629;
+   * #A51C30 is the brand colour; the ramp is derived from it. This is the only
+   * saturated colour in the product — it marks the active tab, the primary
+   * action, and the assistant, and nothing decorative is allowed to use it.
+   *
+   * On white it measures about 7.4:1, so it clears AA for body text and AAA for
+   * large text even when used as a foreground. */
+  --crimson-50: #fdf3f4;
+  --crimson-100: #fbe2e5;
+  --crimson-200: #f5c4cb;
+  --crimson-300: #e894a1;
+  --crimson-400: #d55a6e;
+  --crimson-500: #bd3147;
+  --crimson-600: #a51c30;
+  --crimson-700: #8a1728;
+  --crimson-800: #731523;
+  --crimson-900: #61151f;
 
   --accent: var(--crimson-600);
   --accent-hover: var(--crimson-700);
@@ -66,7 +70,7 @@
   --bg-secondary: #f2f2f7;
   --bg-tertiary: #ffffff;
 
-  /* Grouped backgrounds invert the relationship: the page is grey and the
+  /* Grouped backgrounds invert the relationship: the page is warm grey and the
    * cards on it are white. Every list surface in the app uses these. */
   --bg-grouped: #f5f4f2;
   --bg-grouped-secondary: #ffffff;
@@ -165,150 +169,6 @@
   --ease-emphasized: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* Dark. Redefines tokens only — never introduces one. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --ios-red: #ff453a;
-    --ios-orange: #ff9f0a;
-    --ios-yellow: #ffd60a;
-    --ios-green: #30d158;
-    --ios-mint: #63e6e2;
-    --ios-teal: #40c8e0;
-    --ios-cyan: #64d2ff;
-    --ios-blue: #0a84ff;
-    --ios-indigo: #5e5ce6;
-    --ios-purple: #bf5af2;
-    --ios-pink: #ff375f;
-    --ios-brown: #ac8e68;
-
-    --ios-gray: #8e8e93;
-    --ios-gray-2: #636366;
-    --ios-gray-3: #48484a;
-    --ios-gray-4: #3a3a3c;
-    --ios-gray-5: #2c2c2e;
-    --ios-gray-6: #1c1c1e;
-
-    /* Crimson at full depth disappears on black, so the accent lightens the
-     * way iOS lightens systemRed. Kept clearly deeper than --danger so a
-     * brand action and a destructive one never read as the same colour. */
-    --accent: #ef5570;
-    --accent-hover: #f4738a;
-    --accent-subtle: rgb(239 85 112 / 0.16);
-    --accent-border: rgb(239 85 112 / 0.32);
-    --on-accent: #ffffff;
-
-    --label: rgb(255 255 255);
-    --label-secondary: rgb(235 235 245 / 0.6);
-    --label-tertiary: rgb(235 235 245 / 0.3);
-    --label-quaternary: rgb(235 235 245 / 0.16);
-
-    --bg: #000000;
-    --bg-secondary: #1c1c1e;
-    --bg-tertiary: #2c2c2e;
-
-    --bg-grouped: #000000;
-    --bg-grouped-secondary: #1c1c1e;
-    --bg-grouped-tertiary: #2c2c2e;
-
-    --separator: rgb(84 84 88 / 0.6);
-    --separator-opaque: #38383a;
-
-    --fill: rgb(120 120 128 / 0.36);
-    --fill-secondary: rgb(120 120 128 / 0.32);
-    --fill-tertiary: rgb(118 118 128 / 0.24);
-    --fill-quaternary: rgb(116 116 128 / 0.18);
-
-    --material-ultra-thin: rgb(30 30 32 / 0.55);
-    --material-thin: rgb(30 30 32 / 0.68);
-    --material-regular: rgb(28 28 30 / 0.78);
-    --material-thick: rgb(24 24 26 / 0.9);
-    --material-chrome: rgb(20 20 22 / 0.88);
-
-    --material-edge-top: rgb(255 255 255 / 0.16);
-    --material-edge: rgb(255 255 255 / 0.08);
-    --material-hairline: rgb(255 255 255 / 0.08);
-
-    --shadow-chip: 0 1px 2px rgb(0 0 0 / 0.5);
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -8px rgb(0 0 0 / 0.6);
-    --shadow-float: 0 2px 6px rgb(0 0 0 / 0.5), 0 16px 40px -12px rgb(0 0 0 / 0.7);
-    --shadow-sheet: 0 -1px 2px rgb(0 0 0 / 0.4), 0 -20px 60px -12px rgb(0 0 0 / 0.7);
-
-    --generated-subtle: rgb(94 92 230 / 0.2);
-  }
-}
-
-/* An explicit choice wins over the system in both directions. */
-[data-theme='dark'] {
-  --ios-red: #ff453a;
-  --ios-orange: #ff9f0a;
-  --ios-yellow: #ffd60a;
-  --ios-green: #30d158;
-  --ios-mint: #63e6e2;
-  --ios-teal: #40c8e0;
-  --ios-cyan: #64d2ff;
-  --ios-blue: #0a84ff;
-  --ios-indigo: #5e5ce6;
-  --ios-purple: #bf5af2;
-  --ios-pink: #ff375f;
-  --ios-brown: #ac8e68;
-
-  --ios-gray: #8e8e93;
-  --ios-gray-2: #636366;
-  --ios-gray-3: #48484a;
-  --ios-gray-4: #3a3a3c;
-  --ios-gray-5: #2c2c2e;
-  --ios-gray-6: #1c1c1e;
-
-  --accent: #ef5570;
-  --accent-hover: #f4738a;
-  --accent-subtle: rgb(239 85 112 / 0.16);
-  --accent-border: rgb(239 85 112 / 0.32);
-  --on-accent: #ffffff;
-
-  --label: rgb(255 255 255);
-  --label-secondary: rgb(235 235 245 / 0.6);
-  --label-tertiary: rgb(235 235 245 / 0.3);
-  --label-quaternary: rgb(235 235 245 / 0.16);
-
-  --bg: #000000;
-  --bg-secondary: #1c1c1e;
-  --bg-tertiary: #2c2c2e;
-
-  --bg-grouped: #000000;
-  --bg-grouped-secondary: #1c1c1e;
-  --bg-grouped-tertiary: #2c2c2e;
-
-  --separator: rgb(84 84 88 / 0.6);
-  --separator-opaque: #38383a;
-
-  --fill: rgb(120 120 128 / 0.36);
-  --fill-secondary: rgb(120 120 128 / 0.32);
-  --fill-tertiary: rgb(118 118 128 / 0.24);
-  --fill-quaternary: rgb(116 116 128 / 0.18);
-
-  --material-ultra-thin: rgb(30 30 32 / 0.55);
-  --material-thin: rgb(30 30 32 / 0.68);
-  --material-regular: rgb(28 28 30 / 0.78);
-  --material-thick: rgb(24 24 26 / 0.9);
-  --material-chrome: rgb(20 20 22 / 0.88);
-
-  --material-edge-top: rgb(255 255 255 / 0.16);
-  --material-edge: rgb(255 255 255 / 0.08);
-  --material-hairline: rgb(255 255 255 / 0.08);
-
-  --shadow-chip: 0 1px 2px rgb(0 0 0 / 0.5);
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -8px rgb(0 0 0 / 0.6);
-  --shadow-float: 0 2px 6px rgb(0 0 0 / 0.5), 0 16px 40px -12px rgb(0 0 0 / 0.7);
-  --shadow-sheet: 0 -1px 2px rgb(0 0 0 / 0.4), 0 -20px 60px -12px rgb(0 0 0 / 0.7);
-
-  --generated-subtle: rgb(94 92 230 / 0.2);
-  color-scheme: dark;
-}
-
-[data-theme='light'] {
-  color-scheme: light;
-}
-
 /*
  * Accessibility preferences.
  *
@@ -348,16 +208,6 @@
     --material-blur-large: 0px;
     --material-saturate: 100%;
   }
-
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme='light']) {
-      --material-ultra-thin: #1c1c1e;
-      --material-thin: #1c1c1e;
-      --material-regular: #1c1c1e;
-      --material-thick: #141416;
-      --material-chrome: #141416;
-    }
-  }
 }
 
 /* Near-solid surfaces with a defined, contrasting border. */
@@ -371,18 +221,5 @@
     --material-regular: rgb(255 255 255 / 0.98);
     --material-thick: #ffffff;
     --material-edge: rgb(0 0 0 / 0.4);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme='light']) {
-      --label-secondary: rgb(235 235 245 / 0.9);
-      --label-tertiary: rgb(235 235 245 / 0.7);
-      --separator: rgb(255 255 255 / 0.5);
-      --material-ultra-thin: rgb(20 20 22 / 0.96);
-      --material-thin: rgb(20 20 22 / 0.97);
-      --material-regular: rgb(20 20 22 / 0.98);
-      --material-thick: #000000;
-      --material-edge: rgb(255 255 255 / 0.4);
-    }
   }
 }

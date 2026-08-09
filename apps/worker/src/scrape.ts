@@ -103,8 +103,24 @@ export async function closeBrowser(): Promise<void> {
   browser = null
 }
 
+/**
+ * What the schedule page says about the student, above the table.
+ *
+ * Worth capturing because it is the only place OneTUP can learn a student's
+ * real name and program without asking them to type it: the sign-up form only
+ * knows what they chose to enter. It is also what makes class-representative
+ * verification possible.
+ */
+export interface StudentIdentity {
+  fullName: string | null
+  studentNumber: string | null
+  programName: string | null
+  termLabel: string | null
+}
+
 export interface ScrapeResult extends ScheduleParseResult {
   parserVersion: string
+  identity: StudentIdentity
 }
 
 /**
@@ -273,7 +289,11 @@ async function attemptScrape(credentials: Credentials): Promise<ScrapeResult> {
     }
 
     const parsed = parseScheduleTable(dataRows)
-    return { ...parsed, parserVersion: SCRAPER_CONFIG.version }
+    return {
+      ...parsed,
+      parserVersion: SCRAPER_CONFIG.version,
+      identity: await readIdentity(page),
+    }
   } catch (error) {
     if (error instanceof ScrapeError) throw error
     if (error instanceof Error && /timeout/i.test(error.message)) {
@@ -331,4 +351,33 @@ async function extractRows(page: import('playwright').Page, selector: string): P
       ),
     ),
   )
+}
+
+/**
+ * Reads the header the portal prints above the table:
+ *
+ *   Welcome, DELA CRUZ, JUAN SANTOS (TUPM-00-0000)
+ *   Bachelor of Science in Computer Science
+ *   Term/Sem: 1st  SY: 2026-2027
+ *
+ * Every field is optional. A header that changes shape must degrade to nulls,
+ * never to a failed import — the schedule is the thing the student came for.
+ */
+async function readIdentity(page: import('playwright').Page): Promise<StudentIdentity> {
+  const text = await page
+    .evaluate(() => document.body.innerText.replace(/\s+/g, ' '))
+    .catch(() => '')
+
+  const welcome = /Welcome,\s*([^(]{3,90}?)\s*\(([A-Z]{2,6}-?\d{2}-?\d{3,5})\)/i.exec(text)
+  const program = /\b((?:Bachelor|Master|Doctor)[^|]{5,80}?)(?=\s*Term\/Sem|\s*$)/i.exec(text)
+  // "Term/Sem: 1st SY: 2026-2027" runs straight into the table header, so the
+  // boundary is the first column name rather than the end of the line.
+  const term = /Term\/Sem:\s*(.{1,44}?)\s*(?=#\s|Subject Code|$)/i.exec(text)
+
+  return {
+    fullName: welcome?.[1]?.trim() || null,
+    studentNumber: welcome?.[2]?.trim() || null,
+    programName: program?.[1]?.trim() || null,
+    termLabel: term?.[1]?.trim() || null,
+  }
 }

@@ -63,18 +63,6 @@
   --ease-out-ios: var(--ease-out);
 }
 
-/* Dark utilities follow the same three-state rule as the tokens. */
-@custom-variant dark {
-  @media (prefers-color-scheme: dark) {
-    &:where(:root:not([data-theme='light']) *, :root:not([data-theme='light'])) {
-      @slot;
-    }
-  }
-  &:where([data-theme='dark'] *, [data-theme='dark']) {
-    @slot;
-  }
-}
-
 @layer base {
   * {
     min-width: 0;

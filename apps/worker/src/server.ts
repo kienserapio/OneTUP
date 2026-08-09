@@ -164,6 +164,9 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
       courses: result.courses,
       unparsed: result.unparsed,
       warnings: result.warnings,
+      // The student's own name and program, read from the page header. Returned
+      // but never logged — see the note at the top of this file.
+      identity: result.identity,
     })
   } catch (error) {
     if (error instanceof ScrapeError) {

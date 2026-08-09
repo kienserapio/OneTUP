@@ -34,10 +34,8 @@ export const viewport: Viewport = {
   // likely to need it are the ones least likely to complain about it.
   maximumScale: 5,
   viewportFit: 'cover',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f5f4f2' },
-    { media: '(prefers-color-scheme: dark)', color: '#000000' },
-  ],
+  // One theme. The browser chrome matches the page rather than the device.
+  themeColor: '#f5f4f2',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

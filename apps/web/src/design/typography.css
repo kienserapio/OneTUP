@@ -48,17 +48,6 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: 'SF Mono Local';
-  src:
-    local('SF Mono'),
-    local('SFMono-Regular'),
-    local('.SFNSMono');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
   --font-text:
     -apple-system, BlinkMacSystemFont, 'SF Pro Local', 'Inter Variable', 'Inter',
@@ -68,11 +57,10 @@
     -apple-system, BlinkMacSystemFont, 'SF Pro Display Local', 'Inter Variable', 'Inter',
     'Segoe UI', Roboto, system-ui, sans-serif;
 
-  /* Data that is scanned rather than read — times, rooms, course codes, fares,
-   * grades — is set in mono so columns line up and digits stay comparable. */
-  --font-mono:
-    'SF Mono Local', ui-monospace, SFMono-Regular, 'JetBrains Mono',
-    'Roboto Mono', Menlo, monospace;
+  /* One typeface throughout, numbers included. Data that is scanned rather
+   * than read still needs its columns to line up, and SF Pro's tabular figures
+   * do that without changing the voice of the interface. */
+  --font-mono: var(--font-text);
 }
 
 /*
@@ -178,13 +166,15 @@
   color: var(--label-secondary);
 }
 
-/* Numbers a student scans. Tabular figures so a column of grades or fares
- * stays aligned as the values change. */
+/* Numbers a student scans — times, rooms, course codes, fares, grades.
+ * Tabular figures keep a column aligned as the values change; the slight
+ * positive tracking is what stops a run of digits reading as one blob now that
+ * they are no longer monospaced. */
 .type-data {
-  font-family: var(--font-mono);
-  font-feature-settings: 'tnum' 1, 'zero' 1;
-  font-variant-numeric: tabular-nums slashed-zero;
-  letter-spacing: -0.01em;
+  font-family: var(--font-text);
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.005em;
 }
 
 /* A single large figure — a GWA, a cut count, a fare total. */
