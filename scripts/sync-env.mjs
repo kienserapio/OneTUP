@@ -59,6 +59,8 @@ const web = [
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${env.SUPABASE_PUBLISHABLE_KEY}`,
   `NEXT_PUBLIC_SITE_URL=${optional('SITE_URL', 'http://localhost:3000')}`,
   `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${optional('VAPID_PUBLIC_KEY')}`,
+  `NEXT_PUBLIC_REPO_URL=${optional('NEXT_PUBLIC_REPO_URL')}`,
+  `NEXT_PUBLIC_CAMPUS_TOUR_URL=${optional('NEXT_PUBLIC_CAMPUS_TOUR_URL')}`,
   '',
   '# Server-only. Never referenced from a client component.',
   `SUPABASE_SERVICE_ROLE_KEY=${env.SUPABASE_SERVICE_ROLE_KEY}`,

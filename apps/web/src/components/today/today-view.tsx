@@ -321,6 +321,12 @@ function Elsewhere() {
           subtitle="Rooms, gates, printing"
         />
         <ListRow
+          href="/campus/tour"
+          leading={<IconCampus size={21} />}
+          title="Virtual tour"
+          subtitle="Look around before you have to find it"
+        />
+        <ListRow
           href="/settings"
           leading={<IconSettings size={21} />}
           title="Settings"
