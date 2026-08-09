@@ -45,18 +45,34 @@ export const SCRAPER_CONFIG = {
   loginPath: 'index.php',
   schedulePath: 'index.php?page=schedule',
   selectors: {
-    studentNumber: 'input[name="studno"], input[name="student_no"], #studno',
-    password: 'input[type="password"]',
-    birthdate: 'input[name="bdate"], input[name="birthdate"], #bdate',
-    submit: 'input[type="submit"], button[type="submit"]',
+    loginForm: 'form[name="frmLogin"]',
+    studentNumber: 'input[name="username"]',
+    password: 'input[name="password"]',
+    birthdate: 'input[name="bdate"]',
+    submit: 'form[name="frmLogin"] button[type="submit"]',
     table: 'table.dbtable',
     row: 'table.dbtable tr',
   },
+  /**
+   * The portal's birthdate field is a jQuery UI datepicker declared without a
+   * `dateFormat`, so it uses that library's default — `mm/dd/yy`, meaning
+   * `08/02/2005`. Sending an ISO date here fails validation with the same
+   * message a wrong password produces, which is exactly the confusing failure
+   * 07-AUTH-ERS.md §3.2 warns about.
+   */
+  birthdateFormat: 'MM/DD/YYYY',
   timeouts: {
     navigation: 25_000,
     selector: 15_000,
   },
 } as const
+
+/** `2005-08-02` → `08/02/2005`. */
+export function toPortalBirthdate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-')
+  if (!year || !month || !day) return isoDate
+  return `${month}/${day}/${year}`
+}
 
 let browser: Browser | null = null
 
@@ -112,20 +128,30 @@ export async function scrapeSchedule(credentials: Credentials): Promise<ScrapeRe
     await page.fill(SCRAPER_CONFIG.selectors.studentNumber, credentials.studentNumber)
     await page.fill(SCRAPER_CONFIG.selectors.password, credentials.password)
 
-    await setBirthdate(page, credentials.birthdate)
+    await setBirthdate(page, toPortalBirthdate(credentials.birthdate))
 
     await Promise.all([
       page.waitForLoadState('domcontentloaded').catch(() => undefined),
       page.click(SCRAPER_CONFIG.selectors.submit),
     ])
-    await page.waitForTimeout(1200)
+    await page.waitForTimeout(1500)
 
-    // The portal returns 200 with the login form still on screen when the
-    // credentials are wrong, so the URL is the only reliable signal.
-    if (isStillOnLogin(page.url(), loginUrl)) {
+    // The portal answers a bad login with 200, the form still on screen, and
+    // "Invalid credentials." in the body. The form's presence is the reliable
+    // signal — the URL is unchanged on both success and failure, so comparing
+    // URLs would report every login as failed.
+    if (await page.$(SCRAPER_CONFIG.selectors.loginForm)) {
+      const rejected = await page
+        .locator('body')
+        .innerText()
+        .then((text) => /invalid credentials/i.test(text))
+        .catch(() => false)
+
       throw new ScrapeError(
         'ERS_AUTH_FAILED',
-        "Those details didn't work on ERS. Check your password and birthdate — the birthdate has to match your record exactly.",
+        rejected
+          ? "Those details didn't work on ERS. Check your password and birthdate — the birthdate has to match your record exactly."
+          : "We couldn't get past the ERS sign-in. Try again, or paste your schedule instead.",
       )
     }
 
@@ -144,8 +170,12 @@ export async function scrapeSchedule(credentials: Credentials): Promise<ScrapeRe
 
     const rows: string[][] = await page.$$eval(SCRAPER_CONFIG.selectors.row, (elements) =>
       elements.map((row) =>
-        Array.from(row.querySelectorAll('td, th')).map((cell) =>
-          (cell.textContent ?? '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim(),
+        Array.from(row.querySelectorAll('td, th')).map((cell: Element) =>
+          (cell.textContent ?? '')
+            // The portal emits non-breaking spaces inside its table cells.
+            .replace(/\u00a0/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim(),
         ),
       ),
     )
@@ -179,12 +209,13 @@ export async function scrapeSchedule(credentials: Credentials): Promise<ScrapeRe
 }
 
 /**
- * The birthdate field is readonly and driven by a datepicker widget, so setting
- * `value` alone leaves the widget's own validation unsatisfied and the form
- * silently rejects. Removing readonly, assigning, then firing input, change and
- * blur is what makes the widget's handlers run.
+ * The birthdate field is `readonly` and driven by a jQuery UI datepicker, so
+ * assigning `value` alone leaves the widget's own state unsatisfied and the form
+ * rejects with the same message a wrong password gives. Removing the attribute,
+ * assigning, then firing input, change and blur is what makes its handlers run.
  *
- * This is the single most fragile step in the whole scrape.
+ * The value must already be in the portal's `mm/dd/yy` format — see
+ * `toPortalBirthdate`. This is the single most fragile step in the scrape.
  */
 async function setBirthdate(page: import('playwright').Page, birthdate: string): Promise<void> {
   const selector = SCRAPER_CONFIG.selectors.birthdate
@@ -205,10 +236,3 @@ async function setBirthdate(page: import('playwright').Page, birthdate: string):
   )
 }
 
-function isStillOnLogin(currentUrl: string, loginUrl: string): boolean {
-  const current = currentUrl.split('#')[0]
-  const login = loginUrl.split('#')[0]
-  if (current === login) return true
-  // Some deployments bounce back with an error query rather than a new page.
-  return /login|error=1|invalid/i.test(current) && current.startsWith(login.split('?')[0])
-}
