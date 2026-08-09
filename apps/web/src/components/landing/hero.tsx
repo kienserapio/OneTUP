@@ -1,72 +1,133 @@
 'use client'
 
-import { motion } from 'motion/react'
-import { spring, transition } from '@/design/motion'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { ButtonLink } from '@/components/ui/button'
-import { IconCheck } from '@/components/ui/icon'
+import { ShapeGrid } from './shape-grid'
+import { LandingNav } from './landing-nav'
+import { instrumentSerif } from './fonts'
 
 /**
  * The hero.
  *
- * One claim, one sentence that makes it concrete, one action. The three facts
- * underneath are the objections a student raises in the first two seconds —
- * what does it cost, does it work in a building with no signal, how much work
- * is it — answered before they are asked.
+ * White, full height, with the lattice drifting behind it rather than a video or
+ * a photograph — the page has to open fast on the mid-range phone it is built
+ * for, and a hero video is the single heaviest thing a landing page can ship.
+ *
+ * The three supporting facts sit with the action, because they are the objections
+ * a student raises in the first two seconds: what does it cost, does it work in a
+ * building with no signal, how much work is it.
  */
 
-const FACTS = ['Free forever', 'Works offline', 'One tap to log attendance']
+/* Canvas takes paint values, not custom properties, so the tokens are read once
+ * on the client. The literals are the same two values as tokens.css and exist
+ * only so the first frame is never drawn in the wrong colour. */
+const GRID_FALLBACK = { line: '#f4f1ef', hover: '#f9eef0' }
 
 export function Hero() {
+  const [grid, setGrid] = useState(GRID_FALLBACK)
+
+  useEffect(() => {
+    const styles = getComputedStyle(document.documentElement)
+    const line = styles.getPropertyValue('--grid-line').trim()
+    const hover = styles.getPropertyValue('--grid-hover').trim()
+    if (line && hover) setGrid({ line, hover })
+  }, [])
+
   return (
-    <section className="mx-auto w-full px-[var(--space-5)]" style={{ maxWidth: '68rem' }}>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={transition(spring.ui)}
-        className="pb-[var(--space-16)] pt-[var(--space-12)] sm:pt-[var(--space-16)]"
+    /* `svh` rather than `vh`: the small viewport never changes as the browser
+       chrome hides, so the bottom-aligned content cannot be cut off or shift
+       mid-scroll. The floor keeps it usable on a short landscape phone. */
+    <section
+      className="relative mb-[-25px] h-svh min-h-[36rem] overflow-hidden"
+      style={{ background: 'var(--bg)' }}
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          // Densest at the top corners, gone behind the headline and gone again
+          // at the bottom seam — so it never competes with what it sits behind.
+          maskImage:
+            'radial-gradient(120% 85% at 50% 0%, #000 0%, #000 35%, transparent 78%)',
+          WebkitMaskImage:
+            'radial-gradient(120% 85% at 50% 0%, #000 0%, #000 35%, transparent 78%)',
+        }}
       >
-        {/* The eyebrow keeps the section-header idiom but takes the full label
-            colour: at 13px the system's secondary grey does not clear AA. */}
-        <p className="type-section-header" style={{ color: 'var(--label)' }}>
+        <ShapeGrid
+          speed={0.35}
+          squareSize={44}
+          direction="diagonal"
+          borderColor={grid.line}
+          hoverFillColor={grid.hover}
+          shape="square"
+          hoverTrailAmount={4}
+        />
+      </div>
+
+      {/* The lattice has to end somewhere. Fading it into the next section is
+          what stops the seam reading as a hard edge. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-72"
+        style={{
+          background:
+            'linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--bg) 70%, transparent) 45%, var(--bg) 85%)',
+        }}
+      />
+
+      <LandingNav />
+
+      {/* Transparent to the pointer so the grid still lights up under the
+          cursor; only the controls take events back. */}
+      <div className="pointer-events-none relative z-10 flex h-full flex-col items-center justify-end px-5 pb-12 text-center md:pb-16">
+        {/* The full label colour, not the system's secondary grey: at 12px that
+            grey measures about 3.5:1 on white and does not clear AA. */}
+        <p
+          className="type-caption-1 font-semibold uppercase tracking-[0.18em]"
+          style={{ color: 'var(--label)' }}
+        >
           Built by TUP students, for TUP students
         </p>
 
-        <h1 className="type-display mt-[var(--space-4)] max-w-[16ch]">
-          Everything about your classes, in one app.
+        <h1
+          className="mt-5 max-w-[18ch] text-5xl font-normal leading-[1.1] tracking-tight sm:text-7xl md:text-8xl"
+          style={{ color: 'var(--label)' }}
+        >
+          Everything about your classes,{' '}
+          <span className="block">
+            in <span className={instrumentSerif.className}>one app</span>.
+          </span>
         </h1>
 
-        {/* The one place a size steps outside the interface scale: a marketing
-            subhead has to carry from across the display gap the headline opens,
-            and 17px under 68px reads as a caption. */}
-        <p className="type-body mt-[var(--space-6)] max-w-[40ch] sm:max-w-[48ch] sm:text-[1.25rem] sm:leading-[1.45]">
+        <p
+          className="type-body mt-6 max-w-[460px]"
+          style={{ color: 'var(--label-secondary)' }}
+        >
           Your schedule, your cuts, your GWA, your deadlines, and the exact time you need to leave
           the house to make that 7&nbsp;AM class. OneTUP keeps it in one place, and it works even
           when campus wifi doesn&rsquo;t.
         </p>
 
-        <div className="mt-[var(--space-8)] flex flex-col gap-[var(--space-3)] sm:flex-row sm:items-center">
-          <ButtonLink href="/today" variant="accent" size="lg" className="w-full sm:w-auto">
+        <div
+          className="pointer-events-auto mt-8 flex w-full max-w-[36rem] flex-col items-center gap-3 rounded-xl border p-3 sm:flex-row sm:justify-between sm:pl-6"
+          style={{ borderColor: 'var(--separator)', background: 'var(--surface-sunken)' }}
+        >
+          <p className="type-footnote text-balance" style={{ color: 'var(--label-secondary)' }}>
+            Free forever · Works offline · One tap to log attendance
+          </p>
+          <ButtonLink href="/today" variant="accent" className="w-full sm:w-auto">
             Open OneTUP
-          </ButtonLink>
-          <ButtonLink href="/campus" size="lg" className="w-full sm:w-auto">
-            Browse the campus map
           </ButtonLink>
         </div>
 
-        <ul className="mt-[var(--space-8)] flex flex-col gap-[var(--space-2)] sm:flex-row sm:flex-wrap sm:gap-x-[var(--space-6)]">
-          {FACTS.map((fact) => (
-            <li key={fact} className="type-subheadline flex items-center gap-[var(--space-2)]">
-              <IconCheck
-                size={17}
-                strokeWidth={2.2}
-                className="shrink-0"
-                style={{ color: 'var(--ok)' }}
-              />
-              <span>{fact}</span>
-            </li>
-          ))}
-        </ul>
-      </motion.div>
+        <Link
+          href="/campus"
+          className="type-subheadline pointer-events-auto mt-4 flex min-h-[var(--target-min)] items-center underline decoration-[var(--separator)] underline-offset-4"
+          style={{ color: 'var(--label-secondary)' }}
+        >
+          Browse the campus map
+        </Link>
+      </div>
     </section>
   )
 }

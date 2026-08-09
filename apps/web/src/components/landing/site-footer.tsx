@@ -56,7 +56,7 @@ export function SiteFooter() {
         <nav aria-label="Footer" className="mt-[var(--space-6)]">
           <ul className="type-subheadline flex flex-wrap items-center gap-x-[var(--space-3)] gap-y-[var(--space-1)] text-[var(--label-secondary)]">
             <li>
-              <FooterLink href="/campus">Campus map</FooterLink>
+              <FooterLink href="/campus">Campus</FooterLink>
             </li>
             <li aria-hidden>
               <Dot />

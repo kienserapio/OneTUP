@@ -102,6 +102,6 @@ export const config = {
      * Everything except static assets and the service worker. The worker in
      * particular must not be rewritten or it loses its scope.
      */
-    '/((?!_next/static|_next/image|favicon.ico|sw\\.js|icons/|.*\\.(?:png|jpg|jpeg|svg|webp|woff2?)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|sw\\.js|icons/|.*\\.(?:png|jpg|jpeg|svg|webp|woff2?|html)$).*)',
   ],
 }

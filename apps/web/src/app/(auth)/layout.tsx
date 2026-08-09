@@ -13,7 +13,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           OneTUP
         </Link>
         <Link href="/campus" className="type-subheadline text-[var(--accent)]">
-          Campus map
+          Campus
         </Link>
       </header>
 

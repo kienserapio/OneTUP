@@ -1,38 +1,59 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import dynamic from 'next/dynamic'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
+import { AnimatePresence, motion } from 'motion/react'
 import type { CampusPlace } from '@onetup/core'
-import { SiteHeader } from '@/components/landing/site-header'
-import { RepoLink, SiteFooter } from '@/components/landing/site-footer'
-import { ListGroup } from '@/components/ui/surfaces'
-import { IconCampus, IconOffline, IconWarning } from '@/components/ui/icon'
+import { spring, transition } from '@/design/motion'
+import { cx } from '@/lib/cx'
+import { Badge, Card, EmptyState, ListGroup } from '@/components/ui/surfaces'
+import { IconCampus, IconClose, IconWarning } from '@/components/ui/icon'
 import { RoomSearch } from './room-search'
 import { CATEGORY_LABEL, PlaceList } from './place-list'
+import { ScenePicker, type SceneOption } from './scene-picker'
+import { CorrectionForm, CorrectionSignedOut } from './correction-form'
 
 /**
- * The public campus map.
+ * `/campus` — the campus, as one thing.
+ *
+ * There is no separate map. The 3D tour *is* the campus map: TUPniverse's 360°
+ * capture, hosted on Panoee, filling the viewport with everything else floating
+ * over it. A student who has never been to the building does not want a dot on
+ * a street plan, they want to see the door they are looking for.
  *
  * No account, no sign-in wall, no "continue in the app". A visitor might be a
  * parent on enrolment day standing at the wrong gate, and the whole value of
  * this screen is that it answers them before they would ever have made an
  * account (ADR-012).
  *
- * The map is a picture of data that is shown in full underneath it. That
- * ordering is deliberate: if the tiles never arrive — a blocked host, a campus
- * wifi captive portal, no signal at all — the screen still answers the
- * question, and says plainly what the empty rectangle would have shown.
+ * Three restraints hold the layout together:
+ *
+ * 1. The frame owns the screen; every control is a floating pill or a card that
+ *    can be dismissed, so nothing permanently covers the thing you came to see.
+ * 2. The overlay is written before the frame in the DOM, so a keyboard reaches
+ *    the controls without first having to tab through a third-party viewer.
+ * 3. Everything that matters when something is wrong — gates, guards, phone
+ *    numbers — is in the page's own HTML, so it survives the tour not loading
+ *    at all.
  */
 
-/* Leaflet touches `window` on import and weighs more than everything else on
- * this page put together, so it is never part of the first payload. */
-const CampusMap = dynamic(() => import('./campus-map'), {
-  ssr: false,
-  loading: () => <div className="skeleton size-full" role="status" aria-label="Loading the map" />,
-})
+type PanelKey = 'room' | 'places' | 'help' | 'fix'
 
-const TUP_MANILA_CENTER: [number, number] = [14.5876, 120.9847]
-const TUP_MANILA_ZOOM = 17
+const PANEL_TITLE: Record<PanelKey, string> = {
+  room: 'Find a room',
+  places: 'Everything on campus',
+  help: 'If something goes wrong',
+  fix: 'Suggest a correction',
+}
+
+/* Shorter than the panel titles, because these have to survive a 320px screen
+ * without the row turning into a scroll nobody notices. */
+const TOOL_LABEL: Record<PanelKey, string> = {
+  room: 'Find a room',
+  places: 'Places',
+  help: 'Emergency',
+  fix: 'Fix a detail',
+}
 
 const CATEGORY_ORDER = [
   'building',
@@ -44,24 +65,69 @@ const CATEGORY_ORDER = [
   'landmark',
 ] as const
 
-type MapState = 'pending' | 'ready' | 'unreachable' | 'offline'
+/* There is exactly one of these on the page, so the ids can be literals — which
+ * is what lets a pill hand focus back to itself after the panel it opened
+ * closes. The panel sits above the pills, and therefore before them in the DOM,
+ * so tabbing on from a pill would walk past it: focus in and out of a panel is
+ * moved deliberately rather than left to document order. */
+const PANEL_ID = 'campus-panel'
+const toolId = (key: PanelKey) => `campus-tool-${key}`
 
 export function CampusView({
   places,
   loadFailed,
+  signedIn,
+  tourBaseUrl,
+  startScene,
 }: {
   places: CampusPlace[]
   loadFailed: boolean
+  signedIn: boolean
+  /** `NEXT_PUBLIC_CAMPUS_TOUR_URL`, or null when nobody has configured one. */
+  tourBaseUrl: string | null
+  /** Already checked against the linked scenes on the server. */
+  startScene: string | null
 }) {
-  const [active, setActive] = useState<Set<string>>(new Set())
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [mapState, setMapState] = useState<MapState>('pending')
+  const [scene, setScene] = useState<string | null>(startScene)
+  const [panel, setPanel] = useState<PanelKey | null>(null)
+  const [filter, setFilter] = useState<Set<string>>(new Set())
+  const panelRef = useRef<HTMLElement>(null)
 
-  useEffect(() => {
-    // Being offline is a known state, not a failure to be discovered nine
-    // seconds later by a timer.
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) setMapState('offline')
-  }, [])
+  const linked = useMemo(
+    () => places.filter((place): place is CampusPlace & { tour_scene_url: string } =>
+      Boolean(place.tour_scene_url),
+    ),
+    [places],
+  )
+
+  const options: SceneOption[] = useMemo(
+    () =>
+      linked.map((place) => ({
+        id: place.id,
+        name: place.name,
+        category: place.category,
+        scene: place.tour_scene_url,
+      })),
+    [linked],
+  )
+
+  const current = useMemo(
+    () => linked.find((place) => place.tour_scene_url === scene) ?? null,
+    [linked, scene],
+  )
+
+  const emergency = useMemo(
+    () => places.filter((place) => place.is_emergency),
+    [places],
+  )
+
+  const services = useMemo(
+    () =>
+      places.filter(
+        (place) => !place.is_emergency && place.contact_phone && place.category === 'service',
+      ),
+    [places],
+  )
 
   const counts = useMemo(() => {
     const tally: Record<string, number> = {}
@@ -70,177 +136,328 @@ export function CampusView({
   }, [places])
 
   const visible = useMemo(
-    () => (active.size === 0 ? places : places.filter((place) => active.has(place.category))),
-    [places, active],
+    () => (filter.size === 0 ? places : places.filter((place) => filter.has(place.category))),
+    [places, filter],
   )
 
-  const emergency = useMemo(() => places.filter((place) => place.is_emergency), [places])
+  /* The URL keeps up with the tour so a scene can be sent to somebody, without
+   * a server round trip that would reload the viewer underneath it. */
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    if (scene) url.searchParams.set('scene', scene)
+    else url.searchParams.delete('scene')
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`)
+  }, [scene])
 
-  function toggle(category: string) {
-    setActive((current) => {
-      const next = new Set(current)
-      if (next.has(category)) next.delete(category)
-      else next.add(category)
-      return next
-    })
+  // Opening a panel moves focus into it; closing one hands focus back to the
+  // pill that opened it, so a keyboard never loses its place.
+  useEffect(() => {
+    if (panel) panelRef.current?.focus()
+  }, [panel])
+
+  const closePanel = useCallback((returnFocusTo: PanelKey | null) => {
+    setPanel(null)
+    if (returnFocusTo) document.getElementById(toolId(returnFocusTo))?.focus()
+  }, [])
+
+  function jumpTo(nextScene: string) {
+    setScene(nextScene)
+    setPanel(null)
   }
 
-  /** A room lookup answers with a building, so the filters get out of its way
-   * rather than hiding the pin the student just asked for. */
-  function locate(placeId: string) {
-    setActive(new Set())
-    setSelectedId(placeId)
-  }
-
-  const mapUsable = mapState === 'pending' || mapState === 'ready'
+  const embedUrl = tourBaseUrl
+    ? scene
+      ? `${tourBaseUrl.replace(/\/$/, '')}/${scene}`
+      : tourBaseUrl
+    : null
 
   return (
-    <>
-      <SiteHeader current="campus" />
+    <main
+      id="main"
+      className="relative isolate h-dvh w-full overflow-hidden"
+      style={{ background: 'var(--bg)' }}
+    >
+      {/* The overlay comes first so a keyboard reaches it before the viewer. */}
+      <div className="pointer-events-none relative z-10 flex h-full flex-col">
+        <div className="safe-top flex shrink-0 items-start gap-[var(--space-2)] p-[var(--space-3)]">
+          {/* The way back out. Signed in, that is the app; signed out, the page
+              that explains what this is. */}
+          <Link href={signedIn ? '/today' : '/'} className="glass pointer-events-auto shrink-0">
+            <span className="type-subheadline font-semibold">OneTUP</span>
+          </Link>
 
-      <main id="main" style={{ background: 'var(--bg-grouped)' }}>
-        <div
-          className="mx-auto flex w-full flex-col gap-[var(--space-8)] px-[var(--space-4)] pb-[var(--space-16)] pt-[var(--space-6)]"
-          style={{ maxWidth: '56rem' }}
-        >
-          <header>
-            <p className="type-section-header" style={{ color: 'var(--label)' }}>
-              Open to everyone
-            </p>
-            <h1 className="type-large-title mt-[var(--space-2)]">TUP Manila campus</h1>
-            <p className="type-body mt-[var(--space-3)] max-w-[52ch]">
-              Rooms and the buildings they are in, gates, printing, food, and where to go when
-              something is wrong. No sign-up. Works on any phone.
-            </p>
-          </header>
+          <span className="flex-1" />
 
-          {loadFailed ? (
-            <Notice
-              icon={<IconWarning size={26} />}
-              title="Campus data could not be loaded"
-              body="The place list is served from the database and that request did not come back. Nothing here is cached yet, so there is nothing to show in the meantime. Reloading is worth a try."
-            />
-          ) : (
-            <>
-              <RoomSearch places={places} onLocate={locate} />
-
-              <section aria-label="Filter by category">
-                <h2 className="type-section-header">Show</h2>
-                <ul className="no-scrollbar -mx-[var(--space-4)] mt-[var(--space-2)] flex list-none gap-[var(--space-2)] overflow-x-auto px-[var(--space-4)] pb-[var(--space-1)] [&>li]:shrink-0">
-                  <li>
-                    <FilterChip
-                      selected={active.size === 0}
-                      onClick={() => setActive(new Set())}
-                      label="Everything"
-                      count={places.length}
-                    />
-                  </li>
-                  {CATEGORY_ORDER.map((category) => (
-                    <li key={category}>
-                      <FilterChip
-                        selected={active.has(category)}
-                        onClick={() => toggle(category)}
-                        label={CATEGORY_LABEL[category]}
-                        count={counts[category] ?? 0}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-
-              <section aria-label="Map">
-                <div
-                  className="squircle overflow-hidden rounded-[var(--radius-lg)]"
-                  style={{
-                    height: 'min(60vh, 30rem)',
-                    minHeight: '20rem',
-                    background: 'var(--bg-grouped-tertiary)',
-                    boxShadow: 'var(--shadow-card)',
-                  }}
-                >
-                  {mapUsable ? (
-                    <CampusMap
-                      places={visible.map((place) => ({
-                        id: place.id,
-                        name: place.name,
-                        lat: place.lat,
-                        lng: place.lng,
-                        category: place.category,
-                        description: place.description,
-                        is_emergency: place.is_emergency,
-                      }))}
-                      center={TUP_MANILA_CENTER}
-                      zoom={TUP_MANILA_ZOOM}
-                      selectedId={selectedId}
-                      onSelect={setSelectedId}
-                      onTilesUnavailable={() => setMapState('unreachable')}
-                    />
-                  ) : (
-                    <MapUnavailable offline={mapState === 'offline'} />
-                  )}
-                </div>
-
-                <p className="type-caption-1 mt-[var(--space-2)]">
-                  Map data © OpenStreetMap contributors.
-                </p>
-              </section>
-
-              <section aria-label="Places">
-                <h2 className="type-section-header">
-                  {active.size === 0
-                    ? `Everything on campus · ${visible.length}`
-                    : `${visible.length} shown`}
-                </h2>
-
-                <div className="mt-[var(--space-2)]">
-                  {visible.length > 0 ? (
-                    <PlaceList places={visible} selectedId={selectedId} onSelect={setSelectedId} />
-                  ) : (
-                    <div
-                      className="rounded-[var(--radius-md)] p-[var(--space-5)]"
-                      style={{ background: 'var(--bg-grouped-secondary)' }}
-                    >
-                      <p className="type-callout max-w-[46ch]">
-                        Nothing recorded in that category yet. Everything here was added by a
-                        student, so this fills in as people add to it.
-                      </p>
-                      <p className="type-subheadline mt-[var(--space-3)]">
-                        <RepoLink>Contribute a place</RepoLink>
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <p className="type-caption-1 mt-[var(--space-3)] max-w-[52ch]">
-                  Community-maintained. Verify prices before relying on them.
-                </p>
-              </section>
-
-              {emergency.length > 0 && (
-                <section aria-labelledby="emergency-heading">
-                  <h2 id="emergency-heading" className="type-section-header">
-                    If something goes wrong
-                  </h2>
-                  <div className="mt-[var(--space-2)]">
-                    <ListGroup>
-                      {emergency.map((place) => (
-                        <EmergencyRow key={place.id} place={place} />
-                      ))}
-                    </ListGroup>
-                  </div>
-                  <p className="type-caption-1 mt-[var(--space-3)] max-w-[52ch]">
-                    Numbers here are only as current as the last student who checked them. In a real
-                    emergency, the nearest gate guard is faster than any of this.
-                  </p>
-                </section>
-              )}
-            </>
-          )}
+          <ScenePicker
+            className="pointer-events-auto"
+            options={options}
+            value={scene}
+            onChange={jumpTo}
+          />
         </div>
-      </main>
 
-      <SiteFooter />
-    </>
+        <span className="flex-1" />
+
+        <div className="safe-bottom flex flex-col items-center gap-[var(--space-2)] p-[var(--space-3)]">
+          {/* Deliberately not keyed on the panel: switching tools swaps the
+              contents of one card rather than tearing it down and building
+              another, which is both calmer to watch and what keeps the focus
+              move below pointing at a node that actually exists. */}
+          <AnimatePresence>
+            {panel && (
+              <motion.section
+                id={PANEL_ID}
+                ref={panelRef}
+                tabIndex={-1}
+                aria-label={PANEL_TITLE[panel]}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') closePanel(panel)
+                }}
+                className="card squircle pointer-events-auto w-full max-w-[34rem] overflow-hidden"
+                style={{ boxShadow: 'var(--shadow-float)' }}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 14 }}
+                transition={transition(spring.sheet)}
+              >
+                <header
+                  className="flex items-center justify-between gap-[var(--space-3)] px-[var(--space-4)] py-[var(--space-3)]"
+                  style={{ borderBottom: '1px solid var(--separator)' }}
+                >
+                  <h2 className="type-headline">{PANEL_TITLE[panel]}</h2>
+                  <button
+                    type="button"
+                    onClick={() => closePanel(panel)}
+                    aria-label="Close"
+                    className="grid shrink-0 place-items-center rounded-full"
+                    style={{
+                      width: 'var(--target-min)',
+                      height: 'var(--target-min)',
+                      color: 'var(--label-secondary)',
+                    }}
+                  >
+                    <IconClose size={19} />
+                  </button>
+                </header>
+
+                <div
+                  className="overflow-y-auto overscroll-contain p-[var(--space-4)]"
+                  // Shrinks with the viewport rather than clipping off the top
+                  // of the screen on a short one — a phone held sideways.
+                  style={{ maxHeight: 'clamp(7rem, calc(100dvh - 16rem), 26rem)' }}
+                >
+                  {panel === 'room' && (
+                    <RoomSearch
+                      places={places}
+                      onOpenScene={(place) => {
+                        if (place.tour_scene_url) jumpTo(place.tour_scene_url)
+                      }}
+                    />
+                  )}
+
+                  {panel === 'places' && (
+                    <PlacesPanel
+                      places={visible}
+                      total={places.length}
+                      counts={counts}
+                      filter={filter}
+                      onFilter={setFilter}
+                      selectedId={current?.id ?? null}
+                      onSelect={(place) => {
+                        if (place.tour_scene_url) jumpTo(place.tour_scene_url)
+                      }}
+                    />
+                  )}
+
+                  {panel === 'help' && <HelpPanel emergency={emergency} services={services} />}
+
+                  {panel === 'fix' &&
+                    (signedIn ? (
+                      <CorrectionForm places={places} defaultPlaceId={current?.id ?? null} />
+                    ) : (
+                      <CorrectionSignedOut />
+                    ))}
+                </div>
+              </motion.section>
+            )}
+          </AnimatePresence>
+
+          {loadFailed && (
+            <div
+              className="card squircle pointer-events-auto flex w-full max-w-[34rem] items-start gap-[var(--space-3)] p-[var(--space-4)]"
+              style={{ boxShadow: 'var(--shadow-card)' }}
+            >
+              <span className="shrink-0" style={{ color: 'var(--warning)' }}>
+                <IconWarning size={22} />
+              </span>
+              <p className="type-subheadline">
+                Campus data could not be loaded, so the place list, the contacts and the jump-to
+                list are empty. The tour itself is unaffected. Reloading is worth a try.
+              </p>
+            </div>
+          )}
+
+          <nav
+            aria-label="Campus tools"
+            className="no-scrollbar pointer-events-auto flex w-full max-w-[34rem] gap-[var(--space-2)] overflow-x-auto"
+          >
+            {(['room', 'places', 'help', 'fix'] as const).map((key) => (
+              <ToolPill
+                key={key}
+                panelKey={key}
+                active={panel === key}
+                onClick={() => (panel === key ? closePanel(null) : setPanel(key))}
+              >
+                {TOOL_LABEL[key]}
+              </ToolPill>
+            ))}
+          </nav>
+
+          <p
+            className="type-caption-1 w-full max-w-[34rem] text-balance"
+            style={{ color: 'var(--label-secondary)' }}
+          >
+            {current ? `Showing ${current.name}. ` : ''}
+            Tour by{' '}
+            <a
+              href="https://github.com/smnthegr/TUPniverse"
+              className="pointer-events-auto underline"
+              style={{ color: 'var(--accent)' }}
+              rel="noreferrer noopener"
+              target="_blank"
+            >
+              TUPniverse
+            </a>
+            . Community-maintained — verify prices before relying on them.
+          </p>
+        </div>
+      </div>
+
+      <div className="absolute inset-0 z-0">
+        {embedUrl ? (
+          <iframe
+            key={embedUrl}
+            src={embedUrl}
+            title={current ? `Campus tour — ${current.name}` : 'TUP Manila campus tour'}
+            // A 360° view needs the motion sensors. It gets those and nothing else.
+            allow="accelerometer; gyroscope; magnetometer; xr-spatial-tracking; fullscreen"
+            referrerPolicy="no-referrer"
+            className="block size-full border-0"
+          />
+        ) : (
+          <TourNotConnected />
+        )}
+      </div>
+    </main>
+  )
+}
+
+/**
+ * The designed state for a tour that has no address.
+ *
+ * `NEXT_PUBLIC_CAMPUS_TOUR_URL` being unset is a configuration fact, not an
+ * error, and an empty frame pretending to load would be a lie. Everything else
+ * on the screen still works, which is what this says (PRD Q5).
+ */
+function TourNotConnected() {
+  return (
+    <div className="grid size-full place-items-center p-[var(--space-4)]">
+      <Card className="w-full max-w-[30rem]">
+        <EmptyState
+          icon={<IconCampus size={30} />}
+          title="The 3D campus isn't connected yet. Room lookup, the place list and the emergency numbers all still work below."
+        />
+      </Card>
+    </div>
+  )
+}
+
+function ToolPill({
+  panelKey,
+  active,
+  onClick,
+  children,
+}: {
+  panelKey: PanelKey
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      id={toolId(panelKey)}
+      type="button"
+      onClick={onClick}
+      aria-expanded={active}
+      aria-controls={active ? PANEL_ID : undefined}
+      className={cx('glass shrink-0 whitespace-nowrap', active && 'glass-accent')}
+      style={{ paddingInline: 'var(--space-4)', fontSize: '0.9375rem' }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function PlacesPanel({
+  places,
+  total,
+  counts,
+  filter,
+  onFilter,
+  selectedId,
+  onSelect,
+}: {
+  places: CampusPlace[]
+  total: number
+  counts: Record<string, number>
+  filter: Set<string>
+  onFilter: (next: Set<string>) => void
+  selectedId: string | null
+  onSelect: (place: CampusPlace) => void
+}) {
+  function toggle(category: string) {
+    const next = new Set(filter)
+    if (next.has(category)) next.delete(category)
+    else next.add(category)
+    onFilter(next)
+  }
+
+  return (
+    <div className="flex flex-col gap-[var(--space-3)]">
+      <ul
+        aria-label="Filter by category"
+        className="no-scrollbar -mx-[var(--space-1)] flex list-none gap-[var(--space-2)] overflow-x-auto px-[var(--space-1)] pb-[var(--space-1)] [&>li]:shrink-0"
+      >
+        <li>
+          <FilterChip
+            selected={filter.size === 0}
+            onClick={() => onFilter(new Set())}
+            label="Everything"
+            count={total}
+          />
+        </li>
+        {CATEGORY_ORDER.map((category) => (
+          <li key={category}>
+            <FilterChip
+              selected={filter.has(category)}
+              onClick={() => toggle(category)}
+              label={CATEGORY_LABEL[category]}
+              count={counts[category] ?? 0}
+            />
+          </li>
+        ))}
+      </ul>
+
+      {places.length > 0 ? (
+        <PlaceList places={places} selectedId={selectedId} onSelect={onSelect} />
+      ) : (
+        <p className="type-subheadline" style={{ color: 'var(--label-secondary)' }}>
+          Nothing recorded in that category yet. Everything here was added by a student, so this
+          fills in as people add to it.
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -276,42 +493,75 @@ function FilterChip({
 }
 
 /**
- * The designed state for a map that has no tiles.
- *
- * It says what is missing, why the rectangle is empty, and where the same
- * information lives instead. It is not an error dialog, because nothing has
- * gone wrong with the thing the visitor came for.
+ * The one panel that has to work when everything else has gone wrong, which is
+ * why it is plain rows and `tel:` links and nothing clever.
  */
-function MapUnavailable({ offline }: { offline: boolean }) {
-  return (
-    <div className="flex size-full flex-col items-center justify-center gap-[var(--space-3)] p-[var(--space-6)] text-center">
-      <span style={{ color: 'var(--label-secondary)' }}>
-        {offline ? <IconOffline size={30} /> : <IconCampus size={30} />}
-      </span>
-      <p className="type-headline">
-        {offline ? 'No connection, so no map' : 'The map tiles did not load'}
+function HelpPanel({
+  emergency,
+  services,
+}: {
+  emergency: CampusPlace[]
+  services: CampusPlace[]
+}) {
+  if (emergency.length === 0 && services.length === 0) {
+    return (
+      <p className="type-subheadline" style={{ color: 'var(--label-secondary)' }}>
+        No contacts have been recorded yet. In a real emergency the nearest gate guard is faster
+        than any list on a phone.
       </p>
-      <p className="type-subheadline max-w-[44ch]">
-        {offline
-          ? 'Street tiles come from OpenStreetMap and need a connection. Everything on campus is listed below — the building, the floor, the nearest gate — and that part is already here.'
-          : 'The tiles that draw the streets come from OpenStreetMap and are not reachable from this network. Everything the map would have pinned is listed below, with the building, the floor and the nearest gate.'}
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-[var(--space-4)]">
+      {emergency.length > 0 && (
+        <section aria-label="Emergency">
+          <ListGroup>
+            {emergency.map((place) => (
+              <ContactRow key={place.id} place={place} urgent />
+            ))}
+          </ListGroup>
+        </section>
+      )}
+
+      {services.length > 0 && (
+        <section aria-label="Services">
+          <h3 className="type-section-header pb-[var(--space-2)]">Offices and services</h3>
+          <ListGroup>
+            {services.map((place) => (
+              <ContactRow key={place.id} place={place} />
+            ))}
+          </ListGroup>
+        </section>
+      )}
+
+      <p className="type-caption-1" style={{ color: 'var(--label-secondary)' }}>
+        Numbers here are only as current as the last student who checked them. In a real
+        emergency, the nearest gate guard is faster than any of this.
       </p>
     </div>
   )
 }
 
-function EmergencyRow({ place }: { place: CampusPlace }) {
+function ContactRow({ place, urgent = false }: { place: CampusPlace; urgent?: boolean }) {
   const body = (
     <span className="min-w-0 flex-1">
       <span className="type-headline block">{place.name}</span>
       {place.description && <span className="type-footnote block">{place.description}</span>}
       <span className="type-footnote mt-[2px] block">
         {place.contact_phone ? (
-          <span className="type-data">{place.contact_phone}</span>
+          <span className="type-data" style={{ color: urgent ? 'var(--danger)' : undefined }}>
+            {place.contact_phone}
+          </span>
         ) : (
           'No number recorded yet'
         )}
       </span>
+      {!place.contact_phone && (
+        <span className="mt-[var(--space-2)] block">
+          <Badge tone="stale">Unconfirmed</Badge>
+        </span>
+      )}
     </span>
   )
 
@@ -330,27 +580,6 @@ function EmergencyRow({ place }: { place: CampusPlace }) {
   return (
     <div className="list-row" style={{ alignItems: 'flex-start' }}>
       {body}
-    </div>
-  )
-}
-
-function Notice({
-  icon,
-  title,
-  body,
-}: {
-  icon: React.ReactNode
-  title: string
-  body: string
-}) {
-  return (
-    <div
-      className="card squircle flex flex-col items-start gap-[var(--space-3)] p-[var(--space-5)]"
-      style={{ background: 'var(--bg-grouped-secondary)' }}
-    >
-      <span style={{ color: 'var(--warning)' }}>{icon}</span>
-      <p className="type-headline">{title}</p>
-      <p className="type-subheadline max-w-[48ch]">{body}</p>
     </div>
   )
 }

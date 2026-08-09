@@ -1,52 +1,33 @@
-import { LandingMotion } from '@/components/landing/reveal'
-import { SiteHeader } from '@/components/landing/site-header'
-import { SiteFooter } from '@/components/landing/site-footer'
 import { Hero } from '@/components/landing/hero'
-import {
-  CampusSection,
-  ClosingSection,
-  CommuteSection,
-  DepartureSection,
-  HowItWorksSection,
-  OpenSection,
-  ProblemSection,
-  StudySection,
-  TrustSection,
-  WhatItDoesSection,
-} from '@/components/landing/sections'
+import { AboutSection } from '@/components/landing/about-section'
+import { FeaturesSection } from '@/components/landing/features-section'
+import { CampusSection } from '@/components/landing/campus-section'
+import { ClosingSection } from '@/components/landing/closing-section'
+import { SiteFooter } from '@/components/landing/site-footer'
 
 /**
  * The landing page.
  *
- * The order is the argument: here is what you already do by hand, here is
- * everything it would keep track of, here are the two things it does that
- * nothing else does — shown as the screens themselves rather than described —
- * then the map anyone can use, what it costs you in trust, and where the code
- * lives.
+ * The order is the argument: here is the claim, here is the system you already
+ * run by hand, here are the six things it would keep track of — shown as the
+ * screens themselves rather than described — then the campus anyone can walk
+ * without an account, what it costs you in trust, and the ask.
  *
  * Every word on this page comes from the content spec. Nothing here is written
  * to fill a layout.
  */
 export default function LandingPage() {
   return (
-    <LandingMotion>
-      <SiteHeader />
-
-      <main id="main" style={{ background: 'var(--bg-grouped)' }}>
+    <>
+      <main id="main" style={{ background: 'var(--bg)' }}>
         <Hero />
-        <ProblemSection />
-        <WhatItDoesSection />
-        <CommuteSection />
-        <DepartureSection />
+        <AboutSection />
+        <FeaturesSection />
         <CampusSection />
-        <StudySection />
-        <HowItWorksSection />
-        <TrustSection />
-        <OpenSection />
         <ClosingSection />
       </main>
 
       <SiteFooter />
-    </LandingMotion>
+    </>
   )
 }

@@ -143,8 +143,9 @@
 }
 
 @layer components {
-  /* The one scroll container in the authenticated app. Padding at the bottom
-   * clears the floating tab bar so the last row of any list is reachable. */
+  /* The one scroll container in the authenticated app. The bottom padding
+   * clears the floating bar so the last row of any list stays reachable — and
+   * it goes away above the breakpoint, where there is no floating bar. */
   .app-scroll {
     min-height: 100dvh;
     padding-bottom: calc(
@@ -152,11 +153,26 @@
     );
   }
 
+  @media (min-width: 900px) {
+    .app-scroll {
+      padding-bottom: var(--space-12);
+    }
+  }
+
+  /* A phone column on phones, a dashboard column on a desktop. Reading width
+   * still governs prose; it is the cards and grids that want the extra room. */
   .app-container {
     width: 100%;
     max-width: var(--content-max);
     margin-inline: auto;
     padding-inline: var(--space-4);
+  }
+
+  @media (min-width: 900px) {
+    .app-container {
+      max-width: var(--dashboard-max);
+      padding-inline: var(--space-8);
+    }
   }
 
   .field {

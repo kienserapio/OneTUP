@@ -57,7 +57,7 @@ const handler = publicRoute(async (request) => {
   let query = anonClient()
     .from('campus_places')
     .select(
-      'id, category, name, description, lat, lng, building_code, floor, room_range_start, room_range_end, hours, price_min, price_max, price_unit, contact_phone, is_emergency, last_verified_at',
+      'id, category, name, description, lat, lng, building_code, floor, room_range_start, room_range_end, hours, price_min, price_max, price_unit, contact_phone, is_emergency, tour_scene_url, last_verified_at',
     )
     .eq('campus', campus)
     .eq('status', 'approved')
@@ -85,6 +85,10 @@ const handler = publicRoute(async (request) => {
       price_unit: place.price_unit,
       contact_phone: place.contact_phone,
       is_emergency: place.is_emergency,
+      // The scene in the 360° tour, where a student has linked one. `/campus`
+      // is the tour, so this is how a caller opens a place rather than just
+      // locating it.
+      tour_scene_url: place.tour_scene_url,
       last_verified_at: place.last_verified_at,
       // Never presented as current just because it is present: a price nobody
       // has confirmed carries that fact with it (PRD §8.5).

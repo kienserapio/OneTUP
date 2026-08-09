@@ -37,7 +37,7 @@ export function SiteHeader({ current }: { current?: 'campus' | 'privacy' | 'term
             current === 'campus' ? 'text-[var(--label)]' : 'text-[var(--label-secondary)]',
           )}
         >
-          Campus map
+          Campus
         </Link>
 
         {/* Deliberately the full 44px control, not the small one. This is the

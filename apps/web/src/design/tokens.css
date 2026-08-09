@@ -65,19 +65,25 @@
   --label-tertiary: rgb(60 60 67 / 0.3);
   --label-quaternary: rgb(60 60 67 / 0.18);
 
-  /* --- Surfaces --------------------------------------------------------- */
+  /* --- Surfaces ---------------------------------------------------------
+   * Every surface is white. That removes the tonal step a grouped background
+   * normally uses to separate a card from the page, so cards carry a hairline
+   * border instead — see `.card` in materials.css. A shadow alone is not enough
+   * separation on white, and it disappears entirely in high contrast. */
   --bg: #ffffff;
-  --bg-secondary: #f2f2f7;
+  --bg-secondary: #ffffff;
   --bg-tertiary: #ffffff;
 
-  /* Grouped backgrounds invert the relationship: the page is warm grey and the
-   * cards on it are white. Every list surface in the app uses these. */
-  --bg-grouped: #f5f4f2;
+  --bg-grouped: #ffffff;
   --bg-grouped-secondary: #ffffff;
-  --bg-grouped-tertiary: #f2f2f7;
+  --bg-grouped-tertiary: #ffffff;
 
-  --separator: rgb(60 60 67 / 0.22);
-  --separator-opaque: #d8d8dc;
+  /* The only tonal surface left, for the sidebar and pressed states. */
+  --surface-sunken: #faf8f7;
+
+  --separator: #e9e4e0;
+  --separator-soft: #f3efec;
+  --separator-opaque: #e9e4e0;
 
   /* Fills sit *on* a surface — segmented controls, sliders, chips. */
   --fill: rgb(120 120 128 / 0.2);
@@ -123,6 +129,11 @@
   --generated: var(--ios-indigo);
   --generated-subtle: rgb(88 86 214 / 0.1);
 
+  /* The animated grid behind the hero. Barely there on purpose: a visible
+   * lattice competes with the headline it sits behind. */
+  --grid-line: #f4f1ef;
+  --grid-hover: #f9eef0;
+
   /* --- Geometry ---------------------------------------------------------
    * iOS corner radii, largest for sheets. Where the browser supports it these
    * become true squircles further down. */
@@ -152,6 +163,12 @@
   --tab-bar-height: 64px;
   --tab-bar-inset: 12px;
   --content-max: 44rem;
+
+  /* The dashboard shell: a fixed sidebar above 900px, a floating bar below. */
+  --sidebar-width: 244px;
+  --sidebar-breakpoint: 900px;
+  --topbar-height: 64px;
+  --dashboard-max: 68rem;
 
   /* --- Motion -----------------------------------------------------------
    * Durations for things a finger never touches. Anything gesture-driven uses

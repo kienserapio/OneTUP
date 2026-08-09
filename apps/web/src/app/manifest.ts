@@ -29,7 +29,7 @@ export default function manifest(): MetadataRoute.Manifest {
     shortcuts: [
       { name: "Today", short_name: 'Today', url: '/today' },
       { name: 'Add a deadline', short_name: 'Deadline', url: '/deadlines/new' },
-      { name: 'Campus map', short_name: 'Campus', url: '/campus' },
+      { name: 'Campus', short_name: 'Campus', url: '/campus' },
     ],
     share_target: {
       action: '/share',

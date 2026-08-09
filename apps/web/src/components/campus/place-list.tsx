@@ -7,11 +7,11 @@ import { Badge, ListGroup } from '@/components/ui/surfaces'
 /**
  * The list of places.
  *
- * It is not a fallback for the map — it is the other half of it. A map answers
- * "where", a list answers "what is there and is it open", and on a 320px screen
- * the list is usually the faster of the two. It is also the only part of this
- * screen a screen reader or a keyboard can work with, which is why selecting a
- * place happens here and the map follows.
+ * It is the other half of the tour. A 360° scene answers "what does it look
+ * like"; a list answers "what is there, what does it cost and is it open" —
+ * and on a 320px screen the list is usually the faster of the two. It is also
+ * the part a screen reader and a keyboard can actually work with, which is why
+ * choosing a place happens here and the tour follows.
  */
 
 export const CATEGORY_LABEL: Record<string, string> = {
@@ -78,7 +78,7 @@ export function PlaceList({
 }: {
   places: CampusPlace[]
   selectedId: string | null
-  onSelect: (id: string) => void
+  onSelect: (place: CampusPlace) => void
 }) {
   // Rows are siblings rather than list items on purpose: the inset hairline
   // between them is drawn by an adjacent-sibling rule, and wrapping each row in
@@ -90,7 +90,7 @@ export function PlaceList({
           key={place.id}
           place={place}
           selected={place.id === selectedId}
-          onSelect={() => onSelect(place.id)}
+          onSelect={() => onSelect(place)}
         />
       ))}
     </ListGroup>
@@ -119,26 +119,31 @@ function PlaceRow({
   const hours = formatHours(place.hours)
   const showTrading = wantsPriceAndHours(place.category)
 
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      className="list-row"
-      // `.list-row` is unlayered CSS and therefore outranks every Tailwind
-      // utility; alignment and the selected tint have to be set inline to land.
-      style={{
-        alignItems: 'flex-start',
-        paddingBlock: 'var(--space-3)',
-        background: selected ? 'var(--accent-subtle)' : undefined,
-      }}
-    >
-      <span className="min-w-0 flex-1">
+  // Only a place with a scene has anywhere to go, so only that one is a
+  // control. A button that does nothing when pressed is worse than plain text.
+  const walkable = Boolean(place.tour_scene_url)
+
+  // `.list-row` is unlayered CSS and therefore outranks every Tailwind utility;
+  // alignment and the selected tint have to be set inline to land.
+  const rowStyle = {
+    alignItems: 'flex-start',
+    paddingBlock: 'var(--space-3)',
+    background: selected ? 'var(--accent-subtle)' : undefined,
+  } as const
+
+  const body = (
+    <span className="min-w-0 flex-1">
         <span className="type-headline block">{place.name}</span>
 
         <span className="type-caption-1 mt-[2px] block" style={{ color: 'var(--label)' }}>
           {meta.join(' · ')}
         </span>
+
+        {place.tour_scene_url && (
+          <span className="mt-[var(--space-2)] block">
+            <Badge tone="official">In the tour</Badge>
+          </span>
+        )}
 
         {place.description && (
           <span className="type-subheadline mt-[var(--space-2)] block">{place.description}</span>
@@ -177,6 +182,25 @@ function PlaceRow({
           </span>
         )}
       </span>
+  )
+
+  if (!walkable) {
+    return (
+      <div className="list-row" style={rowStyle}>
+        {body}
+      </div>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className="list-row"
+      style={rowStyle}
+    >
+      {body}
     </button>
   )
 }

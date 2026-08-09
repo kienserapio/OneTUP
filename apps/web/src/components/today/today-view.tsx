@@ -2,43 +2,41 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { motion } from 'motion/react'
 import {
   type DeparturePlanRow,
   describeTimeLeft,
   formatTime12,
-  formatWeekday,
   urgencyOf,
 } from '@onetup/core'
 import { loadToday, type TodayData } from '@/lib/queries/today'
 import { readAll } from '@/lib/offline/db'
 import { useNow } from '@/lib/hooks/use-local'
 import { syncNow } from '@/lib/offline/sync'
-import { spring, transition } from '@/design/motion'
 import { Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
 import { ButtonLink } from '@/components/ui/button'
-import { NavBar } from '@/components/app/nav-bar'
 import {
-  IconAlarm,
   IconAnnouncement,
+  IconAsk,
   IconCampus,
-  IconChevronRight,
+  IconCheck,
   IconClock,
   IconCommute,
-  IconSettings,
+  IconDeadlines,
   IconWarning,
 } from '@/components/ui/icon'
 import { AttendancePrompt } from '@/components/today/attendance-prompt'
+import { UpNextCard } from '@/components/today/up-next-card'
+import { DepartureCard } from '@/components/today/departure-card'
 
 /**
  * Today.
  *
- * The order of the cards is the argument: what is happening now, what you have
- * to answer, what is about to be due, then everything else. A student who opens
- * this, sees what they need, and closes it in eight seconds is the success
- * case — so nothing here is designed to hold attention.
+ * The order is the argument: where you have to be, what you owe an answer to,
+ * what is about to be due, then everything else. A student who opens this, sees
+ * what they need and closes it in eight seconds is the success case — so
+ * nothing here is designed to hold attention.
  */
-export function TodayView() {
+export function TodayView({ firstName }: { firstName: string | null }) {
   const now = useNow(30_000)
   const [data, setData] = useState<TodayData | null>(null)
   const [plan, setPlan] = useState<DeparturePlanRow | null>(null)
@@ -60,293 +58,264 @@ export function TodayView() {
 
   if (!data) return <TodaySkeleton />
 
-  const dateLabel = `${formatWeekday(data.weekday)}, ${formatDate(data.date)}`
+  const urgent = [...data.overdue, ...data.dueSoon]
 
   return (
-    <>
-      <NavBar title="Today" subtitle={dateLabel} />
+    <div className="app-container stack pb-6 pt-5">
+      <header>
+        <h2 className="type-large-title">
+          {greeting()}
+          {firstName ? `, ${firstName}` : ''}
+        </h2>
+        <p className="type-body mt-1 text-[var(--label-secondary)]">{summarise(data, now)}</p>
+      </header>
 
-      <div className="app-container stack pb-4">
-        {plan && <DepartureCard plan={plan} />}
+      <UpNextCard data={data} />
 
-        <NowNext data={data} />
+      <QuickActions />
 
-        {data.pendingAttendance.length > 0 && (
-          <section>
-            <SectionHeader>Were you there?</SectionHeader>
-            <div className="stack">
-              {data.pendingAttendance.map((block) => (
-                <AttendancePrompt
-                  key={block.id}
-                  block={block}
-                  sessionDate={data.date}
-                  onRecorded={reload}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+      {data.pendingAttendance.length > 0 && (
+        <section>
+          <SectionHeader>Were you there?</SectionHeader>
+          <div className="stack">
+            {data.pendingAttendance.map((block) => (
+              <AttendancePrompt
+                key={block.id}
+                block={block}
+                sessionDate={data.date}
+                onRecorded={reload}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
-        {(data.overdue.length > 0 || data.dueSoon.length > 0) && (
-          <section>
-            <SectionHeader
-              action={
-                <Link href="/deadlines" className="type-footnote text-[var(--accent)]">
-                  All deadlines
-                </Link>
-              }
-            >
-              Due soon
-            </SectionHeader>
-            <ListGroup>
-              {[...data.overdue, ...data.dueSoon].slice(0, 5).map((deadline) => {
-                const urgency = urgencyOf({ dueAt: deadline.due_at, status: 'open' }, now)
-                return (
-                  <ListRow
-                    key={deadline.id}
-                    href={`/deadlines/${deadline.id}`}
-                    title={deadline.title}
-                    subtitle={describeTimeLeft(deadline.due_at, now)}
-                    leading={
-                      <span
-                        aria-hidden
-                        className="block size-2.5 rounded-full"
-                        style={{ background: urgencyColor(urgency) }}
-                      />
-                    }
-                  />
-                )
-              })}
-            </ListGroup>
-          </section>
-        )}
+      {plan && <DepartureCard plan={plan} />}
 
-        {data.attendanceWarnings.length > 0 && (
-          <section>
-            <SectionHeader>Watch your cuts</SectionHeader>
-            <ListGroup>
-              {data.attendanceWarnings.map((warning) => (
+      {data.blocks.length > 0 && (
+        <section>
+          <SectionHeader
+            action={
+              <Link href="/schedule" className="type-footnote text-[var(--accent)]">
+                Full week
+              </Link>
+            }
+          >
+            Rest of your day
+          </SectionHeader>
+          <ListGroup>
+            {data.blocks.map((block) => {
+              const done = block.endTime <= currentTime(now)
+              return (
                 <ListRow
-                  key={warning.code}
-                  href="/subjects"
+                  key={block.id}
+                  href={`/schedule/day/${data.date}`}
                   leading={
-                    <IconWarning
-                      size={20}
-                      style={{ color: attendanceColor(warning.state) }}
+                    <span
+                      aria-hidden
+                      className="block size-2.5 rounded-full"
+                      style={{ background: done ? 'var(--separator-opaque)' : 'var(--accent)' }}
                     />
                   }
-                  title={<span className="type-data">{warning.code}</span>}
-                  subtitle={
-                    warning.remaining === 0
-                      ? 'At the limit for this subject'
-                      : `${warning.remaining} absence${warning.remaining === 1 ? '' : 's'} left`
-                  }
-                />
-              ))}
-            </ListGroup>
-          </section>
-        )}
-
-        {data.catchUp.length > 0 && (
-          <Card className="flex items-center gap-3">
-            <IconClock size={22} className="shrink-0 text-[var(--label-secondary)]" />
-            <p className="type-subheadline flex-1">
-              {data.catchUp.length} class{data.catchUp.length === 1 ? '' : 'es'} from the past week
-              still need an answer.
-            </p>
-            <ButtonLink href="/subjects/catch-up" size="sm" variant="plain">
-              Catch up
-            </ButtonLink>
-          </Card>
-        )}
-
-        {data.gaps.length > 0 && (
-          <section>
-            <SectionHeader>Free today</SectionHeader>
-            <ListGroup>
-              {data.gaps.map((gap) => (
-                <ListRow
-                  key={`${gap.startTime}-${gap.endTime}`}
                   title={
-                    <span className="type-data">
-                      {formatTime12(gap.startTime)} – {formatTime12(gap.endTime)}
+                    <span className={done ? 'opacity-55' : undefined}>
+                      <span className="type-data">{block.label}</span>
+                      {block.courseTitle ? ` · ${block.courseTitle}` : ''}
                     </span>
                   }
-                  subtitle={describeGap(gap.minutes, gap.after, gap.before)}
+                  subtitle={
+                    <span className="type-data">
+                      {formatTime12(block.startTime)} – {formatTime12(block.endTime)}
+                      {block.room ? ` · ${block.room}` : ''}
+                    </span>
+                  }
                 />
-              ))}
-            </ListGroup>
-          </section>
-        )}
-
-        {data.blocks.length === 0 && (
-          <Card>
-            <EmptyState
-              title="No schedule yet. Import it from ERS, or paste it in — either works."
-              action={
-                <ButtonLink href="/schedule/import" variant="accent">
-                  Bring in your schedule
-                </ButtonLink>
-              }
-            />
-          </Card>
-        )}
-
-        <Elsewhere />
-      </div>
-    </>
-  )
-}
-
-/**
- * The current or next class. Given a choice, a student would rather know where
- * to be than what they just left, so "now" gives way to "next" the moment a
- * class ends.
- */
-function NowNext({ data }: { data: TodayData }) {
-  const block = data.now
-  const next = data.next
-
-  if (!block && !next) {
-    return (
-      <Card>
-        <p className="type-body text-[var(--label-secondary)]">
-          Nothing scheduled for the rest of the week.
-        </p>
-      </Card>
-    )
-  }
-
-  if (block) {
-    return (
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={transition(spring.ui)}>
-        <Card className="relative overflow-hidden">
-          <span
-            aria-hidden
-            className="absolute inset-y-0 left-0 w-1"
-            style={{ background: 'var(--accent)' }}
-          />
-          <p className="type-section-header" style={{ color: 'var(--accent)' }}>
-            Right now
-          </p>
-          <h2 className="type-title-2 mt-1">{block.label}</h2>
-          {block.courseTitle && (
-            <p className="type-subheadline text-[var(--label-secondary)]">{block.courseTitle}</p>
-          )}
-          <p className="type-data mt-3 text-[var(--label-secondary)]">
-            {formatTime12(block.startTime)} – {formatTime12(block.endTime)}
-            {block.room ? ` · ${block.room}` : ''}
-          </p>
-        </Card>
-      </motion.div>
-    )
-  }
-
-  const minutes = next!.minutesUntil
-  return (
-    <Card>
-      <p className="type-section-header">{next!.isToday ? 'Next' : 'Next class'}</p>
-      <h2 className="type-title-2 mt-1">{next!.block.label}</h2>
-      {next!.block.courseTitle && (
-        <p className="type-subheadline text-[var(--label-secondary)]">
-          {next!.block.courseTitle}
-        </p>
+              )
+            })}
+          </ListGroup>
+        </section>
       )}
-      <p className="type-data mt-3 text-[var(--label-secondary)]">
-        {next!.isToday
-          ? `in ${formatDuration(minutes)} · ${formatTime12(next!.block.startTime)}`
-          : `${formatWeekday(next!.block.day, 'short')} ${formatTime12(next!.block.startTime)}`}
-        {next!.block.room ? ` · ${next!.block.room}` : ''}
-      </p>
-    </Card>
+
+      {urgent.length > 0 && (
+        <section>
+          <SectionHeader
+            action={
+              <Link href="/deadlines" className="type-footnote text-[var(--accent)]">
+                See all
+              </Link>
+            }
+          >
+            Due soon
+          </SectionHeader>
+          <ListGroup>
+            {urgent.slice(0, 5).map((deadline) => (
+              <ListRow
+                key={deadline.id}
+                href={`/deadlines/${deadline.id}`}
+                title={deadline.title}
+                subtitle={describeTimeLeft(deadline.due_at, now)}
+                leading={
+                  <span
+                    aria-hidden
+                    className="block size-2.5 rounded-full"
+                    style={{
+                      background: urgencyColor(
+                        urgencyOf({ dueAt: deadline.due_at, status: 'open' }, now),
+                      ),
+                    }}
+                  />
+                }
+              />
+            ))}
+          </ListGroup>
+        </section>
+      )}
+
+      {data.attendanceWarnings.length > 0 && (
+        <section>
+          <SectionHeader>Watch your cuts</SectionHeader>
+          <ListGroup>
+            {data.attendanceWarnings.map((warning) => (
+              <ListRow
+                key={warning.code}
+                href="/subjects"
+                leading={<IconWarning size={20} style={{ color: attendanceColor(warning.state) }} />}
+                title={<span className="type-data">{warning.code}</span>}
+                subtitle={
+                  warning.remaining === 0
+                    ? 'At the limit for this subject'
+                    : `${warning.remaining} absence${warning.remaining === 1 ? '' : 's'} left`
+                }
+              />
+            ))}
+          </ListGroup>
+        </section>
+      )}
+
+      {data.catchUp.length > 0 && (
+        <Card className="flex items-center gap-3 p-4">
+          <IconClock size={22} className="shrink-0 text-[var(--label-secondary)]" />
+          <p className="type-subheadline flex-1">
+            {data.catchUp.length} class{data.catchUp.length === 1 ? '' : 'es'} from the past week
+            still need an answer.
+          </p>
+          <ButtonLink href="/subjects/catch-up" size="sm" variant="plain">
+            Catch up
+          </ButtonLink>
+        </Card>
+      )}
+
+      {data.gaps.length > 0 && (
+        <section>
+          <SectionHeader>Free today</SectionHeader>
+          <ListGroup>
+            {data.gaps.map((gap) => (
+              <ListRow
+                key={`${gap.startTime}-${gap.endTime}`}
+                title={
+                  <span className="type-data">
+                    {formatTime12(gap.startTime)} – {formatTime12(gap.endTime)}
+                  </span>
+                }
+                subtitle={describeGap(gap.minutes, gap.after, gap.before)}
+              />
+            ))}
+          </ListGroup>
+        </section>
+      )}
+
+      {data.blocks.length === 0 && (
+        <Card>
+          <EmptyState
+            title="No schedule yet. Import it from ERS, or paste it in — either works."
+            action={
+              <ButtonLink href="/schedule/import" variant="accent">
+                Bring in your schedule
+              </ButtonLink>
+            }
+          />
+        </Card>
+      )}
+    </div>
   )
 }
 
 /**
- * The departure plan. The explanation is templated server-side from the
- * adjustments that actually fired, so this card and the wake-alarm
- * notification can never tell the student two different stories.
+ * The six things a student reaches for without navigating. Each is one tap from
+ * here because the alternative is three, and three is why people stop bothering.
  */
-function DepartureCard({ plan }: { plan: DeparturePlanRow }) {
-  return (
-    <Link href="/commute/plan" className="block">
-      <Card className="flex items-start gap-3">
-        <IconAlarm size={24} className="mt-0.5 shrink-0" style={{ color: 'var(--accent)' }} />
-        <div className="min-w-0 flex-1">
-          <p className="type-headline">
-            <span className="type-data">Leave by {formatInstant(plan.leave_at)}</span>
-          </p>
-          <p className="type-subheadline text-[var(--label-secondary)]">
-            <span className="type-data">Wake at {formatInstant(plan.wake_at)}</span>
-          </p>
-          {plan.explanation && (
-            <p className="type-footnote mt-2 text-[var(--label-secondary)]">{plan.explanation}</p>
-          )}
-        </div>
-        <IconChevronRight size={18} className="mt-1 shrink-0 text-[var(--label-tertiary)]" />
-      </Card>
-    </Link>
-  )
-}
+function QuickActions() {
+  const actions = [
+    { href: '/subjects/catch-up', label: 'Log attendance', Icon: IconCheck },
+    { href: '/deadlines/new', label: 'Add a deadline', Icon: IconDeadlines },
+    { href: '/commute/plan', label: 'Plan my trip', Icon: IconCommute },
+    { href: '/announcements/new', label: 'Share news', Icon: IconAnnouncement },
+    { href: '/campus', label: 'Find a room', Icon: IconCampus },
+    { href: '/ask', label: 'Ask OneTUP', Icon: IconAsk },
+  ]
 
-/**
- * The four modules that do not earn a tab.
- *
- * The tab bar holds the things a student opens every day; these are the ones
- * they open when something specific happens — a beadle posts, a route changes,
- * a room needs finding. Keeping them one interaction deeper is what stops the
- * tab bar from becoming a menu.
- */
-function Elsewhere() {
   return (
-    <section>
-      <SectionHeader>Elsewhere</SectionHeader>
-      <ListGroup>
-        <ListRow
-          href="/announcements"
-          leading={<IconAnnouncement size={21} />}
-          title="Announcements"
-          subtitle="What your beadle posted"
-        />
-        <ListRow
-          href="/commute"
-          leading={<IconCommute size={21} />}
-          title="Commute"
-          subtitle="Routes, fares and when to leave"
-        />
-        <ListRow
-          href="/campus"
-          leading={<IconCampus size={21} />}
-          title="Campus map"
-          subtitle="Rooms, gates, printing"
-        />
-        <ListRow
-          href="/campus/tour"
-          leading={<IconCampus size={21} />}
-          title="Virtual tour"
-          subtitle="Look around before you have to find it"
-        />
-        <ListRow
-          href="/settings"
-          leading={<IconSettings size={21} />}
-          title="Settings"
-        />
-      </ListGroup>
-    </section>
+    <nav aria-label="Quick actions" className="grid grid-cols-3 gap-2.5">
+      {actions.map((action) => (
+        <Link
+          key={action.href}
+          href={action.href as never}
+          className="card flex min-h-[5.5rem] flex-col items-center justify-center gap-2 px-2 py-3 text-center transition-colors"
+        >
+          <action.Icon size={22} style={{ color: 'var(--accent)' }} />
+          <span className="type-caption-1 font-medium leading-tight">{action.label}</span>
+        </Link>
+      ))}
+    </nav>
   )
 }
 
 function TodaySkeleton() {
   return (
-    <>
-      <NavBar title="Today" />
-      <div className="app-container stack" aria-busy="true" aria-label="Loading today">
-        <div className="skeleton h-28 rounded-[var(--radius-lg)]" />
-        <div className="skeleton h-40 rounded-[var(--radius-lg)]" />
-        <div className="skeleton h-24 rounded-[var(--radius-lg)]" />
-      </div>
-    </>
+    <div className="app-container stack pt-5" aria-busy="true" aria-label="Loading today">
+      <div className="skeleton h-12 w-64 rounded-[var(--radius-sm)]" />
+      <div className="skeleton h-44 rounded-[var(--radius-xl)]" />
+      <div className="skeleton h-24 rounded-[var(--radius-md)]" />
+      <div className="skeleton h-32 rounded-[var(--radius-md)]" />
+    </div>
   )
+}
+
+/** Filipino greeting by time of day — both languages are first-class here. */
+function greeting(): string {
+  const hour = Number(
+    new Date().toLocaleString('en-PH', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }),
+  )
+  if (hour < 12) return 'Magandang umaga'
+  if (hour < 18) return 'Magandang hapon'
+  return 'Magandang gabi'
+}
+
+/**
+ * One sentence naming what is actually different about today. Generic
+ * encouragement would be noise; this is the reason to read the screen.
+ */
+function summarise(data: TodayData, now: Date): string {
+  const parts: string[] = []
+
+  const remaining = data.blocks.filter((block) => block.endTime > currentTime(now)).length
+  parts.push(
+    remaining === 0
+      ? 'No classes left today'
+      : `${remaining} class${remaining === 1 ? '' : 'es'} left`,
+  )
+
+  const due = data.overdue.length + data.dueSoon.length
+  if (due > 0) parts.push(`${due} thing${due === 1 ? '' : 's'} due within 48 hours`)
+
+  const tight = data.attendanceWarnings.filter((w) => w.remaining <= 1).length
+  if (tight > 0) parts.push(`${tight} subject${tight === 1 ? '' : 's'} near the absence limit`)
+
+  return `${parts.join(', ')}.`
+}
+
+function currentTime(now: Date): string {
+  return new Date(now.getTime() + 8 * 3_600_000).toISOString().slice(11, 16)
 }
 
 function urgencyColor(urgency: string): string {
@@ -378,31 +347,8 @@ function attendanceColor(state: string): string {
   }
 }
 
-function formatDate(date: string): string {
-  return new Date(`${date}T00:00:00+08:00`).toLocaleDateString('en-PH', {
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'Asia/Manila',
-  })
-}
-
-function formatInstant(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-PH', {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'Asia/Manila',
-  })
-}
-
-function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`
-  const hours = Math.floor(minutes / 60)
-  const rest = minutes % 60
-  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
-}
-
 function describeGap(minutes: number, after: string | null, before: string | null): string {
-  const length = formatDuration(minutes)
+  const length = minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h ${minutes % 60 || ''}`.trim()
   if (after && before) return `${length} between ${after} and ${before}`
   if (before) return `${length} before ${before}`
   if (after) return `${length} after ${after}`

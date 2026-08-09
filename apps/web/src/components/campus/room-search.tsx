@@ -23,6 +23,10 @@ import { Badge } from '@/components/ui/surfaces'
  * places already rendered into this page, which is why the search still works
  * with no account and no connection. The two implementations agree by
  * construction: same three passes, same order.
+ *
+ * Where the building it lands on has a 360° scene, the answer offers to walk
+ * you there. "Third floor of the CAFA building" means very little to someone who
+ * has never seen the CAFA building.
  */
 
 export interface RoomAnswer {
@@ -42,7 +46,7 @@ const CONFIDENCE_NOTE: Record<RoomAnswer['confidence'], string> = {
 type State =
   | { kind: 'idle' }
   | { kind: 'searching' }
-  | { kind: 'found'; answer: RoomAnswer }
+  | { kind: 'found'; answer: RoomAnswer; place: CampusPlace | null }
   | { kind: 'missing'; message: string }
 
 /* --- The same three passes the route makes -------------------------------- */
@@ -153,10 +157,11 @@ function looksLikeAnswer(value: unknown): value is RoomAnswer {
 
 export function RoomSearch({
   places,
-  onLocate,
+  onOpenScene,
 }: {
   places: CampusPlace[]
-  onLocate?: (placeId: string) => void
+  /** Offered only when the building the room is in has a scene in the tour. */
+  onOpenScene?: (place: CampusPlace) => void
 }) {
   const inputId = useId()
   const [query, setQuery] = useState('')
@@ -174,16 +179,14 @@ export function RoomSearch({
       .catch(() => null)
 
     if (looksLikeAnswer(remote)) {
-      setState({ kind: 'found', answer: remote })
-      const match = places.find((place) => place.name === remote.building.name)
-      if (match) onLocate?.(match.id)
+      const match = places.find((place) => place.name === remote.building.name) ?? null
+      setState({ kind: 'found', answer: remote, place: match })
       return
     }
 
     const local = matchRoomLocally(room, places)
     if (local) {
-      setState({ kind: 'found', answer: local.answer })
-      onLocate?.(local.place.id)
+      setState({ kind: 'found', answer: local.answer, place: local.place })
       return
     }
 
@@ -197,7 +200,7 @@ export function RoomSearch({
     <section aria-labelledby={`${inputId}-label`}>
       <form onSubmit={search} className="flex flex-col gap-[var(--space-2)]">
         <label id={`${inputId}-label`} htmlFor={inputId} className="type-section-header">
-          Find a room
+          Room number
         </label>
         <div className="flex gap-[var(--space-2)]">
           <input
@@ -257,6 +260,19 @@ export function RoomSearch({
                 {CONFIDENCE_NOTE[state.answer.confidence]}
               </Badge>
             </p>
+
+            {onOpenScene && state.place?.tour_scene_url && (
+              <p className="mt-[var(--space-3)]">
+                <Button
+                  variant="accent"
+                  onClick={() => {
+                    if (state.place) onOpenScene(state.place)
+                  }}
+                >
+                  Walk to {state.answer.building.name}
+                </Button>
+              </p>
+            )}
           </motion.div>
         )}
 
