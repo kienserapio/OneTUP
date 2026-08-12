@@ -1,0 +1,72 @@
+name: Feature or improvement
+description: Something OneTUP should do, or should do better
+title: "feat: "
+labels: ["enhancement", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The best feature requests start from a real moment on campus rather
+        than from a feature list. Tell us the moment.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is the problem
+      description: What are you doing when this bites you?
+      placeholder: I never know whether I can still miss a class without being dropped, so I count cuts in my Notes app.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like OneTUP to do
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead
+      description: The workaround tells us how much this matters.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the app
+      options:
+        - Today
+        - Schedule / import
+        - Attendance
+        - Grades / GWA
+        - Deadlines
+        - Announcements
+        - Commute
+        - Campus map or tour
+        - Assistant
+        - Settings / account
+        - Landing page or docs
+        - Something new
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraint check
+      description: |
+        OneTUP has a few rules that override convenience. They are listed in
+        [CONTRIBUTING.md](https://github.com/kienserapio/OneTUP/blob/main/CONTRIBUTING.md#non-negotiable-constraints).
+      options:
+        - label: This does not require storing ERS credentials on a server
+        - label: This does not make one student's grades or attendance visible to anyone else
+        - label: This does not ask a language model to produce a grade, a cut count, a fare, or a date
+
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Would you like to build it
+      options:
+        - label: I would like to work on this myself
+        - label: I would like to help, with guidance

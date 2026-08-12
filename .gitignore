@@ -26,3 +26,14 @@ CLAUDE.md
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Stray screenshots dropped at the repo root. Anything meant for the README
+# belongs in docs/assets/ and is committed there deliberately.
+/*.png
+/*.jpg
+
+# Real documents scanned during development. A rating slip or a grade report
+# is exactly the data this project promises never to expose — it does not go
+# into a public repository, not even as a fixture.
+docs/rating-slip.pdf
+docs/*-slip.pdf

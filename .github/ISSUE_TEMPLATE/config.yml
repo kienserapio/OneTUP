@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/kienserapio/OneTUP/security/advisories/new
+    about: Report privately. Never in a public issue.
+  - name: Campus data correction
+    url: https://github.com/kienserapio/OneTUP/issues/new?labels=data&title=data%3A+
+    about: A wrong room code, building name, jeepney fare, or route.
+  - name: How the system works
+    url: https://github.com/kienserapio/OneTUP/blob/main/docs/00-INDEX.md
+    about: The full specification, with a reading order for each kind of reader.

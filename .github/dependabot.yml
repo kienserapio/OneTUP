@@ -1,0 +1,39 @@
+version: 2
+
+# Security patches land as they appear; everything else is batched into one
+# weekly pull request per ecosystem. A student project cannot absorb a dozen
+# separate dependency PRs a week, and a single grouped bump is easier to
+# review than five that each touch the lockfile.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      production:
+        dependency-type: production
+        update-types: [minor, patch]
+      development:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: docker
+    directory: /apps/worker
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore
+      include: scope
