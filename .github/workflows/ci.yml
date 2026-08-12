@@ -15,9 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # No `version` here. `packageManager` in package.json is the single
+      # source of truth, and declaring it twice makes the action refuse to run.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - uses: actions/setup-node@v4
         with:
@@ -59,7 +59,12 @@ jobs:
         with:
           node-version: 22
 
+      # A clone with no database secrets — a fork, or this repository before
+      # anyone configures it — skips the check rather than failing it. A red
+      # badge that means "unconfigured" teaches contributors to ignore the
+      # badge, which is worse than not running the check.
       - name: Write env
+        id: env
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
@@ -67,6 +72,11 @@ jobs:
           SUPABASE_CONNECTION_STRING: ${{ secrets.SUPABASE_CONNECTION_STRING }}
           SUPABASE_POOLER_HOST: ${{ secrets.SUPABASE_POOLER_HOST }}
         run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_CONNECTION_STRING" ]; then
+            echo "::notice::No Supabase secrets on this repository — skipping the schema safeguards."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           {
             echo "SUPABASE_URL=$SUPABASE_URL"
             echo "SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY"
@@ -74,7 +84,10 @@ jobs:
             echo "SUPABASE_CONNECTION_STRING=$SUPABASE_CONNECTION_STRING"
             echo "SUPABASE_POOLER_HOST=$SUPABASE_POOLER_HOST"
           } > .env
+          echo "configured=true" >> "$GITHUB_OUTPUT"
 
-      - run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - if: steps.env.outputs.configured == 'true'
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      - run: node scripts/db.mjs check
+      - if: steps.env.outputs.configured == 'true'
+        run: node scripts/db.mjs check
