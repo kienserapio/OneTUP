@@ -476,3 +476,5 @@ Standing on two student projects OneTUP would not exist without:
 
 OneTUP is an independent student project. It is not affiliated with, endorsed
 by, or an official service of the Technological University of the Philippines.
+[NOTICE.md](NOTICE.md) covers what the licence does not: the university's
+marks, the campus photography, and the fonts.
