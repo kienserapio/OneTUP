@@ -12,8 +12,11 @@ nothing else. In particular it does not grant any right to:
   presents itself as an official university service is a trademark problem, not
   a licensing one.
 - **Campus photography and the 360° tour.** The panoramas reached from the
-  campus page are the work of the TUPniverse team and are used here with their
-  permission. They are not covered by this repository's licence.
+  campus page are the work of the TUPniverse team
+  ([smnthegr/TUPniverse](https://github.com/smnthegr/TUPniverse)), embedded from
+  their own host and credited in the interface. They carry no licence of their
+  own and are **not** covered by this repository's licence. A fork that
+  re-publishes the tour needs the TUPniverse team's permission, not ours.
 - **Apple's SF Pro.** It is referenced through `-apple-system` and `local()`,
   never shipped. Apple licenses it for interfaces on Apple platforms; this
   repository redistributes no font binary.

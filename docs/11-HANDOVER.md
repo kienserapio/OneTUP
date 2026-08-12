@@ -1,7 +1,9 @@
 # OneTUP — Build Handover
 
-**Status:** V1 built and running locally against live Supabase. Not deployed.
-**Last commit:** `a3ccf23`
+**Status:** V1 built and running locally against live Supabase. Public on
+GitHub. Not deployed.
+**Repository:** <https://github.com/kienserapio/OneTUP> — public, MIT
+**Last commit:** `88bb2f5`
 **Date:** August 2026
 
 This document covers what exists, what does not, what will bite you, and what
@@ -14,12 +16,12 @@ OneTUP *should* be; this describes what it *is*.
 
 | | |
 |---|---|
-| Migrations applied | 27 (`001`–`027`) |
-| Domain tests | 297 passing, 11 files |
+| Migrations applied | 29 (`001`–`029`) |
+| Domain tests | 335 passing, 13 files |
 | TypeScript | `tsc --noEmit` clean across the workspace |
-| Production build | Clean, 43 routes |
+| Production build | Clean, 56 route entries — 40 pages, 16 API |
 | Schema safeguards | 4/4 passing (`pnpm db:check`) |
-| App routes built | 30 |
+| Repository | Public, MIT, CI green on `main` |
 | Deployed | No |
 
 Verified by hand in a browser, not only compiled: sign-up, onboarding,
@@ -45,19 +47,33 @@ Pure functions, no I/O, 297 tests. This is where every number comes from.
 | `commute/fares` | Fares as rules, not stored figures |
 | `study/sm2` | Spaced repetition scheduling |
 | `text/simhash` | Near-duplicate announcement detection |
+| `grades/parse-grades` | ERS grade rows into subjects, units and marks, per term |
 
 ### Web app — `apps/web`
 
 Next.js 16 App Router, React 19, Tailwind v4.
 
-Daily: Today, Commute (+ wake-up plan), Schedule (+ day, import, re-sync),
-Deadlines (+ detail, new), Announcements (+ share intake).
-Academics: Subjects (+ detail, GWA, catch-up), Faculty evaluations.
+Daily: Today, Commute (+ wake-up plan, directions chat), Schedule (+ day,
+import, re-sync), Deadlines (+ detail, new), Announcements (+ share intake).
+Academics: Subjects (+ detail, GWA, grade import, term breakdown, catch-up),
+Faculty evaluations.
 More: Ask OneTUP, Campus, Settings.
-Public: landing, campus tour, sign-in/up, reset, privacy, terms, offline.
+Public: landing, campus (map and 360° tour, one page), contributors, docs,
+report a problem, sign-in/up, reset, privacy, terms, offline.
 
 All eight app screens carry the same dashboard density: a figure strip up top,
 two columns above 1024px, one below.
+
+Added since the first handover:
+
+| Area | What landed |
+|---|---|
+| Grades | ERS grade import — parser in core, a preview screen, and a commit step that writes only what the student confirms |
+| Reports | `/report` and `/api/reports`, backed by `problem_reports` (`029`). A wrong room code has somewhere to go that is not a group chat |
+| Commute | Directions chat and a route panel; per-leg colours on the map instead of one undifferentiated line |
+| Import | Identity verification (`lib/import/verify-identity.ts`) — a pasted schedule belonging to someone else is caught before it is written |
+| Landing | Rebuilt: one hero wordmark, a data bento, reveal primitives, the campus section merged into the tour page, nav and header collapsed into `site-nav` |
+| Public pages | `/contributors` and `/docs` |
 
 ### Sync worker — `apps/worker`
 
@@ -143,6 +159,26 @@ made every `lg:` layout collapse to one column and looked exactly like a code
 bug. If a responsive layout is inexplicably single-column, restart `next dev`
 before debugging the component.
 
+**A spacing token that does not exist collapses to nothing.** `var(--space-14)`
+is not defined in `tokens.css`, so four section gaps on the contributors page
+computed to `0` and read as a layout bug. The scale is 1–6, 8, 10, 12, 16.
+Compose with `calc()` rather than inventing a step.
+
+**`pnpm/action-setup` refuses two version sources.** Declaring `version:` in the
+workflow while `packageManager` exists in `package.json` fails the job before
+anything installs. `packageManager` is the source of truth; the workflow states
+nothing.
+
+**CI's placeholder `.env` looked real to the RLS suite.** The three keys it
+checks were all present, so it tried to create accounts against
+`ci.supabase.co`. The workflow now writes `SUPABASE_PLACEHOLDER=true` and the
+suite treats a marked environment as no environment.
+
+**GitHub reads the whole `LICENSE` file.** One appended paragraph about
+university marks made the repository show "Other" instead of "MIT" — the one
+field a visitor checks before forking. `LICENSE` is the unmodified MIT text;
+everything else lives in `NOTICE.md`.
+
 ---
 
 ## 5. Migrations added after the original schema
@@ -157,6 +193,8 @@ before debugging the component.
 | `025` | 11 new campus places, 22 places mapped to tour scenes |
 | `026` | Origin hubs for two legs that started from a district with no hub |
 | `027` | Deduplicates campus places, unique index on `tour_scene_url` |
+| `028` | Seeds past terms so an imported grade history has terms to attach to |
+| `029` | `problem_reports` — the table behind `/report`, RLS and policies in the same file |
 
 `023` is the one to read before touching privileges. It is load-bearing for a
 published privacy commitment.
@@ -168,8 +206,6 @@ published privacy commitment.
 - **Study packs (M9).** Spaced repetition logic exists in core and is tested;
   nothing surfaces it.
 - **Grounded knowledge-base retrieval** for Ask OneTUP.
-- **ERS grades scraper.** Confirmed feasible — grades are at
-  `grades.php?mainID=106` and remain visible for past semesters.
 - **Faculty evaluation submission.** The form is built; there is no open
   evaluation period in ERS to test against.
 - **Deployment.** No hosting, no domain, no CI deploy step.
@@ -182,15 +218,31 @@ published privacy commitment.
 
 ## 7. Waiting on the owner
 
-1. **`gh auth refresh -h github.com -s workflow`** — must be run in your own
-   terminal. The current token cannot push `.github/workflows/ci.yml`, which
-   blocks every push.
-2. **Supabase Singapore project.** Region chosen; the connected MCP token is
-   scoped to a different organisation, so the project must be created by hand.
-   Four keys are needed, then `pnpm db:push && pnpm db:check && pnpm db:types`.
-3. **TUPniverse permission.** `github.com/smnthegr/TUPniverse` has no licence
-   and the campus tour embeds their work. Get written permission before
-   shipping publicly. Attribution is already in the UI.
+Ordered by how much it costs to leave undone.
+
+1. **TUPniverse permission — now overdue.** `github.com/smnthegr/TUPniverse`
+   has no licence and the campus page embeds their tour. The repository is
+   already public, so this is no longer a pre-launch item. `NOTICE.md` states
+   the panoramas are theirs, carry no licence, and are not covered by MIT;
+   attribution is in the UI. Get it in writing anyway.
+2. **Consent for the names on `/contributors`.** Five students' full names,
+   sections and `tup.edu.ph` addresses are now in a public repository and on a
+   public page. The addresses are written out rather than linked, which stops a
+   one-click mail client but not a scraper. Confirm all five agreed, and remove
+   anyone who did not.
+3. **Repository secrets.** The `schema` CI job skips itself without them, so
+   the safeguards from `04-DATA-MODEL.md §17` are currently **not** running on
+   any push. Add `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`,
+   `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_CONNECTION_STRING` (and optionally
+   `SUPABASE_POOLER_HOST`) under Settings → Secrets → Actions.
+4. **Branch ruleset on `main`.** See §10.
+5. **Rotate the ERS development password** — see §8.
+6. **Supabase region.** If the project is still outside Singapore, the runbook
+   is in `OPERATIONS.md`; it is cheap now and painful once real students have
+   rows.
+
+Resolved since the first handover: the `workflow` OAuth scope — `ci.yml` pushes
+fine, and CI is green on `main`.
 
 ---
 
@@ -224,3 +276,57 @@ checked — but it should still be rotated.
 | How ERS is scraped | `apps/worker/src/scrape.ts` |
 | Why the schema is shaped this way | `docs/04-DATA-MODEL.md`, `docs/02-ARD.md` |
 | What the numbers mean | `packages/core/src/**` and its tests |
+| How to contribute, and what a PR is measured against | `CONTRIBUTING.md` |
+| What the licence does not cover | `NOTICE.md` |
+
+---
+
+## 10. The repository as a public project
+
+Public since August 2026 at <https://github.com/kienserapio/OneTUP>, MIT.
+
+### Files a visitor is read through
+
+| File | Purpose |
+|---|---|
+| `README.md` | What OneTUP is, screenshots, quickstart, architecture, the constraint list |
+| `LICENSE` | MIT, unmodified — see §4 on why nothing may be appended to it |
+| `NOTICE.md` | What MIT does not cover: TUP marks, TUPniverse panoramas, SF Pro, student data |
+| `CONTRIBUTING.md` | First-contribution path, setup, commit convention, standards, the non-negotiable constraints |
+| `CODE_OF_CONDUCT.md` | Contributor Covenant 2.1, reported to `kienleriss.serapio@tup.edu.ph` |
+| `SECURITY.md` | Private reporting, response targets, scope, safe harbour, and the four security claims a break of which is by definition valid |
+| `.github/ISSUE_TEMPLATE/` | Bug and feature forms, each with a constraint checklist |
+| `.github/PULL_REQUEST_TEMPLATE.md` | The checklist a PR is reviewed against |
+| `.github/dependabot.yml` | Grouped weekly npm, monthly actions and Docker |
+
+### CI
+
+Two jobs in `.github/workflows/ci.yml`, on every push to `main` and every pull
+request.
+
+- **`check`** — `pnpm install --frozen-lockfile`, then `typecheck`, `test`,
+  `build`, against a placeholder `.env` written by the workflow. Never talks to
+  a real project.
+- **`schema`** — `node scripts/db.mjs check` against the real project. Skips
+  itself with a notice when the Supabase secrets are absent, which is the
+  current state on this repository and the permanent state on forks.
+
+### Branch ruleset
+
+Not yet configured. Recommended, on the default branch, with **Repository
+admin** in the bypass list so a solo maintainer is not forced through a PR for
+a typo:
+
+- Restrict deletions, block force pushes, require linear history
+- Require a pull request: **0** approvals, dismiss stale approvals, require
+  conversation resolution, squash as the only merge method
+- Require status checks: **`check`** only, branches up to date before merging
+
+Do **not** require `schema`. It skips itself on fork pull requests by design,
+and a required check that never reports blocks the merge permanently.
+
+### Dependabot
+
+Opened five pull requests within a minute of the first push. Two are majors —
+`typescript` 5.9 → 7.0 and `@types/node` 24 → 26 — and need reading, not
+merging on green.

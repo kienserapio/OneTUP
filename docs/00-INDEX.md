@@ -3,7 +3,8 @@
 **Product:** OneTUP
 **Institution:** Technological University of the Philippines — Manila
 **Owner:** Kien Leriss Ramos Serapio
-**Status:** V1 built, running locally, not deployed — see [11-HANDOVER.md](11-HANDOVER.md)
+**Status:** V1 built, running locally, open-sourced, not deployed — see [11-HANDOVER.md](11-HANDOVER.md)
+**Repository:** <https://github.com/kienserapio/OneTUP> — public, MIT
 **Version:** 1.0
 **Date:** August 2026
 
@@ -32,6 +33,20 @@ Free forever, for every TUP student, in every program.
 | 09 | [Implementation Plan & QA](09-IMPLEMENTATION-PLAN.md) | SDLC phases, sprints, testing, release, ops | Everyone |
 | 10 | [Future Enhancements](10-FUTURE-ENHANCEMENTS.md) | Agentic roadmap, TUP Data API strategy | Product |
 | 11 | [Build Handover](11-HANDOVER.md) | What was actually built, what bites, what is pending | Engineers |
+
+### Outside this folder
+
+These live at the repository root because that is where a visitor looks for
+them. They are part of the documentation set, not separate from it.
+
+| Document | What it covers | Primary reader |
+|---|---|---|
+| [README](../README.md) | What OneTUP is, quickstart, architecture, constraints | Everyone |
+| [CONTRIBUTING](../CONTRIBUTING.md) | Setup, standards, commit convention, what a PR is measured against | Contributors |
+| [SECURITY](../SECURITY.md) | Private reporting, scope, and the claims a break of which is valid | Security |
+| [NOTICE](../NOTICE.md) | What the MIT licence does not cover | Everyone |
+| [CODE_OF_CONDUCT](../CODE_OF_CONDUCT.md) | Contributor Covenant 2.1 | Everyone |
+| [OPERATIONS](OPERATIONS.md) | Runbooks: region moves, secret rotation, repository setup | Operators |
 
 ---
 

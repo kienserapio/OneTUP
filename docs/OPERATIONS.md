@@ -32,6 +32,34 @@ does at least one query.
 Nothing else changes. The migrations are the whole schema, including the seed,
 so the new project comes up identical.
 
+## Setting up the GitHub repository
+
+Done once, and worth doing in this order.
+
+1. **Secrets.** Settings → Secrets and variables → Actions. Add
+   `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
+   `SUPABASE_CONNECTION_STRING`, and optionally `SUPABASE_POOLER_HOST`.
+   **Until these exist the `schema` job skips itself**, which means the RLS and
+   credential-column safeguards are not running on any push.
+2. **Branch ruleset.** Settings → Rules → New branch ruleset, targeting the
+   default branch, with **Repository admin** in the bypass list.
+
+   | Rule | Setting |
+   |---|---|
+   | Restrict deletions, block force pushes, require linear history | on |
+   | Require a pull request | 0 approvals, dismiss stale approvals, require conversation resolution, squash only |
+   | Require status checks | `check` only, branches up to date before merging |
+
+   Do not require `schema`. It skips on fork pull requests by design, and a
+   required check that never reports blocks the merge button permanently.
+3. **Tag ruleset.** Same place, targeting `v*`: restrict deletions and updates.
+   A published version tag must not move.
+4. **Code security.** Enable Dependabot alerts, secret scanning, and **push
+   protection** — free on a public repository, and push protection is what
+   stops a service-role key being committed.
+5. **Pull requests.** Allow squash only; tick "Automatically delete head
+   branches".
+
 ## Rotating the worker secret
 
 Quarterly, and immediately if a worker compromise is suspected.
