@@ -37,6 +37,7 @@ jobs:
           SUPABASE_CONNECTION_STRING=postgresql://postgres:ci@db.ci.supabase.co:5432/postgres
           OPENROUTER_API_KEY=ci
           WORKER_SECRET=ci
+          SUPABASE_PLACEHOLDER=true
           EOF
           node scripts/sync-env.mjs
 

@@ -50,7 +50,15 @@ const SUPABASE_URL = read('SUPABASE_URL')
 const SUPABASE_PUBLISHABLE_KEY = read('SUPABASE_PUBLISHABLE_KEY')
 const SUPABASE_SERVICE_ROLE_KEY = read('SUPABASE_SERVICE_ROLE_KEY')
 
-const configured = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY && SUPABASE_SERVICE_ROLE_KEY)
+/* CI writes a `.env` full of placeholders so the web app can typecheck and
+ * build without touching a real project. Those placeholders are enough to make
+ * the three keys above look present, so the suite would try to create accounts
+ * against a host that does not exist. The workflow marks them for what they
+ * are, and this suite treats a marked environment as no environment at all. */
+const PLACEHOLDER = read('SUPABASE_PLACEHOLDER') === 'true'
+
+const configured =
+  !PLACEHOLDER && Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY && SUPABASE_SERVICE_ROLE_KEY)
 
 const WEEKDAYS = [
   'sunday',
