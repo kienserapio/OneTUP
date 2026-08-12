@@ -17,7 +17,7 @@ jobs:
 
       # No `version` here. `packageManager` in package.json is the single
       # source of truth, and declaring it twice makes the action refuse to run.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v4
         with:
