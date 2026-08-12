@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { NAV_GROUPS } from './nav-items'
 import { cx } from '@/lib/cx'
 import { displayName, initialsOf } from '@/lib/name'
+import { Mark } from '@/components/ui/mark'
 
 /**
  * The desktop rail.
@@ -28,7 +29,7 @@ export function Sidebar({ fullName, programCode, yearSection, counts }: SidebarP
     <aside className="sidebar" aria-label="Sections">
       <div className="flex items-center gap-3 px-[18px] pb-4 pt-5">
         <span className="brand-mark" aria-hidden>
-          1
+          <Mark size={18} color="var(--on-accent)" />
         </span>
         <span className="min-w-0">
           <span className="type-headline block leading-none tracking-[-0.035em]">OneTUP</span>

@@ -6,6 +6,11 @@ const config: NextConfig = {
   // to the parser or the GWA maths is picked up by dev without a rebuild.
   transpilePackages: ['@onetup/core'],
   typedRoutes: true,
+  experimental: {
+    // Tabler ships ~6000 icons behind one barrel file. Without this, importing
+    // three of them pulls the whole index into the dev graph.
+    optimizePackageImports: ['@tabler/icons-react'],
+  },
   headers: async () => [
     {
       // The service worker must be allowed to control the whole origin, and it

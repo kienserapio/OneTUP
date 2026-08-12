@@ -82,7 +82,7 @@ Snap a photo of the whiteboard, or share the message from your class GC. It beco
 
 **Announcements that actually reach you**
 
-Class suspended, quiz moved, room changed. Your beadle posts it once and it reaches everyone in the section, tagged to the right subject, with an option to turn it into a deadline in one tap.
+Class suspended, quiz moved, room changed. Your class representative posts it once and it reaches everyone in the section, tagged to the right subject, with an option to turn it into a deadline in one tap.
 
 ---
 
@@ -259,7 +259,7 @@ Map data © OpenStreetMap contributors.
 |---|---|
 | No schedule imported | "No schedule yet. Import it from ERS, or paste it in — either works." |
 | No deadlines | "Nothing due. Add one when it comes up." |
-| No announcements | "Nothing from your sections yet. When your beadle posts something, share it here and everyone in your section gets it." |
+| No announcements | "Nothing from your sections yet. When your class representative posts something, share it here and everyone in your section gets it." |
 | No grades entered | "Add your grades to see where your GWA stands." |
 | No study packs | "Upload a module or your notes and OneTUP will build you a reviewer." |
 | No route saved | "Pick where you commute from and OneTUP will work out when to leave." |

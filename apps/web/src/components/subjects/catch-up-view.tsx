@@ -101,6 +101,7 @@ export function CatchUpView() {
                       key={`${gap.block.id}-${gap.date}`}
                       block={gap.block}
                       sessionDate={gap.date}
+                      standing={gap.standing}
                     />
                   ))}
                 </div>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Layer, Map as LeafletMap } from 'leaflet'
 import { cx } from '@/lib/cx'
+import { legColor } from './leg-colors'
 
 /**
  * The map.
@@ -10,6 +11,12 @@ import { cx } from '@/lib/cx'
  * Leaflet is imported at runtime rather than bundled, because it and its CSS
  * are the single largest thing this app could ship and most sessions never open
  * a map at all (NFR-P6).
+ *
+ * It draws two things and the caller decides which: the campus on its own, held
+ * at a walking-distance zoom, or a route fitted to its legs. Both are the same
+ * component because they are the same map — the commute screen moves between
+ * them as a selection comes and goes, and tearing down a Leaflet instance to
+ * swap one for the other would flash the tiles back to grey every time.
  *
  * When tiles fail — which on campus wifi is a matter of when, not if — the
  * caller renders the legs as a list and this component explains itself. That is
@@ -33,25 +40,50 @@ export interface MapLeg {
   to_point?: LatLng | null
 }
 
+/**
+ * How much of each edge the caller has floating over the map.
+ *
+ * A route fitted to the whole container lands half-underneath a panel on a
+ * map-first screen, which reads as the app having centred on the wrong thing.
+ * Given the insets, the fit happens inside what is actually visible.
+ */
+export interface MapInsets {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
 export interface RouteMapProps {
   legs: MapLeg[]
   className?: string
-  height?: number
+  /** A number is pixels. A string passes straight through, so a canvas can ask for `100%`. */
+  height?: number | string
+  /** Where the map sits when there is no route to fit. */
+  center?: LatLng
+  zoom?: number
+  insets?: MapInsets
+  zoomControl?: boolean
+  rounded?: boolean
+  /** Bumped by the caller to re-run the fit — how "recentre" works on a map that never unmounts. */
+  focusNonce?: number
 }
 
-/** Distinct per leg, drawn from the iOS system palette already in the tokens. */
-const LEG_COLORS = [
-  'var(--ios-blue)',
-  'var(--ios-orange)',
-  'var(--ios-green)',
-  'var(--ios-purple)',
-  'var(--ios-teal)',
-  'var(--ios-pink)',
-]
+export const TUP_MANILA: LatLng = { lat: 14.5876, lng: 120.9847 }
 
-const TUP = { lat: 14.5876, lng: 120.9847 }
+const DEFAULT_INSETS: MapInsets = { top: 28, right: 28, bottom: 28, left: 28 }
 
-export function RouteMap({ legs, className, height = 280 }: RouteMapProps) {
+export function RouteMap({
+  legs,
+  className,
+  height = 280,
+  center = TUP_MANILA,
+  zoom = 13,
+  insets = DEFAULT_INSETS,
+  zoomControl = true,
+  rounded = true,
+  focusNonce = 0,
+}: RouteMapProps) {
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<LeafletMap | null>(null)
   const [failed, setFailed] = useState(false)
@@ -61,6 +93,10 @@ export function RouteMap({ legs, className, height = 280 }: RouteMapProps) {
   // the drawing effect, so keying off one alone left the map permanently blank.
   const [ready, setReady] = useState<LeafletMap | null>(null)
 
+  // The map is built once; from then on the view belongs to the fit effect
+  // below, so only the first values of these ever apply.
+  const initial = useRef({ center, zoom, zoomControl })
+
   useEffect(() => {
     let cancelled = false
 
@@ -69,10 +105,12 @@ export function RouteMap({ legs, className, height = 280 }: RouteMapProps) {
       await import('leaflet/dist/leaflet.css')
       if (cancelled || !container.current || map.current) return
 
+      const start = initial.current
+
       const instance = L.map(container.current, {
-        center: [TUP.lat, TUP.lng],
-        zoom: 13,
-        zoomControl: true,
+        center: [start.center.lat, start.center.lng],
+        zoom: start.zoom,
+        zoomControl: start.zoomControl,
         attributionControl: true,
       })
 
@@ -98,8 +136,13 @@ export function RouteMap({ legs, className, height = 280 }: RouteMapProps) {
     }
   }, [])
 
+  // Spread into primitives so a caller writing the insets inline does not
+  // redraw the whole map on every render it happens to do.
+  const { top, right, bottom, left } = insets
+  const { lat: centerLat, lng: centerLng } = center
+
   useEffect(() => {
-    if (!ready || legs.length === 0) return
+    if (!ready) return
 
     // Collected outside the async body so the cleanup React actually receives
     // can reach them. Returning a cleanup from inside the IIFE returns it to
@@ -116,8 +159,28 @@ export function RouteMap({ legs, className, height = 280 }: RouteMapProps) {
 
       const bounds = L.latLngBounds([])
 
+      // Campus is on the map whether or not a route is: a map of Manila with
+      // nothing marked on it does not answer the question this screen is for.
+      // Its label is permanent only while it is the only thing here — with a
+      // route drawn, the route's own stops are what want naming.
+      drawn.push(
+        L.circleMarker([TUP_MANILA.lat, TUP_MANILA.lng], {
+          radius: 7,
+          color: 'var(--bg)',
+          weight: 3,
+          fillColor: 'var(--accent)',
+          fillOpacity: 1,
+        })
+          .addTo(instance)
+          .bindTooltip('TUP Manila', {
+            permanent: legs.length === 0,
+            direction: 'top',
+            offset: [0, -8],
+          }),
+      )
+
       legs.forEach((leg, index) => {
-        const color = LEG_COLORS[index % LEG_COLORS.length]
+        const color = legColor(index)
         const traced = coordinatesOf(leg.geometry)
         const endpoints = endpointsOf(leg)
 
@@ -169,7 +232,27 @@ export function RouteMap({ legs, className, height = 280 }: RouteMapProps) {
         coordinates.forEach((point) => bounds.extend(point))
       })
 
-      if (bounds.isValid()) instance.fitBounds(bounds, { padding: [28, 28] })
+      // A panel taller than the map would ask Leaflet to fit a route into no
+      // space at all, so the insets are only ever allowed to claim part of it.
+      const size = instance.getSize()
+      const clampX = (value: number) => Math.max(0, Math.min(value, size.x * 0.4))
+      const clampY = (value: number) => Math.max(0, Math.min(value, size.y * 0.4))
+
+      if (bounds.isValid()) {
+        instance.fitBounds(bounds, {
+          paddingTopLeft: [clampX(left), clampY(top)],
+          paddingBottomRight: [clampX(right), clampY(bottom)],
+        })
+      } else {
+        // Nothing to fit, so hold the campus at the asked-for zoom — then shove
+        // it out from under the panels, which is the closest a plain `setView`
+        // gets to the padding `fitBounds` takes.
+        instance.setView([centerLat, centerLng], zoom, { animate: false })
+        instance.panBy([(clampX(right) - clampX(left)) / 2, (clampY(bottom) - clampY(top)) / 2], {
+          animate: false,
+        })
+      }
+
       if (!cancelled) setApproximate(approximated)
     })()
 
@@ -177,18 +260,32 @@ export function RouteMap({ legs, className, height = 280 }: RouteMapProps) {
       cancelled = true
       drawn.forEach((layer) => layer.remove())
     }
-  }, [ready, legs])
+  }, [ready, legs, top, right, bottom, left, centerLat, centerLng, zoom, focusNonce])
 
   return (
-    <div className={cx('relative overflow-hidden rounded-[var(--radius-lg)]', className)}>
+    <div
+      className={cx(
+        'relative overflow-hidden',
+        rounded && 'rounded-[var(--radius-lg)]',
+        className,
+      )}
+    >
       <div ref={container} style={{ height }} className="w-full" role="presentation" />
 
       {/* Said plainly rather than left to be inferred from a dashed line: the
-          app never shows a path it does not have and call it a route. */}
+          app never shows a path it does not have and call it a route. It rides
+          the same insets the fit does, so on a map-first screen it lands in
+          front of the student rather than behind a panel. */}
       {approximate && !failed && (
         <p
-          className="type-caption-2 absolute inset-x-0 bottom-0 z-[400] px-3 py-1.5 text-[var(--label-secondary)]"
-          style={{ background: 'color-mix(in srgb, var(--bg) 88%, transparent)' }}
+          className="type-caption-2 pointer-events-none absolute z-[400] px-3 py-1.5 text-[var(--label-secondary)]"
+          style={{
+            left: Math.max(left, 8),
+            right: Math.max(right, 8),
+            bottom: Math.max(bottom, 8),
+            borderRadius: 'var(--radius-sm)',
+            background: 'color-mix(in srgb, var(--bg) 88%, transparent)',
+          }}
         >
           Dashed lines join the stops. Nobody has traced the roads between them
           yet.
@@ -201,7 +298,7 @@ export function RouteMap({ legs, className, height = 280 }: RouteMapProps) {
           style={{ background: 'var(--bg-grouped-secondary)' }}
         >
           <p className="type-subheadline text-[var(--label-secondary)]">
-            The map can&rsquo;t load right now. The steps below still have everything you need.
+            The map can&rsquo;t load right now. The steps beside it still have everything you need.
           </p>
         </div>
       )}

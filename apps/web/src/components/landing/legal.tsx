@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { SiteHeader } from './site-header'
+import { SiteNav } from './site-nav'
 import { SiteFooter } from './site-footer'
 
 /**
@@ -25,11 +25,11 @@ export function LegalPage({
 }) {
   return (
     <>
-      <SiteHeader current={current} />
+      <SiteNav />
 
       <main id="main" style={{ background: 'var(--bg-grouped)' }}>
         <div
-          className="mx-auto w-full px-[var(--space-5)] pb-[var(--space-16)] pt-[var(--space-8)]"
+          className="mx-auto w-full px-[var(--space-5)] pb-[var(--space-16)] pt-[7rem]"
           style={{ maxWidth: '42rem' }}
         >
           <h1 className="type-large-title">{title}</h1>

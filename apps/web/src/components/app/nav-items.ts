@@ -3,8 +3,8 @@ import {
   IconAnnouncement,
   IconAsk,
   IconCampus,
-  IconCheck,
-  IconClock,
+  IconAttendance,
+  IconGrades,
   IconCommute,
   IconDeadlines,
   IconSchedule,
@@ -78,8 +78,8 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'Academics',
     items: [
       { href: '/subjects', label: 'Subjects', Icon: IconSubjects, match: startsWith('/subjects') },
-      { href: '/subjects/gwa', label: 'Grades & GWA', Icon: IconCheck, match: (p) => p === '/subjects/gwa' },
-      { href: '/subjects/catch-up', label: 'Attendance', Icon: IconClock, match: (p) => p === '/subjects/catch-up' },
+      { href: '/subjects/gwa', label: 'Grades & GWA', Icon: IconGrades, match: (p) => p === '/subjects/gwa' },
+      { href: '/subjects/catch-up', label: 'Attendance', Icon: IconAttendance, match: (p) => p === '/subjects/catch-up' },
       { href: '/evaluations', label: 'Faculty eval', Icon: IconStudy, match: startsWith('/evaluations') },
     ],
   },
@@ -95,17 +95,40 @@ export const NAV_GROUPS: NavGroup[] = [
 
 export const ALL_NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((group) => group.items)
 
+const byHref = (href: string): NavItem => ALL_NAV_ITEMS.find((item) => item.href === href)!
+
 /**
- * The five that reach the phone bar. Everything else is one tap deeper, from
- * Today — a bar with nine destinations is a menu, not navigation.
+ * The four that reach the phone bar, plus the assistant in the well.
+ *
+ * A bar with nine destinations is a menu, not navigation — but the previous cut
+ * of this list left six of the twelve destinations reachable only from a
+ * sidebar that phones never see, which is worse: Commute, Announcements, Grades
+ * & GWA, Attendance, Faculty eval and Settings were simply unreachable on a
+ * phone unless a Today card happened to link to them.
+ *
+ * So the fifth slot is now More, and it opens `MORE_NAV` in a sheet. That is
+ * the standard answer to this exact problem (iOS has shipped it since 2007) and
+ * it has the property that matters: every destination is reachable in at most
+ * two taps, and the four that are opened daily still cost one.
  */
 export const PHONE_NAV: NavItem[] = [
-  ALL_NAV_ITEMS.find((item) => item.href === '/today')!,
-  ALL_NAV_ITEMS.find((item) => item.href === '/schedule')!,
-  ALL_NAV_ITEMS.find((item) => item.href === '/ask')!,
-  ALL_NAV_ITEMS.find((item) => item.href === '/deadlines')!,
-  ALL_NAV_ITEMS.find((item) => item.href === '/subjects')!,
+  byHref('/today'),
+  byHref('/schedule'),
+  byHref('/ask'),
+  byHref('/deadlines'),
 ]
+
+/**
+ * Everything the phone bar does not carry, in the order the sidebar groups it.
+ * `/ask` is excluded because it is the raised button in the middle of the bar,
+ * and listing it twice would suggest they are two different things.
+ */
+export const MORE_NAV: NavGroup[] = NAV_GROUPS.map((group) => ({
+  label: group.label,
+  items: group.items.filter(
+    (item) => !PHONE_NAV.includes(item) && item.href !== '/ask',
+  ),
+})).filter((group) => group.items.length > 0)
 
 /** The page title shown in the top bar, matched longest-prefix-first. */
 export function titleFor(pathname: string): string {

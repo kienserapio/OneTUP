@@ -174,7 +174,9 @@ export function ScenePicker({
       <button
         ref={triggerRef}
         type="button"
-        className="glass max-w-[min(18rem,72vw)]"
+        /* 56vw, not 72: the row also carries the way back out, and at 390px the
+         * old ceiling pushed this pill off the right edge of the screen. */
+        className="glass max-w-[min(18rem,56vw)]"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
@@ -189,7 +191,7 @@ export function ScenePicker({
         <span className="type-subheadline shrink-0 font-semibold">Jump to</span>
         {current && (
           <span
-            className="type-footnote hidden truncate font-normal min-[380px]:inline"
+            className="type-footnote hidden truncate font-normal sm:inline"
             style={{ color: 'var(--label-secondary)' }}
           >
             {current.name}

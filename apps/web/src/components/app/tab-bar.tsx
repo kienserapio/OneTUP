@@ -1,12 +1,14 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'motion/react'
 import { spring, transition } from '@/design/motion'
 import { cx } from '@/lib/cx'
-import { PHONE_NAV, type NavItem } from './nav-items'
-import { IconAsk } from '@/components/ui/icon'
+import { MORE_NAV, PHONE_NAV, type NavItem } from './nav-items'
+import { IconAsk, IconMore, IconSignOut } from '@/components/ui/icon'
+import { Sheet } from '@/components/ui/sheet'
 
 /**
  * The floating bar, on phones only.
@@ -18,44 +20,83 @@ import { IconAsk } from '@/components/ui/icon'
  * underneath it and the glass has something to refract. The assistant sits in
  * the middle, raised and in the one saturated colour the product owns: it is
  * the only place a student converses rather than taps.
+ *
+ * The fifth slot is More, not a fifth destination. A phone bar holds four
+ * comfortably and the app has twelve places to be; the six that used to live
+ * only in the desktop sidebar were unreachable here, which is the kind of gap
+ * that makes an app feel like a worse version of itself on the device it was
+ * built for.
  */
 export function TabBar() {
   const pathname = usePathname()
+  const [more, setMore] = useState(false)
 
-  const [first, second, ask, ...rest] = PHONE_NAV
+  // A destination chosen inside the sheet has to take the sheet with it.
+  useEffect(() => setMore(false), [pathname])
+
+  const [first, second, ask, fourth] = PHONE_NAV
+  const inMore = MORE_NAV.some((group) => group.items.some((item) => item.match(pathname)))
 
   return (
-    <nav
-      aria-label="Main"
-      className="mobile-only pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + var(--tab-bar-inset))' }}
-    >
-      <div
-        className={cx(
-          'tab-bar material material-large pointer-events-auto',
-          'relative flex items-stretch',
-          'mx-[var(--tab-bar-inset)] w-full max-w-[26rem]',
-        )}
-        style={{
-          height: 'var(--tab-bar-height)',
-          borderRadius: 'var(--radius-xl)',
-          boxShadow: 'var(--shadow-float)',
-        }}
+    <>
+      <nav
+        aria-label="Main"
+        className="mobile-only pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + var(--tab-bar-inset))' }}
       >
-        <TabItem item={first} active={first.match(pathname)} />
-        <TabItem item={second} active={second.match(pathname)} />
+        <div
+          className={cx(
+            'tab-bar material material-large pointer-events-auto',
+            'relative flex items-stretch',
+            'mx-[var(--tab-bar-inset)] w-full max-w-[26rem]',
+          )}
+          style={{
+            height: 'var(--tab-bar-height)',
+            borderRadius: 'var(--radius-xl)',
+            boxShadow: 'var(--shadow-float)',
+          }}
+        >
+          <TabItem item={first} active={first.match(pathname)} />
+          <TabItem item={second} active={second.match(pathname)} />
 
-        {/* The centre well. The button overhangs the bar, so the slot beneath
-            it is empty rather than crowded. */}
-        <div className="flex w-[4.5rem] shrink-0 items-start justify-center">
-          <AskButton active={ask.match(pathname)} />
+          {/* The centre well. The button overhangs the bar, so the slot beneath
+              it is empty rather than crowded. */}
+          <div className="flex w-[4.5rem] shrink-0 items-start justify-center">
+            <AskButton active={ask.match(pathname)} />
+          </div>
+
+          <TabItem item={fourth} active={fourth.match(pathname)} />
+
+          <MoreTab active={inMore} open={more} onOpen={() => setMore(true)} />
         </div>
+      </nav>
 
-        {rest.map((item) => (
-          <TabItem key={item.href} item={item} active={item.match(pathname)} />
-        ))}
-      </div>
-    </nav>
+      <Sheet open={more} onClose={() => setMore(false)} title="Everything else" surface="solid">
+        <div className="flex flex-col gap-[var(--space-5)] pb-[var(--space-2)]">
+          {MORE_NAV.map((group) => (
+            <div key={group.label}>
+              <h3 className="type-section-header px-[var(--space-1)]">{group.label}</h3>
+              <ul className="mt-[var(--space-2)] grid grid-cols-2 gap-[var(--space-2)]">
+                {group.items.map((item) => (
+                  <li key={item.href}>
+                    <MoreLink item={item} active={item.match(pathname)} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+
+          <a
+            href="/auth/sign-out"
+            className="type-subheadline flex min-h-[var(--target-min)] items-center justify-center gap-[var(--space-2)] rounded-[var(--radius-md)]"
+            style={{ background: 'var(--fill-quaternary)', color: 'var(--label-secondary)' }}
+          >
+            <IconSignOut size={18} />
+            Sign out
+          </a>
+        </div>
+      </Sheet>
+    </>
   )
 }
 
@@ -79,11 +120,68 @@ function TabItem({ item, active }: { item: NavItem; active: boolean }) {
         transition={transition(spring.snap)}
         className="flex flex-col items-center gap-[3px]"
       >
-        <Icon size={25} strokeWidth={active ? 2 : 1.75} />
+        <Icon size={25} />
         <span className="type-caption-2 font-semibold tracking-[0.005em]">
           {item.short ?? item.label}
         </span>
       </motion.span>
+    </Link>
+  )
+}
+
+/** Not a link. It is the only control in the bar that opens something rather
+ * than going somewhere, so it is a button and says so to assistive tech. */
+function MoreTab({
+  active,
+  open,
+  onOpen,
+}: {
+  active: boolean
+  open: boolean
+  onOpen: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-expanded={open}
+      aria-haspopup="dialog"
+      className={cx(
+        'relative flex flex-1 flex-col items-center justify-center gap-[3px]',
+        'min-h-[var(--target-min)] rounded-[var(--radius-lg)]',
+        'transition-colors duration-150',
+        active || open ? 'text-[var(--accent)]' : 'text-[var(--label-secondary)]',
+      )}
+      style={{ WebkitTapHighlightColor: 'transparent' }}
+    >
+      <motion.span
+        initial={false}
+        animate={{ scale: active || open ? 1.04 : 1 }}
+        transition={transition(spring.snap)}
+        className="flex flex-col items-center gap-[3px]"
+      >
+        <IconMore size={25} />
+        <span className="type-caption-2 font-semibold tracking-[0.005em]">More</span>
+      </motion.span>
+    </button>
+  )
+}
+
+function MoreLink({ item, active }: { item: NavItem; active: boolean }) {
+  const { Icon } = item
+  return (
+    <Link
+      href={item.href as never}
+      aria-current={active ? 'page' : undefined}
+      className="card squircle flex min-h-[4.25rem] flex-col justify-center gap-[var(--space-2)] px-[var(--space-3)] py-[var(--space-3)]"
+      style={
+        active
+          ? { borderColor: 'var(--accent)', color: 'var(--crimson-800)' }
+          : undefined
+      }
+    >
+      <Icon size={22} style={{ color: active ? 'var(--accent)' : 'var(--label-secondary)' }} />
+      <span className="type-subheadline font-semibold leading-tight">{item.label}</span>
     </Link>
   )
 }
@@ -117,7 +215,7 @@ function AskButton({ active }: { active: boolean }) {
               'linear-gradient(to bottom, rgb(255 255 255 / 0.3) 0%, rgb(255 255 255 / 0.06) 46%, transparent 66%)',
           }}
         />
-        <IconAsk size={26} strokeWidth={1.9} />
+        <IconAsk size={26} />
       </motion.span>
       <span
         className={cx(

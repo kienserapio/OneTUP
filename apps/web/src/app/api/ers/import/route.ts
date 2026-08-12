@@ -1,7 +1,8 @@
 import { z } from 'zod'
-import { ApiError } from '@/lib/api/errors'
+import { ApiError, type ErrorCode } from '@/lib/api/errors'
 import { authenticated, log, parseBody } from '@/lib/api/handler'
 import { activeImportCount, enforceLimit, recordAttempt } from '@/lib/api/rate-limit'
+import { assertRequestedIdentity, assertScrapedIdentity } from '@/lib/import/verify-identity'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 /**
@@ -15,6 +16,20 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
  *   3. `sync_jobs.error_detail` is sanitised on the way in, so a credential
  *      cannot reach the database even by accident.
  */
+
+/**
+ * The worker's error vocabulary, translated into the shared envelope's. Codes
+ * it grows that have no counterpart here fall through to `ERS_UNAVAILABLE`,
+ * which is both true and retryable.
+ */
+const WORKER_CODES: Record<string, ErrorCode | undefined> = {
+  ERS_AUTH_FAILED: 'ERS_AUTH_FAILED',
+  ERS_UNAVAILABLE: 'ERS_UNAVAILABLE',
+  ERS_SESSION_LOST: 'ERS_UNAVAILABLE',
+  ERS_TIMEOUT: 'ERS_TIMEOUT',
+  SCHEDULE_NOT_FOUND: 'SCHEDULE_NOT_FOUND',
+  SCHEDULE_PARSE_FAILED: 'SCHEDULE_PARSE_FAILED',
+}
 
 export const runtime = 'nodejs'
 export const maxDuration = 70
@@ -39,6 +54,11 @@ export const POST = authenticated(async (request, { user, requestId }) => {
   const body = await parseBody(request, ImportRequest)
 
   await enforceLimit(user.id, 'ers_import')
+
+  /* The schedule is written against this user id, so it has to be this user's
+   * ERS record. Checked before the credentials go anywhere, so a wrong number
+   * spends no attempt against the portal's three-try lockout. */
+  const onAccount = await assertRequestedIdentity(user.id, body.student_number)
 
   // Staying quiet on infrastructure we do not own: a burst of simultaneous
   // logins from one source is exactly what looks like an attack to whoever
@@ -101,24 +121,32 @@ export const POST = authenticated(async (request, { user, requestId }) => {
     }
 
     if (!response.ok) {
-      const code = (payload.code ?? 'ERS_UNAVAILABLE') as
-        | 'ERS_AUTH_FAILED'
-        | 'ERS_UNAVAILABLE'
-        | 'ERS_TIMEOUT'
-        | 'SCHEDULE_NOT_FOUND'
-        | 'SCHEDULE_PARSE_FAILED'
+      /* Translated, not cast. The worker owns its own error vocabulary and adds
+       * to it; casting an unknown string into this union looked harmless until
+       * one arrived, at which point `ERROR_CODES[code]` is undefined and the
+       * student gets a stack trace instead of a sentence. */
+      const workerCode = payload.code ?? 'ERS_UNAVAILABLE'
+      const code = WORKER_CODES[workerCode] ?? 'ERS_UNAVAILABLE'
 
       await finishJob(jobId, 'failed', {
-        error_code: code,
+        error_code: workerCode,
         error_detail: sanitiseDetail(payload.message),
       })
 
       // Only an authentication failure counts toward the lockout. A portal
       // outage is not the student's fault and must not lock them out.
-      await recordAttempt(user.id, 'ers_import', code === 'ERS_AUTH_FAILED' ? 'failure' : 'ok')
+      await recordAttempt(
+        user.id,
+        'ers_import',
+        workerCode === 'ERS_AUTH_FAILED' ? 'failure' : 'ok',
+      )
 
       throw new ApiError(code, payload.message)
     }
+
+    // What the portal says about the session it opened, which is the only
+    // statement of identity that did not come from the form.
+    assertScrapedIdentity(onAccount, payload.identity?.studentNumber)
 
     const courses = payload.courses ?? []
     const unparsed = payload.unparsed ?? []
@@ -179,7 +207,7 @@ export const POST = authenticated(async (request, { user, requestId }) => {
       })
       throw new ApiError(
         'ERS_UNAVAILABLE',
-        "Importing from ERS is down on our end right now. Paste your schedule instead — it works the same.",
+        "OneTUP's import service isn't running right now — ERS itself is fine. Paste your schedule instead; it works the same.",
       )
     }
 

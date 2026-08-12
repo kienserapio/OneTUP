@@ -2,113 +2,58 @@
 
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
 import {
-  describeFreshness,
-  formatPeso,
   freshnessOf,
   rankRoutes,
-  type Freshness,
   type RouteRank,
   type UserPreferences,
 } from '@onetup/core'
 import { readAll } from '@/lib/offline/db'
 import { queueWrite, syncNow } from '@/lib/offline/sync'
-import { prefersReducedMotion } from '@/design/motion'
 import { supabaseBrowser } from '@/lib/supabase/client'
-import { Button, ButtonLink } from '@/components/ui/button'
-import { Badge, Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
-import { NavBar } from '@/components/app/nav-bar'
-import { IconCheck, IconCommute, IconWarning } from '@/components/ui/icon'
-import { CommuteStatStrip, type CommuteStat } from '@/components/commute/stat-strip'
+import { IconButton } from '@/components/ui/button'
+import { Card, EmptyState } from '@/components/ui/surfaces'
+import { IconChevronDown, IconCommute, IconTarget } from '@/components/ui/icon'
+import { DirectionsChat } from '@/components/commute/directions-chat'
+import { RoutePanel, type Route, type RouteRow } from '@/components/commute/route-panel'
+import type { MapInsets } from '@/components/map/route-map'
 import { cx } from '@/lib/cx'
 
 /**
- * Getting to campus, drawn as a comparison rather than a list.
+ * Getting to campus, as a map.
  *
- * The three things a student actually trades off — time, money, and how many
- * times they have to get on and off something — are on the face of every card,
- * so the choice is made by scanning a column rather than by opening each route
- * in turn. The segmented control re-ranks what is already loaded; ranking is a
- * pure function over the same rows, so switching it costs nothing.
+ * The question is where a route goes and what it costs, and both of those are
+ * geography — so the map is the screen and everything else floats over it. The
+ * canvas opens on TUP at walking zoom rather than on nothing, because the
+ * destination is the one thing every student on this screen has in common.
  *
- * Both fares are always shown. That is not decoration — it is how a student
- * notices when a discount is being denied to them at the door (ADR-011).
+ * The overlay is a `pointer-events-none` layer holding `pointer-events-auto`
+ * islands, so the map stays draggable everywhere the panels are not — the same
+ * arrangement /campus uses over the 360° tour. It is written before the map in
+ * the DOM so a keyboard reaches the controls without first walking through
+ * Leaflet's own tab stops.
+ *
+ * One panel serves both breakpoints: a rail down the left where there is width
+ * for one, a two-height sheet at the bottom where there is not.
  */
 
 const RouteMap = dynamic(() => import('@/components/map/route-map').then((m) => m.RouteMap), {
   ssr: false,
-  loading: () => <div className="skeleton h-[280px] rounded-[var(--radius-md)]" />,
+  loading: () => <div className="skeleton size-full" style={{ borderRadius: 0 }} />,
 })
 
-interface Leg {
-  ordinal: number
-  mode: string
-  from_label: string
-  to_label: string
-  duration_minutes: number
-  fare_regular: number
-  fare_student: number
-  discount_applied: boolean
-  geometry: unknown
-  from_point: { lat: number; lng: number } | null
-  to_point: { lat: number; lng: number } | null
-  notes: string | null
-  freshness: Freshness
-}
+/** Close enough to read street names, wide enough to see which gate is which. */
+const CAMPUS_ZOOM = 16
 
-interface RouteRow {
-  id: string
-  label: string | null
-  legs: Leg[]
-  totalMinutes: number
-  totalFareRegular: number
-  totalFareStudent: number
-  transfers: number
-  verifiedCount: number
-  lastVerifiedAt: string | null
-}
-
-/** Freshness is re-derived on the client so a long-open tab does not go stale. */
-type Route = RouteRow & { freshness: Freshness }
-
-const RANKS: { value: RouteRank; label: string }[] = [
-  { value: 'fastest', label: 'Fastest' },
-  { value: 'cheapest', label: 'Cheapest' },
-  { value: 'fewest_transfers', label: 'Fewest rides' },
-]
-
-const MODE_LABEL: Record<string, string> = {
-  walk: 'Walk',
-  jeep: 'Jeep',
-  bus: 'Bus',
-  uv_express: 'UV Express',
-  rail: 'Rail',
-  tricycle: 'Tricycle',
-  taxi: 'Taxi',
-  tnvs: 'Ride-hail',
-}
+/** Breathing room between a fitted route and the edge of what is visible. */
+const GUTTER = 16
 
 /**
- * Mirrors the polyline palette in components/map/route-map so leg three in the
- * list is leg three on the map. Correlating the two is the whole reason the
- * breakdown sits beside the map rather than under it.
+ * One array, so "no route selected" is the same value every render. A fresh
+ * `[]` here would look like new legs to the map and redraw it on every keypress
+ * anywhere on the screen.
  */
-const LEG_COLORS = [
-  'var(--ios-blue)',
-  'var(--ios-orange)',
-  'var(--ios-green)',
-  'var(--ios-purple)',
-  'var(--ios-teal)',
-  'var(--ios-pink)',
-]
-
-const FRESHNESS_LABEL: Record<Freshness, string> = {
-  fresh: 'Confirmed recently',
-  aging: 'Over a month old',
-  stale: 'Over three months old',
-  unverified: 'Never confirmed',
-}
+const NO_LEGS: Route['legs'] = []
 
 export function CommuteView() {
   const [areas, setAreas] = useState<{ id: string; name: string; city: string | null }[]>([])
@@ -118,7 +63,31 @@ export function CommuteView() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [defaultRouteId, setDefaultRouteId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const detailRef = useRef<HTMLDivElement>(null)
+  const [expanded, setExpanded] = useState(false)
+  /** Bumped to re-run the map's fit — how the recentre button reaches Leaflet. */
+  const [focusNonce, setFocusNonce] = useState(0)
+
+  const headerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  /**
+   * The canvas is the page, so the page does not scroll.
+   *
+   * The shell gives every screen a scroll container a viewport tall plus room
+   * for the floating bar. That is right for a list and wrong for a map: the
+   * leftover drags the canvas up under the top bar and shows a band of nothing
+   * underneath it. Locked from here rather than in the shell's CSS because this
+   * is the only screen that takes the whole viewport, and put back on the way
+   * out so no other screen inherits it.
+   */
+  useEffect(() => {
+    const root = document.documentElement
+    const previous = root.style.overflowY
+    root.style.overflowY = 'hidden'
+    return () => {
+      root.style.overflowY = previous
+    }
+  }, [])
 
   // Preferences come from the local store; only the area list needs the network.
   const loadPreferences = useCallback(async () => {
@@ -183,26 +152,9 @@ export function CommuteView() {
   }, [ordered])
 
   const selected = ordered.find((route) => route.id === selectedId) ?? null
+  const areaName = areas.find((area) => area.id === areaId)?.name ?? null
 
-  function choose(id: string) {
-    setSelectedId(id)
-
-    // On a phone the breakdown sits below the whole list, so bring it to the
-    // student rather than making them hunt for what they just tapped. Where the
-    // two columns are already side by side it is on screen, and scrolling it
-    // into view would jump the page for no reason — so ask, rather than
-    // matching a breakpoint in JavaScript that CSS already owns.
-    requestAnimationFrame(() => {
-      const panel = detailRef.current
-      if (!panel) return
-      const { top } = panel.getBoundingClientRect()
-      if (top >= 0 && top < window.innerHeight * 0.6) return
-      panel.scrollIntoView({
-        block: 'start',
-        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-      })
-    })
-  }
+  const insets = useMapInsets(headerRef, panelRef)
 
   async function confirmRoute(routeId: string) {
     const supabase = supabaseBrowser()
@@ -243,333 +195,236 @@ export function CommuteView() {
     })
   }
 
-  const stats: CommuteStat[] = [
-    { label: 'Options', value: routes.length },
-    { label: 'Fastest', value: best.fastest ? `${best.fastest.totalMinutes} min` : '—' },
-    { label: 'Cheapest', value: best.cheapest ? formatPeso(best.cheapest.totalFareStudent) : '—' },
-    {
-      label: 'Fewest rides',
-      value: best.fewest_transfers ? best.fewest_transfers.transfers : '—',
-    },
-  ]
-
   return (
-    <>
-      <NavBar
-        title="Commute"
-        subtitle="Time, fare and rides, side by side."
-        trailing={
-          <Link
-            href={'/commute/plan' as never}
-            className="type-subheadline flex min-h-[var(--target-min)] items-center text-[var(--accent)]"
-          >
-            Wake-up plan
-          </Link>
-        }
-      />
-
-      <div className="app-container stack pb-6">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-0 flex-1 basis-[16rem]">
-            <label htmlFor="origin" className="type-subheadline mb-1.5 block font-medium">
-              Coming from
-            </label>
-            <select
-              id="origin"
-              value={areaId}
-              onChange={(event) => setAreaId(event.target.value)}
-              className="field"
-            >
-              <option value="">Pick your area</option>
-              {areas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.name}
-                  {area.city ? ` · ${area.city}` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {areaId && routes.length > 1 && (
-            <div className="segmented" role="group" aria-label="Rank routes by">
-              {RANKS.map((entry) => (
-                <button
-                  key={entry.value}
-                  type="button"
-                  aria-pressed={rank === entry.value}
-                  data-selected={rank === entry.value}
-                  onClick={() => setRank(entry.value)}
-                  className="segmented-item"
-                  style={{ paddingInline: 'var(--space-4)' }}
-                >
-                  {entry.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {!areaId ? (
-          <Card>
-            <EmptyState
-              icon={<IconCommute size={30} />}
-              title="Pick where you commute from and OneTUP will work out when to leave."
-            />
-          </Card>
-        ) : loading ? (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-            <div className="skeleton h-56 rounded-[var(--radius-md)]" />
-            <div className="skeleton h-56 rounded-[var(--radius-md)]" />
-          </div>
-        ) : routes.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={<IconCommute size={30} />}
-              title="No routes on file from there yet. Try a neighbouring area — routes are shared, so one that starts nearby usually still works."
-            />
-          </Card>
-        ) : (
-          <>
-            <CommuteStatStrip stats={stats} />
-
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
-              <section className="min-w-0">
-                <SectionHeader>
-                  {routes.length} way{routes.length === 1 ? '' : 's'} to get there
-                </SectionHeader>
-                <div className="stack">
-                  {ordered.map((route) => (
-                    <RouteCard
-                      key={route.id}
-                      route={route}
-                      // With one route on file every claim is trivially true,
-                      // so the badges would say nothing.
-                      claims={routes.length > 1 ? claimsFor(route, best) : []}
-                      isSelected={route.id === selectedId}
-                      isDefault={route.id === defaultRouteId}
-                      onSelect={() => choose(route.id)}
-                    />
-                  ))}
-                </div>
-
-                <p className="type-caption-1 mt-3 text-[var(--label-tertiary)]">
-                  Routes and fares come from students. Confirm one after you ride it so the next
-                  person gets it right.
-                </p>
-              </section>
-
-              <div
-                ref={detailRef}
-                className="min-w-0 scroll-mt-[calc(var(--topbar-height)+var(--space-4))]"
-              >
-                {selected && (
-                  <RouteDetail
-                    route={selected}
-                    isDefault={selected.id === defaultRouteId}
-                    onConfirm={() => void confirmRoute(selected.id)}
-                    onMakeDefault={() => void makeDefault(selected.id)}
-                  />
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </>
-  )
-}
-
-function claimsFor(
-  route: Route,
-  best: Record<RouteRank, Route | null>,
-): { label: string }[] {
-  return RANKS.filter((entry) => best[entry.value]?.id === route.id).map((entry) => ({
-    label: entry.label,
-  }))
-}
-
-function RouteCard({
-  route,
-  claims,
-  isSelected,
-  isDefault,
-  onSelect,
-}: {
-  route: Route
-  claims: { label: string }[]
-  isSelected: boolean
-  isDefault: boolean
-  onSelect: () => void
-}) {
-  const discounted = route.totalFareRegular > route.totalFareStudent
-  // Aging is not an alarm, but it is not a green tick either.
-  const warn = route.freshness === 'stale' || route.freshness === 'unverified'
-
-  return (
-    <button
-      type="button"
-      aria-pressed={isSelected}
-      onClick={onSelect}
-      className="card squircle block w-full p-4 text-left"
+    <div
+      className="relative isolate w-full overflow-hidden"
+      // The shell's top bar is sticky and sits above this, so the canvas takes
+      // what is left of the viewport rather than all of it. The safe area comes
+      // off as well because the bar's own top padding includes it — installed
+      // to a phone's home screen, that is another 40-odd pixels of notch.
       style={{
-        transition: 'box-shadow var(--duration-fast) var(--ease-standard)',
-        ...(isSelected
-          ? { boxShadow: '0 0 0 1.5px var(--accent)', borderColor: 'transparent' }
-          : null),
+        height: 'calc(100dvh - var(--topbar-height) - env(safe-area-inset-top))',
+        background: 'var(--bg)',
       }}
     >
-      <div className="flex flex-wrap items-center gap-1.5">
-        {claims.map((claim) => (
-          <Badge key={claim.label} tone="official">
-            {claim.label}
-          </Badge>
-        ))}
-        {isDefault && <Badge tone="verified">Your route</Badge>}
-        <Badge tone={route.freshness === 'fresh' ? 'verified' : 'stale'}>
-          {warn && <IconWarning size={11} />}
-          {FRESHNESS_LABEL[route.freshness]}
-        </Badge>
+      {/* The overlay comes first so a keyboard reaches it before the map. */}
+      <div
+        className={cx(
+          'pointer-events-none absolute inset-0 z-10 grid gap-[var(--space-3)] p-[var(--space-3)]',
+          // A phone stacks: picker, the chat button over open map, then the
+          // sheet. A desktop puts the picker and the panel in one 24rem rail
+          // and leaves the chat button in the far corner.
+          'grid-cols-1 grid-rows-[auto_auto_minmax(0,1fr)_auto]',
+          'min-[900px]:grid-cols-[24rem_minmax(0,1fr)] min-[900px]:grid-rows-[auto_minmax(0,1fr)]',
+        )}
+      >
+        <div
+          ref={headerRef}
+          className="row-start-1 flex items-center gap-[var(--space-2)] min-[900px]:col-start-1 min-[900px]:row-start-1"
+        >
+          <OriginPicker
+            areas={areas}
+            value={areaId}
+            onChange={(next) => {
+              setAreaId(next)
+              setExpanded(false)
+            }}
+          />
+          <IconButton
+            label="Centre the map on the route"
+            onClick={() => setFocusNonce((value) => value + 1)}
+            className="pointer-events-auto shrink-0"
+            style={{ boxShadow: 'var(--shadow-float)' }}
+          >
+            <IconTarget size={20} />
+          </IconButton>
+        </div>
+
+        <DirectionsChat
+          areaName={areaName}
+          // The extra bottom padding on a desktop keeps the button off
+          // OpenStreetMap's attribution, which the tile terms require to stay
+          // legible in the corner it sits in.
+          className="row-start-2 justify-self-end min-[900px]:col-start-2 min-[900px]:row-start-2 min-[900px]:self-end min-[900px]:pb-[var(--space-4)]"
+        />
+
+        <div
+          ref={panelRef}
+          className="row-start-4 flex min-h-0 flex-col min-[900px]:col-start-1 min-[900px]:row-start-2"
+        >
+          {!areaId ? (
+            <Card className="pointer-events-auto" padded>
+              <EmptyState
+                icon={<IconCommute size={28} />}
+                title="Pick where you commute from and the ways to campus draw themselves on the map."
+              />
+            </Card>
+          ) : loading ? (
+            <div className="skeleton pointer-events-auto h-40 w-full rounded-[var(--radius-md)]" />
+          ) : routes.length === 0 ? (
+            <Card className="pointer-events-auto" padded>
+              <EmptyState
+                icon={<IconCommute size={28} />}
+                title="No routes on file from there yet. Try a neighbouring area — routes are shared, so one that starts nearby usually still works."
+              />
+            </Card>
+          ) : (
+            <RoutePanel
+              routes={ordered}
+              best={best}
+              rank={rank}
+              onRank={setRank}
+              selected={selected}
+              defaultRouteId={defaultRouteId}
+              onSelect={setSelectedId}
+              onConfirm={() => selected && void confirmRoute(selected.id)}
+              onMakeDefault={() => selected && void makeDefault(selected.id)}
+              expanded={expanded}
+              onExpanded={setExpanded}
+            />
+          )}
+
+          {/* Clears the floating bar, which only exists below the breakpoint. */}
+          <div
+            className="mobile-only shrink-0"
+            aria-hidden
+            style={{
+              height:
+                'calc(var(--tab-bar-height) + var(--tab-bar-inset) * 2 + env(safe-area-inset-bottom))',
+            }}
+          />
+        </div>
       </div>
 
-      <p className="type-headline mt-2 truncate">{route.label ?? 'Route'}</p>
-
-      <dl className="mt-2.5 grid grid-cols-3 gap-2">
-        <div>
-          <dt className="type-caption-2 uppercase tracking-[0.08em] text-[var(--label-tertiary)]">
-            Time
-          </dt>
-          <dd className="type-data type-title-3">{route.totalMinutes} min</dd>
-        </div>
-        <div>
-          <dt className="type-caption-2 uppercase tracking-[0.08em] text-[var(--label-tertiary)]">
-            Student fare
-          </dt>
-          <dd className="type-data type-title-3">
-            {formatPeso(route.totalFareStudent)}
-            {discounted && (
-              <span className="type-data type-caption-1 ml-1.5 align-middle text-[var(--label-tertiary)] line-through">
-                {formatPeso(route.totalFareRegular)}
-              </span>
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt className="type-caption-2 uppercase tracking-[0.08em] text-[var(--label-tertiary)]">
-            Rides
-          </dt>
-          <dd className="type-data type-title-3">{route.transfers}</dd>
-        </div>
-      </dl>
-    </button>
+      <div className="absolute inset-0 z-0">
+        <RouteMap
+          legs={selected?.legs ?? NO_LEGS}
+          height="100%"
+          zoom={CAMPUS_ZOOM}
+          insets={insets}
+          focusNonce={focusNonce}
+          rounded={false}
+          // The canvas has no room for Leaflet's own buttons without landing
+          // them under a panel. Pinch, wheel, double-tap and the keyboard's
+          // +/− all still zoom, and the recentre control is in the overlay.
+          zoomControl={false}
+          className="size-full"
+        />
+      </div>
+    </div>
   )
 }
 
-function RouteDetail({
-  route,
-  isDefault,
-  onConfirm,
-  onMakeDefault,
+/**
+ * The search bar of a maps app, which here has exactly one field in it.
+ *
+ * The whole card is the label, so the target is the card rather than the two
+ * lines of text inside it — a select that only opens when a thumb lands on the
+ * word itself is a select that feels broken.
+ */
+function OriginPicker({
+  areas,
+  value,
+  onChange,
 }: {
-  route: Route
-  isDefault: boolean
-  onConfirm: () => void
-  onMakeDefault: () => void
+  areas: { id: string; name: string; city: string | null }[]
+  value: string
+  onChange: (next: string) => void
 }) {
   return (
-    <section className="stack">
-      <Card padded={false}>
-        <div className="p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="type-section-header">The way there</p>
-              <h3 className="type-title-3 mt-0.5 truncate">{route.label ?? 'Route'}</h3>
-            </div>
-            <p className="type-data type-footnote shrink-0 text-[var(--label-secondary)]">
-              {route.totalMinutes} min · {route.transfers} ride
-              {route.transfers === 1 ? '' : 's'} · {formatPeso(route.totalFareStudent)}
-            </p>
-          </div>
-        </div>
+    <label
+      htmlFor="commute-origin"
+      className="card squircle pointer-events-auto flex min-w-0 flex-1 items-center gap-[var(--space-3)] px-[var(--space-3)] py-[var(--space-2)]"
+      style={{ boxShadow: 'var(--shadow-float)' }}
+    >
+      <span
+        aria-hidden
+        className="grid size-8 shrink-0 place-items-center rounded-full"
+        style={{ background: 'var(--accent-subtle)', color: 'var(--accent)' }}
+      >
+        <IconCommute size={17} />
+      </span>
 
-        <div className="px-4 pb-4">
-          <RouteMap legs={route.legs} />
-        </div>
-
-        <ol className="px-4 pb-4">
-          {route.legs.map((leg, index) => {
-            const color = LEG_COLORS[index % LEG_COLORS.length]
-            const last = index === route.legs.length - 1
-            return (
-              <li key={leg.ordinal} className="flex gap-3">
-                <span aria-hidden className="flex w-3 flex-none flex-col items-center">
-                  <span
-                    className="mt-1.5 block size-3 flex-none rounded-full"
-                    style={{ background: color }}
-                  />
-                  {!last && (
-                    <span
-                      className="block w-[2px] flex-1"
-                      style={{ background: 'var(--separator)' }}
-                    />
-                  )}
-                </span>
-
-                <div className={cx('min-w-0 flex-1', last ? 'pb-0' : 'pb-4')}>
-                  <p className="type-subheadline">
-                    <span className="font-semibold">{MODE_LABEL[leg.mode] ?? leg.mode}</span>{' '}
-                    {leg.from_label} → {leg.to_label}
-                  </p>
-                  <p className="type-data type-footnote text-[var(--label-secondary)]">
-                    {leg.duration_minutes} min
-                    {leg.fare_regular > 0 && (
-                      <>
-                        {' · '}
-                        {formatPeso(leg.fare_student)}
-                        {leg.discount_applied && (
-                          <span className="ml-1 text-[var(--label-tertiary)] line-through">
-                            {formatPeso(leg.fare_regular)}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </p>
-                  {leg.notes && (
-                    <p className="type-footnote text-[var(--label-secondary)]">{leg.notes}</p>
-                  )}
-                </div>
-              </li>
-            )
-          })}
-        </ol>
-
-        <div
-          className="flex flex-wrap items-center justify-between gap-3 p-4"
-          style={{ borderTop: '1px solid var(--separator)' }}
+      <span className="min-w-0 flex-1">
+        {/* Weight and tracking are inline because the type scale is unlayered
+            CSS and therefore outranks anything in Tailwind's utilities. */}
+        <span
+          className="type-caption-2 block uppercase text-[var(--label-tertiary)]"
+          style={{ fontWeight: 600, letterSpacing: '0.06em' }}
         >
-          <p className="type-caption-1 min-w-0 flex-1 text-[var(--label-tertiary)]">
-            {describeFreshness(route.freshness)}
-            {route.verifiedCount > 0 &&
-              ` · ${route.verifiedCount} confirmation${route.verifiedCount === 1 ? '' : 's'}`}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={onConfirm} leading={<IconCheck size={16} />}>
-              I rode this
-            </Button>
-            <Button
-              size="sm"
-              variant={isDefault ? 'plain' : 'accent'}
-              onClick={onMakeDefault}
-              disabled={isDefault}
-            >
-              {isDefault ? 'Saved as your route' : 'Use for my wake-up plan'}
-            </Button>
-          </div>
-        </div>
-      </Card>
+          Coming from
+        </span>
+        <select
+          id="commute-origin"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="type-callout w-full appearance-none truncate bg-transparent"
+          style={{ border: 'none', outline: 'none', padding: 0, fontWeight: 600 }}
+        >
+          <option value="">Pick your area</option>
+          {areas.map((area) => (
+            <option key={area.id} value={area.id}>
+              {area.name}
+              {area.city ? ` · ${area.city}` : ''}
+            </option>
+          ))}
+        </select>
+      </span>
 
-      <ButtonLink href="/commute/plan" variant="plain" size="sm" className="-ml-3">
-        Work out when to leave
-      </ButtonLink>
-    </section>
+      <IconChevronDown size={16} className="shrink-0 text-[var(--label-tertiary)]" aria-hidden />
+    </label>
   )
+}
+
+/**
+ * How much of the map each floating panel is standing on.
+ *
+ * Measured rather than assumed: the sheet's height changes when it expands and
+ * the rail's width is a token away from changing, and a route fitted to the
+ * whole canvas would sit half underneath either of them.
+ */
+function useMapInsets(
+  header: React.RefObject<HTMLElement | null>,
+  panel: React.RefObject<HTMLElement | null>,
+): MapInsets {
+  const [box, setBox] = useState({ header: 0, panelWidth: 0, panelHeight: 0 })
+  const [isDesktop, setIsDesktop] = useState(false)
+
+  useEffect(() => {
+    // The shell's own breakpoint. Only the map's framing depends on it, so a
+    // first paint that guesses phone costs a re-fit and nothing visible.
+    const media = window.matchMedia('(min-width: 900px)')
+    const update = () => setIsDesktop(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  useEffect(() => {
+    const headerElement = header.current
+    const panelElement = panel.current
+    if (!headerElement || !panelElement) return
+
+    const measure = () =>
+      setBox({
+        header: headerElement.offsetHeight,
+        panelWidth: panelElement.offsetWidth,
+        panelHeight: panelElement.offsetHeight,
+      })
+
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(headerElement)
+    observer.observe(panelElement)
+    return () => observer.disconnect()
+  }, [header, panel])
+
+  return isDesktop
+    ? { top: GUTTER, right: GUTTER, bottom: GUTTER, left: box.panelWidth + GUTTER * 2 }
+    : {
+        top: box.header + GUTTER * 2,
+        right: GUTTER,
+        bottom: box.panelHeight + GUTTER,
+        left: GUTTER,
+      }
 }

@@ -184,6 +184,10 @@
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   /* iOS sheet presentation curve. Fast start, long graceful settle. */
   --ease-emphasized: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Overshoots the target and settles back into it — the small bounce a
+   * control makes when the pointer arrives. Only ever for `transform`: a
+   * colour that overshoots is a colour that flickers. */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /*
@@ -202,6 +206,9 @@
     --ease-emphasized: linear;
     --ease-out: linear;
     --ease-in: linear;
+    /* No overshoot for anyone who has asked for less motion: a bounce is the
+     * one part of this that is purely decorative. */
+    --ease-spring: linear;
   }
 
   *,

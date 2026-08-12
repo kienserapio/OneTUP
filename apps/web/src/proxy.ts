@@ -25,6 +25,16 @@ const PUBLIC_PREFIXES = [
   '/offline',
   '/privacy',
   '/terms',
+  '/contributors',
+  // Reporting a problem must not require an account: the person best placed to
+  // tell us sign-up is broken is someone who could not sign up. The route
+  // enforces its own rate limit and honeypot precisely because it is open.
+  '/report',
+  '/api/reports',
+  // Linked from the public footer, and was redirecting anonymous readers to
+  // sign-in — documentation nobody can read without an account is not
+  // documentation.
+  '/docs',
 ]
 
 function isPublic(pathname: string): boolean {

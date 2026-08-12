@@ -149,17 +149,37 @@ async function callModel(
     if (response.status >= 500) {
       throw new RetryableProviderError(`provider ${response.status} on ${model}`, 'server')
     }
+    /* A 4xx here is almost always a statement about *this* model rather than
+     * about the request: free-tier models come and go, and several of them
+     * reject `response_format: json_object` outright with a 400 "does not
+     * support feature: structured-outputs". Treating that as fatal aborted the
+     * whole ladder on its first rung and took the assistant down with it, so an
+     * incompatible model now falls through to the next one instead. */
+    if (response.status === 400 || response.status === 404 || response.status === 422) {
+      throw new RetryableProviderError(`model rejected the request (${response.status}): ${model}`, 'server')
+    }
     if (!response.ok) {
       throw new ApiError('AI_UNAVAILABLE')
     }
 
     const body = (await response.json()) as {
-      choices?: { message?: { content?: string } }[]
+      choices?: { message?: { content?: string }; finish_reason?: string }[]
       usage?: { prompt_tokens?: number; completion_tokens?: number }
     }
 
-    const text = body.choices?.[0]?.message?.content?.trim() ?? ''
+    const choice = body.choices?.[0]
+    const text = choice?.message?.content?.trim() ?? ''
     if (!text) throw new RetryableProviderError(`empty completion from ${model}`, 'empty')
+
+    /* Truncation is the other way a model fails while looking successful. A
+     * reasoning model spends `max_tokens` on its chain of thought, gets cut
+     * off, and OpenRouter hands back the *reasoning prose* as content — which
+     * is non-empty, parses as nothing, and would otherwise be accepted here as
+     * a good answer. Only JSON callers care: a truncated sentence is still a
+     * usable sentence, a truncated object is not. */
+    if (request.json && choice?.finish_reason === 'length') {
+      throw new RetryableProviderError(`truncated before completing JSON on ${model}`, 'server')
+    }
 
     return {
       text,

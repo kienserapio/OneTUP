@@ -52,12 +52,18 @@
 
 /* On an all-white page a shadow alone is not separation — it vanishes at low
  * brightness and in high-contrast mode. The hairline does the work; the shadow
- * only lifts the card off the page. */
+ * only lifts the card off the page.
+ *
+ * The face is a true 180° gradient — white at the top edge, sunken at the
+ * bottom — with the same inset top highlight the buttons carry, so a card and a
+ * control read as the same material lit from the same direction. */
 .card {
-  background: var(--bg-grouped-secondary);
+  background: linear-gradient(180deg, #ffffff 0%, var(--surface-sunken) 100%);
   border: 1px solid var(--separator);
   border-radius: var(--radius-md);
-  box-shadow: 0 1px 2px rgb(30 18 20 / 0.03);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.9),
+    0 1px 2px rgb(30 18 20 / 0.04);
 }
 
 .card-flush {
@@ -94,10 +100,12 @@
   letter-spacing: -0.02em;
   cursor: pointer;
   isolation: isolate;
-  /* Feedback happens on press, so the transition has to be short enough that
-   * it never lags the finger. */
+  /* The transform springs: it overshoots the hover size and settles back, so
+   * arriving on a control is a small pop rather than a step change. The paint
+   * properties stay on a plain curve — only geometry is allowed to overshoot.
+   * The press overrides this with something much faster, below. */
   transition:
-    transform var(--duration-instant) var(--ease-out),
+    transform var(--duration-base) var(--ease-spring),
     background-color var(--duration-fast) var(--ease-standard),
     box-shadow var(--duration-fast) var(--ease-standard);
   -webkit-tap-highlight-color: transparent;
@@ -121,9 +129,25 @@
   z-index: -1;
 }
 
+/* Hover grows, press shrinks — the pair reads as one physical object being
+ * approached and then pushed. Gated on a real pointer: on a touch screen
+ * `:hover` sticks after the tap and leaves the control stuck at 1.03. */
+@media (hover: hover) and (pointer: fine) {
+  .glass:hover:not(:disabled) {
+    transform: scale(1.04);
+  }
+}
+
+/* After the hover rule, and therefore winning at equal specificity: a press
+ * always beats a hover, because the finger is on it right now. */
 .glass:active:not(:disabled) {
-  transform: scale(0.965);
+  transform: scale(0.96);
   background: var(--material-regular);
+  /* The press does not get the spring. Feedback under a finger has to land on
+   * the frame it is asked for, and an overshoot on the way down reads as the
+   * control wobbling rather than being pushed. */
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-out);
 }
 
 .glass:disabled {
@@ -445,7 +469,69 @@ a.list-row:active {
   padding: var(--space-3) var(--space-3) var(--space-1);
 }
 
-/* The brand square, and the same mark used as an avatar. */
+/* A quick action.
+ *
+ * The same object as an accent button — same 180° face, same inset top
+ * highlight, same accent-tinted drop shadow, same press — just square and tall
+ * enough to stack an icon over a one-word label. They sit directly under the
+ * Up Next card, and as white cards they read as more content to scan rather
+ * than as four things to press. */
+.quick-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  aspect-ratio: 1 / 1;
+  min-height: var(--target-min);
+  padding: var(--space-2);
+  text-align: center;
+  border-radius: var(--radius-md);
+  color: var(--on-accent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 88%, white) 0%,
+    var(--accent) 55%,
+    var(--crimson-700) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.28),
+    0 1px 2px rgb(0 0 0 / 0.12),
+    0 8px 18px -10px color-mix(in srgb, var(--accent) 70%, transparent);
+  transition:
+    transform var(--duration-base) var(--ease-spring),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .quick-action:hover {
+    transform: scale(1.04);
+  }
+}
+
+.quick-action:active {
+  transform: scale(0.96);
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-action {
+    transition: none;
+  }
+  .quick-action:hover,
+  .quick-action:active {
+    transform: none;
+  }
+}
+
+/* The brand square, and the same mark used as an avatar.
+ *
+ * It used to hold the character "1", which was a wordless pun on the product
+ * name that nobody outside the team ever read as one. It now holds the actual
+ * mark, in white on crimson — the same two colours as the installed app icon,
+ * so the tile in the sidebar and the tile on the home screen are recognisably
+ * the same object. The inset highlight is the one the buttons carry. */
 .brand-mark {
   display: grid;
   place-items: center;
@@ -457,7 +543,9 @@ a.list-row:active {
   color: var(--on-accent);
   font-weight: 700;
   font-size: 1rem;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 28%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.24),
+    0 2px 10px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 @media (min-width: 900px) {

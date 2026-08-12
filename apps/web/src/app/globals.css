@@ -74,6 +74,9 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-optical-sizing: auto;
+    /* Anchor jumps and programmatic scrolls glide rather than teleport. The
+     * reduced-motion block in tokens.css forces this back to `auto`. */
+    scroll-behavior: smooth;
     /* The app is a fixed viewport with its own scroll containers; the document
      * itself never rubber-bands, which is what stops the tab bar drifting. */
     overscroll-behavior-y: none;
@@ -143,6 +146,37 @@
 }
 
 @layer components {
+  /* The skip link, and only once it is focused. It cannot carry `.glass`:
+   * materials.css is imported unlayered, so `.glass` outranks the `sr-only`
+   * utility and the hidden link keeps its 44px min-height, pushing every page
+   * down by that much. Spelled out here, nothing paints until it is on screen. */
+  .skip-link:focus {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--target-min);
+    padding: 0 var(--space-5);
+    border: 1px solid var(--material-edge);
+    border-radius: var(--radius-pill);
+    background: var(--material-thick);
+    box-shadow: var(--shadow-float);
+    -webkit-backdrop-filter: blur(var(--material-blur-small)) saturate(var(--material-saturate));
+    backdrop-filter: blur(var(--material-blur-small)) saturate(var(--material-saturate));
+  }
+
+  /* `.squircle` in materials.css only sets `corner-shape`, which does nothing
+   * on its own — an element with the class and no radius is a plain rectangle
+   * with a fancier way of describing corners it does not have. Every call site
+   * was written expecting it to round, so the default lives here.
+   *
+   * In `components` rather than alongside the rest of the class, deliberately:
+   * materials.css is unlayered and would therefore outrank every `rounded-*`
+   * utility, silently flattening the cards that ask for a larger radius. From
+   * this layer a utility still wins, and `.card` and `.list-group` keep their
+   * own unlayered radii. */
+  .squircle {
+    border-radius: var(--radius-lg);
+  }
+
   /* The one scroll container in the authenticated app. The bottom padding
    * clears the floating bar so the last row of any list stays reachable — and
    * it goes away above the breakpoint, where there is no floating bar. */
@@ -175,11 +209,14 @@
     }
   }
 
+  /* Sunken rather than white. Every surface in this product is white, so a
+   * white field on a white card was a hairline outline and nothing else — the
+   * tonal step is what makes it read as something you type into. */
   .field {
     width: 100%;
     min-height: var(--target-min);
     padding: var(--space-3) var(--space-4);
-    background: var(--bg-grouped-secondary);
+    background: var(--surface-sunken);
     border: 1px solid var(--separator);
     border-radius: var(--radius-sm);
     transition:

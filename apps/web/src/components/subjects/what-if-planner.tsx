@@ -5,6 +5,7 @@ import { motion } from 'motion/react'
 import {
   type GradedCourse,
   type WhatIfResult,
+  computeGwa,
   formatGwa,
   planWhatIf,
 } from '@onetup/core'
@@ -22,25 +23,56 @@ import { cx } from '@/lib/cx'
  * re-derives a requirement or softens a verdict: a student deciding whether to
  * keep a scholarship needs the arithmetic to be the same arithmetic that the
  * notification and the threshold check use (ADR-007).
+ *
+ * "A GWA of 1.50" is two different questions depending on what it is measured
+ * against, and the answers are far apart once there are past semesters on
+ * record — six terms of history barely move for one term of effort. The scope
+ * is therefore chosen rather than assumed, and named in the verdict, so the
+ * number on screen is never the answer to a question the student did not ask.
  */
 
 const QUICK_TARGETS = [1.0, 1.25, 1.5, 1.75, 2.0]
 
+/** Named to match the threshold scopes, which ask the same question. */
+export type WhatIfScope = 'term' | 'cumulative'
+
 export interface WhatIfPlannerProps {
-  graded: readonly GradedCourse[]
+  /** Graded courses in the current term. */
+  termCourses: readonly GradedCourse[]
+  /** Graded courses across every term on record, current one included. */
+  cumulativeCourses: readonly GradedCourse[]
+  /**
+   * Whether the two are different questions at all. With a single semester
+   * behind them the student would be picking between one answer and the same
+   * answer, so the control is not offered.
+   */
+  hasPastTerms: boolean
   ungraded: readonly { enrollmentId: string; code: string; units: number }[]
   /** Grades already recorded as expectations, used as the starting pins. */
   initialPins?: Record<string, number>
 }
 
-export function WhatIfPlanner({ graded, ungraded, initialPins }: WhatIfPlannerProps) {
+export function WhatIfPlanner({
+  termCourses,
+  cumulativeCourses,
+  hasPastTerms,
+  ungraded,
+  initialPins,
+}: WhatIfPlannerProps) {
   const [target, setTarget] = useState('1.75')
+  // A student who has just imported six semesters is asking about their record,
+  // not about the fifteen units in front of them.
+  const [scope, setScope] = useState<WhatIfScope>(hasPastTerms ? 'cumulative' : 'term')
   const [pins, setPins] = useState<Record<string, number>>(initialPins ?? {})
   const [pinning, setPinning] = useState<{ enrollmentId: string; code: string } | null>(null)
 
   const parsed = Number.parseFloat(target)
   const valid = Number.isFinite(parsed) && parsed >= 1 && parsed <= 5
 
+  const graded = scope === 'cumulative' ? cumulativeCourses : termCourses
+
+  // Whichever scope is chosen, the courses still in play are this term's — a
+  // grade from two years ago is not a grade the student can still change.
   const plan = useMemo(
     () =>
       valid
@@ -56,6 +88,8 @@ export function WhatIfPlanner({ graded, ungraded, initialPins }: WhatIfPlannerPr
     [valid, parsed, graded, ungraded, pins],
   )
 
+  const gradedUnits = useMemo(() => computeGwa(graded).gradedUnits, [graded])
+
   return (
     <section>
       <SectionHeader>What if</SectionHeader>
@@ -63,7 +97,11 @@ export function WhatIfPlanner({ graded, ungraded, initialPins }: WhatIfPlannerPr
       <div className="stack">
         <Card className="stack">
           <div>
-            <label htmlFor="whatif-target" className="type-subheadline mb-1.5 block font-medium">
+            <label
+              htmlFor="whatif-target"
+              className="type-subheadline mb-1.5 block"
+              style={{ fontWeight: 500 }}
+            >
               I want a GWA of
             </label>
             <input
@@ -96,9 +134,32 @@ export function WhatIfPlanner({ graded, ungraded, initialPins }: WhatIfPlannerPr
             ))}
           </div>
 
+          {hasPastTerms && (
+            <div>
+              <p className="type-subheadline mb-1.5" style={{ fontWeight: 500 }}>
+                Measured against
+              </p>
+              <div className="segmented w-full" role="radiogroup" aria-label="What the target covers">
+                {(['term', 'cumulative'] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={scope === option}
+                    data-selected={scope === option}
+                    onClick={() => setScope(option)}
+                    className="segmented-item flex-1"
+                  >
+                    {option === 'term' ? 'This term' : 'All terms'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div id="whatif-verdict" aria-live="polite">
             {plan ? (
-              <Verdict plan={plan} />
+              <Verdict plan={plan} scope={scope} gradedUnits={gradedUnits} />
             ) : (
               <p className="type-footnote text-[var(--label-secondary)]">
                 Enter a target between 1.00 and 5.00.
@@ -110,7 +171,9 @@ export function WhatIfPlanner({ graded, ungraded, initialPins }: WhatIfPlannerPr
         {ungraded.length > 0 && (
           <div>
             <p className="type-footnote px-1 pb-2 text-[var(--label-secondary)]">
-              Expecting a particular grade somewhere? Pin it and the rest recalculates around it.
+              {scope === 'cumulative'
+                ? 'These are the only grades still in play — every past term is already set. Pin one and the rest recalculates around it.'
+                : 'Expecting a particular grade somewhere? Pin it and the rest recalculates around it.'}
             </p>
             <ListGroup>
               {ungraded.map((course) => (
@@ -178,7 +241,25 @@ export function WhatIfPlanner({ graded, ungraded, initialPins }: WhatIfPlannerPr
   )
 }
 
-function Verdict({ plan }: { plan: WhatIfResult }) {
+/**
+ * The verdict, with the scope stated above it.
+ *
+ * `planWhatIf` returns a sentence that names the target but not what the target
+ * is measured against, and "you need 1.25 in each of your four remaining
+ * subjects" means something very different over one term than over six. The
+ * scope line is therefore always present, not only when it happens to fit.
+ */
+function Verdict({
+  plan,
+  scope,
+  gradedUnits,
+}: {
+  plan: WhatIfResult
+  scope: WhatIfScope
+  gradedUnits: number
+}) {
+  const where = scope === 'cumulative' ? 'Across every term on record' : 'This term on its own'
+
   return (
     <div className="flex gap-2.5">
       <span
@@ -187,10 +268,22 @@ function Verdict({ plan }: { plan: WhatIfResult }) {
         style={{ background: verdictColor(plan) }}
       />
       <div className="min-w-0 flex-1">
+        <p className="type-footnote mb-1 text-[var(--label-secondary)]">
+          {plan.currentGwa === null ? (
+            <>{where} — nothing graded yet.</>
+          ) : (
+            <>
+              {where} — you are at <span className="type-data">{formatGwa(plan.currentGwa)}</span>{' '}
+              over {gradedUnits} unit{gradedUnits === 1 ? '' : 's'}.
+            </>
+          )}
+        </p>
+
         <p className="type-body">{plan.explanation}</p>
 
         {plan.bestPossible !== null && plan.verdict !== 'unreachable' && (
           <p className="type-footnote mt-1.5 text-[var(--label-secondary)]">
+            {scope === 'cumulative' ? 'Across all terms, ' : 'This term, '}
             <span className="type-data">{formatGwa(plan.bestPossible)}</span> is the best you could
             still finish with, <span className="type-data">{formatGwa(plan.worstPossible)}</span>{' '}
             the worst.

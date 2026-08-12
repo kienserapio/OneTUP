@@ -75,9 +75,9 @@ Students make this decision blind every term. The `unlocks` reverse edge in the 
 
 ### 3.3 Contradiction detection
 
-ERS says Rm 312. The beadle posted 305. The saved schedule says 312.
+ERS says Rm 312. The class representative posted 305. The saved schedule says 312.
 
-Instead of silently picking one, surface: *"Three sources disagree about Wednesday's room, and the beadle's is newest."*
+Instead of silently picking one, surface: *"Three sources disagree about Wednesday's room, and the class representative's is newest."*
 
 Mundane-sounding, and disproportionately important — it is the kind of thing that makes an app feel trustworthy rather than merely clever.
 
@@ -156,7 +156,7 @@ The line stays *"it keeps up with your semester."* People will assume there is A
 
 ### 5.1 Receipts, always
 
-Every autonomous action carries a one-line explanation: *"Added because your beadle posted this at 11:42 PM."* Tap it, see the source.
+Every autonomous action carries a one-line explanation: *"Added because your class representative posted this at 11:42 PM."* Tap it, see the source.
 
 This is what separates **"how did it know?"** (delightful) from **"why did it do that?"** (unsettling). It is also the defence when the agent gets something wrong — and it will.
 

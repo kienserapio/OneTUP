@@ -91,7 +91,13 @@ export function CampusView({
   const [scene, setScene] = useState<string | null>(startScene)
   const [panel, setPanel] = useState<PanelKey | null>(null)
   const [filter, setFilter] = useState<Set<string>>(new Set())
+  const [intro, setIntro] = useState(true)
+  /* True once the visitor has driven the tour themselves, at which point the
+   * scene on screen is no longer the one we last asked for. See `onBlur`. */
+  const [wandered, setWandered] = useState(false)
+  const [jump, setJump] = useState(0)
   const panelRef = useRef<HTMLElement>(null)
+  const frameRef = useRef<HTMLIFrameElement>(null)
 
   const linked = useMemo(
     () => places.filter((place): place is CampusPlace & { tour_scene_url: string } =>
@@ -111,10 +117,13 @@ export function CampusView({
     [linked],
   )
 
-  const current = useMemo(
+  /* The place we put the visitor at, which is only where they still are if they
+   * have not moved since. */
+  const placed = useMemo(
     () => linked.find((place) => place.tour_scene_url === scene) ?? null,
     [linked, scene],
   )
+  const current = wandered ? null : placed
 
   const emergency = useMemo(
     () => places.filter((place) => place.is_emergency),
@@ -156,6 +165,33 @@ export function CampusView({
     if (panel) panelRef.current?.focus()
   }, [panel])
 
+  /**
+   * Whether the label below still describes what is on screen.
+   *
+   * The tour is a third-party viewer on another origin: it broadcasts nothing,
+   * its URL cannot be read from here, and it publishes no embed API — so there
+   * is no way to be *told* which scene the visitor walked to using its own
+   * arrows and thumbnails. What can be detected is the moment they take the
+   * wheel, because clicking or tabbing into an iframe blurs the parent window
+   * and leaves the frame as the active element.
+   *
+   * So the label is dynamic in the only direction that is honest: it names the
+   * place while we are the ones who put the visitor there, and it stops naming
+   * one the moment they start moving themselves. Jumping from our own controls
+   * re-anchors it. Claiming "College of Architecture" while somebody is three
+   * buildings away is worse than claiming nothing.
+   */
+  useEffect(() => {
+    const onBlur = () => {
+      // activeElement is only updated after the blur has been dispatched.
+      window.setTimeout(() => {
+        if (document.activeElement === frameRef.current) setWandered(true)
+      }, 0)
+    }
+    window.addEventListener('blur', onBlur)
+    return () => window.removeEventListener('blur', onBlur)
+  }, [])
+
   const closePanel = useCallback((returnFocusTo: PanelKey | null) => {
     setPanel(null)
     if (returnFocusTo) document.getElementById(toolId(returnFocusTo))?.focus()
@@ -163,7 +199,12 @@ export function CampusView({
 
   function jumpTo(nextScene: string) {
     setScene(nextScene)
+    setWandered(false)
     setPanel(null)
+    // Bumped on every jump, not only on a change of scene: asking to go back to
+    // the place you started from has to actually take you back there, and the
+    // frame only reloads if its key moves.
+    setJump((value) => value + 1)
   }
 
   const embedUrl = tourBaseUrl
@@ -192,10 +233,65 @@ export function CampusView({
           <ScenePicker
             className="pointer-events-auto"
             options={options}
-            value={scene}
+            /* Null once the visitor has wandered: the picker must not go on
+               naming a place they have walked away from either. */
+            value={current?.tour_scene_url ?? null}
             onChange={jumpTo}
           />
         </div>
+
+        {/* What this page is, said once. Solid white rather than glass: it sits
+            over a photograph of unknown brightness, and this is the one card on
+            the screen that has to be readable before the visitor has decided to
+            care about it. */}
+        <AnimatePresence>
+          {intro && (
+            <motion.aside
+              className="card squircle pointer-events-auto mx-[var(--space-3)] w-[min(26rem,calc(100%-var(--space-6)))] shrink-0 p-[var(--space-4)]"
+              style={{ background: 'var(--bg)', boxShadow: 'var(--shadow-float)' }}
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={transition(spring.sheet)}
+            >
+              <div className="flex items-start gap-[var(--space-3)]">
+                <div className="min-w-0 flex-1">
+                  <p
+                    className="type-caption-2 font-semibold uppercase tracking-widest"
+                    style={{ color: 'var(--label)' }}
+                  >
+                    Open to everyone
+                  </p>
+                  <h1 className="type-title-3 mt-[var(--space-1)]">
+                    The campus map needs no account
+                  </h1>
+                  <p
+                    className="type-footnote mt-[var(--space-2)]"
+                    style={{ color: 'var(--label-secondary)' }}
+                  >
+                    Room numbers and which building they&rsquo;re in. Gates, printing spots,
+                    canteens and the clinic. Walk it in 360°, or use the tools below to look
+                    something up.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIntro(false)}
+                  aria-label="Hide this"
+                  className="-mr-[var(--space-2)] -mt-[var(--space-2)] grid shrink-0 place-items-center rounded-full"
+                  style={{
+                    width: 'var(--target-min)',
+                    height: 'var(--target-min)',
+                    color: 'var(--label-secondary)',
+                  }}
+                >
+                  <IconClose size={18} />
+                </button>
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
 
         <span className="flex-1" />
 
@@ -273,7 +369,7 @@ export function CampusView({
                       counts={counts}
                       filter={filter}
                       onFilter={setFilter}
-                      selectedId={current?.id ?? null}
+                      selectedId={placed?.id ?? null}
                       onSelect={(place) => {
                         if (place.tour_scene_url) jumpTo(place.tour_scene_url)
                       }}
@@ -284,7 +380,7 @@ export function CampusView({
 
                   {panel === 'fix' &&
                     (signedIn ? (
-                      <CorrectionForm places={places} defaultPlaceId={current?.id ?? null} />
+                      <CorrectionForm places={places} defaultPlaceId={placed?.id ?? null} />
                     ) : (
                       <CorrectionSignedOut />
                     ))}
@@ -319,18 +415,15 @@ export function CampusView({
               backdropFilter: 'blur(12px)',
             }}
           >
-            {current ? `Showing ${current.name}. ` : ''}
-            Tour by{' '}
-            <a
-              href="https://github.com/smnthegr/TUPniverse"
-              className="pointer-events-auto underline"
-              style={{ color: 'var(--accent)' }}
-              rel="noreferrer noopener"
-              target="_blank"
-            >
-              TUPniverse
-            </a>
-            . Rooms move between terms — check with the office if it matters.
+            {current ? (
+              <span style={{ color: 'var(--label)', fontWeight: 600 }}>Showing {current.name}. </span>
+            ) : wandered ? (
+              <span>You&rsquo;re walking the tour — its own header names the scene. </span>
+            ) : null}
+            {/* Credit stays, the link goes: sending someone who came here to
+                find a room out to a source repository is not a destination
+                anybody wanted from a map. */}
+            Tour by TUPniverse. Rooms move between terms — check with the office if it matters.
           </p>
 
           <nav
@@ -355,9 +448,10 @@ export function CampusView({
       <div className="absolute inset-0 z-0">
         {embedUrl ? (
           <iframe
-            key={embedUrl}
+            ref={frameRef}
+            key={`${embedUrl}#${jump}`}
             src={embedUrl}
-            title={current ? `Campus tour — ${current.name}` : 'TUP Manila campus tour'}
+            title={placed ? `Campus tour — ${placed.name}` : 'TUP Manila campus tour'}
             // A 360° view needs the motion sensors. It gets those and nothing else.
             allow="accelerometer; gyroscope; magnetometer; xr-spatial-tracking; fullscreen"
             referrerPolicy="no-referrer"

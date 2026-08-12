@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { PasteImporter } from '@/lib/import/paste'
+import { saveErsIdentity } from '@/lib/import/identity'
 import type { ImportProposal } from '@/lib/import/types'
 import { Button } from '@/components/ui/button'
 import { Field, FormError } from '@/components/auth/auth-form'
@@ -42,6 +43,9 @@ export function ErsConnect({
   onCancel,
 }: ErsConnectProps) {
   const [number, setNumber] = useState(studentNumber)
+  /* An account that already carries a student number has nothing to decide
+   * here, and an editable field only invites importing somebody else's. */
+  const locked = studentNumber.trim().length > 0
   const [password, setPassword] = useState('')
   const [birthdate, setBirthdate] = useState('')
 
@@ -71,6 +75,12 @@ export function ErsConnect({
         setError(body?.error?.message ?? 'That did not work. Try again, or paste your schedule.')
         return
       }
+
+      /* ERS hands back who the student is along with what they are enrolled in.
+       * Onboarding has always written that down; this path did not, which is
+       * why a student who connected from the Schedule screen ended up with a
+       * full timetable and an empty profile. */
+      await saveErsIdentity(body.identity)
 
       onImported(
         {
@@ -110,6 +120,10 @@ export function ErsConnect({
 
       {error && <FormError>{error}</FormError>}
 
+      {/* Fixed to the account when the account knows it. The server checks the
+          same thing — before the login, and again against whoever ERS says it
+          actually signed in — but a field that cannot be wrong beats an error
+          that explains why it was. */}
       <Field
         id="ers-student-number"
         label="Student number"
@@ -118,7 +132,12 @@ export function ErsConnect({
         autoComplete="off"
         spellCheck={false}
         required
-        disabled={!emailVerified}
+        disabled={!emailVerified || locked}
+        hint={
+          locked
+            ? 'Locked to this account. Your schedule is only ever kept under the student it belongs to.'
+            : undefined
+        }
       />
 
       <Field

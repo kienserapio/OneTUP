@@ -48,14 +48,44 @@
   font-display: swap;
 }
 
+/* SF Pro Rounded, referenced the same way and for the same licensing reason.
+ * `ui-rounded` is the standards-track way to ask for it and is what WebKit
+ * resolves to SF Pro Rounded on Apple platforms; the `local()` face below is
+ * the fallback for engines that do not implement the generic yet. */
+@font-face {
+  font-family: 'SF Pro Rounded Local';
+  src:
+    local('SF Pro Rounded'),
+    local('SFProRounded-Regular'),
+    local('.SFNSRounded'),
+    local('.SF NS Rounded');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --font-text:
+  /* The flat grotesque stacks. Kept because the landing hero is set in them —
+   * an editorial headline wants the tighter, straighter cut, and the italic
+   * serif it pairs with has nothing to say next to a rounded face. */
+  --font-flat-text:
     -apple-system, BlinkMacSystemFont, 'SF Pro Local', 'Inter Variable', 'Inter',
     'Segoe UI', Roboto, system-ui, sans-serif;
 
-  --font-display:
+  --font-flat-display:
     -apple-system, BlinkMacSystemFont, 'SF Pro Display Local', 'Inter Variable', 'Inter',
     'Segoe UI', Roboto, system-ui, sans-serif;
+
+  /* The product voice. Everything that is not the hero is set in this. */
+  --font-rounded:
+    ui-rounded, 'SF Pro Rounded Local', -apple-system, BlinkMacSystemFont, 'SF Pro Local',
+    'Inter Variable', 'Inter', 'Segoe UI', Roboto, system-ui, sans-serif;
+
+  /* Both aliases point at the rounded stack, so any component that asks for
+   * text or display type gets it. The hero re-points these two properties on
+   * its own subtree, which is the whole opt-out mechanism. */
+  --font-text: var(--font-rounded);
+  --font-display: var(--font-rounded);
 
   /* One typeface throughout, numbers included. Data that is scanned rather
    * than read still needs its columns to line up, and SF Pro's tabular figures

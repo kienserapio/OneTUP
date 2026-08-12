@@ -3,10 +3,24 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'motion/react'
+import type {
+  ParseWarning,
+  ParsedCourse,
+  ParsedGrade,
+  ParsedTerm,
+  RawRow,
+  UnparsedGradeRow,
+} from '@onetup/core'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { PasteImporter } from '@/lib/import/paste'
+import { saveErsIdentity, type ErsIdentity } from '@/lib/import/identity'
 import type { ImportProposal, ReviewedCourse } from '@/lib/import/types'
 import { ImportReview } from '@/components/schedule/import-review'
+import {
+  GradesReview,
+  type GradesProposal,
+  type TermOption,
+} from '@/components/subjects/grades-import'
 import { Button } from '@/components/ui/button'
 import { Card, ListGroup, ListRow } from '@/components/ui/surfaces'
 import { Field, FormError } from '@/components/auth/auth-form'
@@ -25,11 +39,24 @@ import { syncNow } from '@/lib/offline/sync'
  *   2. The credential fields never touch a store. They live in component state,
  *      are sent once, and are cleared on both the success and the failure path
  *      (auth doc §5.1). No Zustand, no React Query cache, no storage.
+ *
+ * The ERS sign-in reads two pages, not one, and that is a consequence of the
+ * first constraint rather than a feature bolted onto it. Asking for a password
+ * is the expensive moment; asking twice — once here, once again later for past
+ * grades — spends it twice, and the portal ends the first session when the
+ * second login lands. So one set of credentials is used once and the student
+ * confirms what came back in two passes: the schedule, then the grades. The
+ * second pass is skippable and nothing is written until it is confirmed.
  */
 
-type Step = 'consent' | 'connect' | 'paste' | 'review' | 'setup' | 'install'
+type Step = 'consent' | 'connect' | 'paste' | 'review' | 'grades' | 'setup' | 'install'
 
 const ORDER: Step[] = ['consent', 'connect', 'review', 'setup', 'install']
+
+/** ERS handed back past grades as well, so there genuinely is one more thing to
+ * confirm. The bar grows a segment rather than lying about how far along the
+ * student is. */
+const ORDER_WITH_GRADES: Step[] = ['consent', 'connect', 'review', 'grades', 'setup', 'install']
 
 export interface OnboardingProps {
   studentNumber: string
@@ -37,6 +64,10 @@ export interface OnboardingProps {
   areas: { id: string; name: string; city: string | null }[]
   termCode: string
   termLabel: string
+  /** Every semester on file. The grades review has to offer a real one for each
+   * group ERS printed, and a select that populates late is a select the student
+   * has already scrolled past. */
+  terms: TermOption[]
 }
 
 export function Onboarding({
@@ -45,19 +76,22 @@ export function Onboarding({
   areas,
   termCode,
   termLabel,
+  terms,
 }: OnboardingProps) {
   const router = useRouter()
   const [step, setStep] = useState<Step>('consent')
   const [proposal, setProposal] = useState<ImportProposal | null>(null)
+  const [grades, setGrades] = useState<GradesProposal | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
   const [importSource, setImportSource] = useState<'ers_import' | 'paste'>('ers_import')
 
-  const position = Math.max(0, ORDER.indexOf(step === 'paste' ? 'connect' : step))
+  const order = grades ? ORDER_WITH_GRADES : ORDER
+  const position = Math.max(0, order.indexOf(step === 'paste' ? 'connect' : step))
 
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="app-container py-4 safe-top">
-        <Progress current={position} total={ORDER.length} />
+        <Progress current={position} total={order.length} />
       </header>
 
       <main id="main" className="app-container flex-1 pb-12">
@@ -82,10 +116,10 @@ export function Onboarding({
               {step === 'connect' && (
                 <ConnectStep
                   studentNumber={studentNumber}
-                  termCode={termCode}
                   termLabel={termLabel}
-                  onImported={(result, job) => {
-                    setProposal(result)
+                  onImported={(schedule, pastGrades, job) => {
+                    setProposal(schedule)
+                    setGrades(pastGrades)
                     setJobId(job)
                     setImportSource('ers_import')
                     setStep('review')
@@ -99,6 +133,10 @@ export function Onboarding({
                 <PasteStep
                   onParsed={(result) => {
                     setProposal(result)
+                    // A paste is a schedule and only a schedule. Anything an
+                    // earlier ERS attempt left behind would otherwise reappear
+                    // two steps later as grades this import never read.
+                    setGrades(null)
                     setJobId(null)
                     setImportSource('paste')
                     setStep('review')
@@ -114,8 +152,24 @@ export function Onboarding({
                   onCommit={async (courses) => {
                     await commitSchedule(courses, termCode, importSource, jobId)
                     await syncNow()
-                    setStep('setup')
+                    /* The schedule is in. Past grades are a second, separate
+                     * confirmation and only when there is something to confirm —
+                     * a student whose grades page came back empty, or would not
+                     * come at all, simply never sees this step. */
+                    setStep(grades ? 'grades' : 'setup')
                   }}
+                />
+              )}
+
+              {step === 'grades' && grades && (
+                <GradesReview
+                  proposal={grades}
+                  terms={terms}
+                  currentTermCode={termCode || null}
+                  heading="And your past grades"
+                  cancelLabel="Skip for now"
+                  onCancel={() => setStep('setup')}
+                  onSaved={() => setStep('setup')}
                 />
               )}
 
@@ -186,16 +240,17 @@ function ConsentStep({
       <h1 className="type-title-1">About your ERS password</h1>
 
       <p className="type-body">
-        To import your schedule, OneTUP signs in to ERS as you, once, and reads your schedule page.
-        Here&rsquo;s exactly what happens:
+        OneTUP signs in to ERS as you, once, and reads two pages: this term&rsquo;s schedule and the
+        semesters you have already finished. Here&rsquo;s exactly what happens:
       </p>
 
       <ul className="stack">
         {[
           'Your student number, ERS password, and birthdate are sent over an encrypted connection.',
-          "They're used to sign in, read your schedule, and then discarded.",
+          "They're used to sign in once, read those two pages, and then discarded.",
           'Your schedule is saved. Your password is not — there’s nowhere in OneTUP that stores it.',
-          'Nothing in your ERS account is changed, submitted, or read beyond the schedule page.',
+          'You see both before anything is saved, and past grades are yours to skip.',
+          'Nothing in your ERS account is changed or submitted, and no other page is opened.',
         ].map((point) => (
           <li key={point} className="type-body flex gap-2.5">
             <IconCheck size={20} className="mt-0.5 shrink-0" style={{ color: 'var(--ok)' }} />
@@ -237,18 +292,48 @@ function ConsentStep({
   )
 }
 
+/**
+ * What the response to one sign-in looks like.
+ *
+ * Written out rather than left as whatever `response.json()` hands back, because
+ * every field below is optional on purpose: the grades half is allowed to come
+ * back missing, and a shape that admits that is the only one that makes the
+ * next thirty lines read honestly.
+ */
+interface ImportAllResponse {
+  job_id?: string | null
+  schedule?: {
+    parser_version?: string
+    courses?: ParsedCourse[]
+    unparsed?: RawRow[]
+    warnings?: ParseWarning[]
+    identity?: ErsIdentity | null
+  } | null
+  grades?: {
+    parser_version?: string
+    courses?: ParsedGrade[]
+    unparsed?: UnparsedGradeRow[]
+    warnings?: string[]
+    terms?: ParsedTerm[]
+    debug?: GradesProposal['debug']
+  } | null
+  error?: { message?: string }
+}
+
 function ConnectStep({
   studentNumber,
-  termCode,
   termLabel,
   onImported,
   onPaste,
   onBack,
 }: {
   studentNumber: string
-  termCode: string
   termLabel: string
-  onImported: (proposal: ImportProposal, jobId: string | null) => void
+  onImported: (
+    schedule: ImportProposal,
+    grades: GradesProposal | null,
+    jobId: string | null,
+  ) => void
   onPaste: () => void
   onBack: () => void
 }) {
@@ -266,18 +351,13 @@ function ConnectStep({
     setBusy(true)
 
     try {
-      const response = await fetch('/api/ers/import', {
+      const response = await fetch('/api/ers/import-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_number: number.trim(),
-          password,
-          birthdate,
-          term_code: termCode,
-        }),
+        body: JSON.stringify({ student_number: number.trim(), password, birthdate }),
       })
 
-      const body = await response.json()
+      const body = (await response.json()) as ImportAllResponse
 
       if (!response.ok) {
         setError(body?.error?.message ?? 'That did not work. Try again, or paste your schedule.')
@@ -287,15 +367,32 @@ function ConnectStep({
       // ERS knows the student's real name and program; the sign-up form only
       // knows what they typed. Saving it here means announcements and class-rep
       // verification have something true to work with.
-      if (body.identity) await saveIdentity(body.identity)
+      await saveErsIdentity(body.schedule?.identity)
+
+      const pastGrades = body.grades?.courses?.length
+        ? {
+            parserVersion: body.grades.parser_version ?? 'unknown',
+            courses: body.grades.courses,
+            unparsed: body.grades.unparsed ?? [],
+            warnings: body.grades.warnings ?? [],
+            terms: body.grades.terms ?? [],
+            debug: body.grades.debug ?? null,
+          }
+        : null
 
       onImported(
         {
-          parserVersion: body.parser_version ?? 'unknown',
-          courses: body.courses ?? [],
-          unparsed: body.unparsed ?? [],
-          warnings: body.warnings ?? [],
+          parserVersion: body.schedule?.parser_version ?? 'unknown',
+          courses: body.schedule?.courses ?? [],
+          unparsed: body.schedule?.unparsed ?? [],
+          warnings: body.schedule?.warnings ?? [],
         },
+        /* Null covers three different disappointments — the page would not load,
+         * it loaded and said nothing, or it said something we could not read —
+         * and onboarding treats all three the same way, by carrying on. The
+         * student can import grades later from the GWA screen, where the failure
+         * can be looked at properly. */
+        pastGrades,
         body.job_id ?? null,
       )
     } catch {
@@ -311,11 +408,11 @@ function ConnectStep({
   return (
     <form onSubmit={submit} className="stack">
       <h1 className="type-title-1">Connect ERS</h1>
-      {termLabel && (
-        <p className="type-subheadline text-[var(--label-secondary)]">
-          Importing your {termLabel} schedule.
-        </p>
-      )}
+      <p className="type-subheadline text-[var(--label-secondary)]">
+        {termLabel
+          ? `One sign-in reads your ${termLabel} schedule and your past grades. You check both before anything is saved.`
+          : 'One sign-in reads your schedule and your past grades. You check both before anything is saved.'}
+      </p>
 
       {error && <FormError>{error}</FormError>}
 
@@ -353,7 +450,7 @@ function ConnectStep({
       />
 
       <Button type="submit" variant="accent" block disabled={busy}>
-        {busy ? 'Reading your schedule…' : 'Import my schedule'}
+        {busy ? 'Reading your record…' : 'Read my ERS record'}
       </Button>
 
       <div className="flex gap-2">
@@ -626,28 +723,6 @@ async function commitSchedule(
     const body = await response.json().catch(() => null)
     throw new Error(body?.error?.message ?? 'That did not save. Try again.')
   }
-}
-
-interface Identity {
-  fullName: string | null
-  studentNumber: string | null
-  programName: string | null
-}
-
-/** Fills in what the student would otherwise have to type, and correctly. */
-async function saveIdentity(identity: Identity): Promise<void> {
-  const supabase = supabaseBrowser()
-  const { data } = await supabase.auth.getUser()
-  if (!data.user) return
-
-  const patch = {
-    ...(identity.fullName ? { full_name: identity.fullName } : {}),
-    ...(identity.studentNumber ? { student_number: identity.studentNumber } : {}),
-    ...(identity.programName ? { program_code: identity.programName } : {}),
-  }
-  if (Object.keys(patch).length === 0) return
-
-  await supabase.from('profiles').update(patch).eq('id', data.user.id)
 }
 
 async function finishOnboarding(): Promise<void> {

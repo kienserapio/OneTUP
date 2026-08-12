@@ -42,9 +42,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
+        {/* Not `.glass`: that class is unlayered, so it beat `sr-only` in the
+            cascade and held a 44px band above the page even while the link was
+            hidden. The material is painted by `.skip-link:focus` instead. */}
         <a
           href="#main"
-          className="glass sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50"
+          className="skip-link sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50"
         >
           Skip to content
         </a>

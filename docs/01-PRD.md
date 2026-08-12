@@ -14,7 +14,7 @@ A TUP Manila student's academic life is scattered across systems that do not tal
 - **Deadlines** live in six different Messenger group chats, several Google Classrooms, and whatever the professor said out loud on Tuesday.
 - **Grades** are checked by logging into ERS, then computed by hand in a Notes app when a student wants to know whether their scholarship survives.
 - **Attendance** is tracked by memory, badly, until a student discovers they are one absence past the limit.
-- **Announcements** — a suspended class, a moved quiz, a changed room — reach students through a beadle relaying to a group chat, where they are buried within an hour.
+- **Announcements** — a suspended class, a moved quiz, a changed room — reach students through a class representative relaying to a group chat, where they are buried within an hour.
 - **Getting to campus** is a daily gamble. Google Maps does not know jeepney routes, does not know fares, and has no concept of the 20% student discount.
 - **Finding a room** on a campus you are new to means asking three people.
 
@@ -40,7 +40,7 @@ We are not building a social network, a marketplace, a replacement for ERS, or a
 
 ## 2. Product statement
 
-> **OneTUP is one app for your TUP student life.** Import your schedule once, and it handles the rest — what is due, how many cuts you have left, what your GWA needs to be, what your beadle just posted, when to leave the house, and where Room 312 actually is.
+> **OneTUP is one app for your TUP student life.** Import your schedule once, and it handles the rest — what is due, how many cuts you have left, what your GWA needs to be, what your class representative just posted, when to leave the house, and where Room 312 actually is.
 
 **Positioning note.** OneTUP is a student utility that happens to use AI in specific, labelled places. It is never marketed as an AI product. Most of it — the GWA maths, the attendance counter, the schedule, the fare tables — is ordinary deterministic software. See §9.3.
 
@@ -58,9 +58,9 @@ Third-year, any program, lives 60–90 minutes from campus, 6 subjects, 21 units
 
 First semester, does not know the campus, does not know the culture, does not yet have a reliable group chat. Highest anxiety, lowest information.
 
-**Needs from OneTUP:** where things are, how to get here, what a beadle is, what is happening.
+**Needs from OneTUP:** where things are, how to get here, what a class representative is, what is happening.
 
-### 3.3 Secondary persona — the beadle / class representative
+### 3.3 Secondary persona — the class representative / class representative
 
 One per section. Already relays announcements manually. Motivated by being useful and by reducing repeated questions.
 
@@ -466,7 +466,7 @@ Sequencing rationale: V1 is what makes a student open the app every day. V2 is w
 | R4 | Free AI tier limits or pricing change | Medium | High | Provider abstraction, aggressive caching, graceful degradation, deterministic features unaffected |
 | R5 | Crowdsourced fare and price data goes stale | Medium | High | Mandatory verification dates, staleness demotion, visible flags |
 | R6 | Announcement system abused or used to spread false information | Medium | Medium | Verified rep model, confirmation counts, dispute action, moderation queue |
-| R7 | Low adoption outside Computer Science | High | Medium | Recruit beadles across colleges before launch; keep every V1 feature program-agnostic |
+| R7 | Low adoption outside Computer Science | High | Medium | Recruit class representatives across colleges before launch; keep every V1 feature program-agnostic |
 | R8 | Single-maintainer bus factor | High | Medium | Document everything, open-source the client, recruit co-maintainers from GDG on Campus |
 | R9 | Model generates confidently wrong academic guidance | High | Medium | Retrieval-grounded answers only, source display, refusal path, no model authority over grades or prerequisites |
 | R10 | Push notifications unreliable on iOS | Medium | High | Communicate the install requirement during onboarding; in-app catch-up covers missed prompts |
@@ -494,7 +494,7 @@ Sequencing rationale: V1 is what makes a student open the app every day. V2 is w
 | **AIMS** | The application behind ERS |
 | **GWA** | General Weighted Average, the Philippine unit-weighted grade average |
 | **TUP grading scale** | 1.00 (highest) to 5.00 (failing); 3.00 is the passing threshold |
-| **Beadle** | The student designated to relay announcements for a section |
+| **Class representative** | The student designated to relay announcements for a section |
 | **Cut** | An absence |
 | **Tambayan** | An informal hangout spot on campus |
 | **Walang pasok** | No classes; a suspension |

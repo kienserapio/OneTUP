@@ -24,11 +24,27 @@ export interface SheetProps {
   title?: string
   /** A modal task dims the background; a parallel one does not break the flow. */
   modal?: boolean
+  /**
+   * Glass by default, because most sheets here are an extension of the screen
+   * behind them and the translucency says so. `solid` is for the ones that are
+   * a different context altogether — navigation, most of all: a menu read
+   * against whatever page you happened to be on is a menu you have to squint
+   * at, and the page underneath is not information you need while choosing.
+   */
+  surface?: 'material' | 'solid'
   children: ReactNode
   footer?: ReactNode
 }
 
-export function Sheet({ open, onClose, title, modal = true, children, footer }: SheetProps) {
+export function Sheet({
+  open,
+  onClose,
+  title,
+  modal = true,
+  surface = 'material',
+  children,
+  footer,
+}: SheetProps) {
   const y = useMotionValue(0)
   const [height, setHeight] = useState(0)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -80,7 +96,8 @@ export function Sheet({ open, onClose, title, modal = true, children, footer }: 
             aria-modal={modal}
             aria-label={title}
             className={cx(
-              'sheet material material-large fixed inset-x-0 bottom-0 z-50',
+              'sheet fixed inset-x-0 bottom-0 z-50',
+              surface === 'material' && 'material material-large',
               'mx-auto flex max-h-[88dvh] w-full max-w-[34rem] flex-col',
             )}
             style={{
@@ -88,6 +105,9 @@ export function Sheet({ open, onClose, title, modal = true, children, footer }: 
               borderRadius: 'var(--radius-sheet) var(--radius-sheet) 0 0',
               boxShadow: 'var(--shadow-sheet)',
               paddingBottom: 'env(safe-area-inset-bottom)',
+              ...(surface === 'solid'
+                ? { background: 'var(--bg)', borderTop: '1px solid var(--separator)' }
+                : null),
             }}
             // Enters and exits along the same path — a sheet that arrives from
             // below and leaves sideways reads as two different objects.

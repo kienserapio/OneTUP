@@ -8,7 +8,6 @@ import {
   type GwaResult,
   type ThresholdState,
   type UserThreshold,
-  GRADE_HIGHEST,
   GRADE_LOWEST,
   evaluateThreshold,
   formatGwa,
@@ -21,6 +20,7 @@ import { Badge, Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/co
 import { Button, ButtonLink } from '@/components/ui/button'
 import { NavBar } from '@/components/app/nav-bar'
 import { StatCard } from '@/components/subjects/stat-card'
+import { TermBreakdown } from '@/components/subjects/term-breakdown'
 import { ThresholdSheet } from '@/components/subjects/threshold-sheet'
 import { WhatIfPlanner } from '@/components/subjects/what-if-planner'
 
@@ -66,11 +66,16 @@ export function GwaView() {
         <div className="app-container">
           <Card>
             <EmptyState
-              title="Add your grades to see where your GWA stands."
+              title="Add your grades to see where your GWA stands — or bring in every semester you have already taken, straight from ERS."
               action={
-                <ButtonLink href="/subjects" variant="accent">
-                  Go to my subjects
-                </ButtonLink>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <ButtonLink href="/subjects/gwa/import" variant="accent">
+                    Import from ERS
+                  </ButtonLink>
+                  <ButtonLink href="/subjects" variant="plain">
+                    Go to my subjects
+                  </ButtonLink>
+                </div>
               }
             />
           </Card>
@@ -85,6 +90,13 @@ export function GwaView() {
         title="GWA"
         subtitle={data.termLabel ?? undefined}
         back={{ href: '/subjects', label: 'Subjects' }}
+        trailing={
+          /* Past semesters are all on one ERS page, so a student's whole
+             history is one import away from the figure they are looking at. */
+          <ButtonLink href="/subjects/gwa/import" variant="plain" size="sm">
+            Import from ERS
+          </ButtonLink>
+        }
       />
 
       <div className="app-container pb-4">
@@ -133,26 +145,15 @@ export function GwaView() {
             </Card>
 
             {data.trend.length > 1 && (
-              <section>
-                <SectionHeader>Term by term</SectionHeader>
-                <Card className="stack">
-                  {data.trend.map((standing, index) => (
-                    <TrendRow
-                      key={standing.termId}
-                      label={standing.label}
-                      gwa={standing.result.gwa}
-                      previous={index > 0 ? data.trend[index - 1].result.gwa : null}
-                      isCurrent={standing.isCurrent}
-                    />
-                  ))}
-                </Card>
-              </section>
+              <TermBreakdown terms={data.trend} onChanged={reload} />
             )}
           </div>
 
           <div className="stack">
             <WhatIfPlanner
-              graded={data.termCourses}
+              termCourses={data.termCourses}
+              cumulativeCourses={data.cumulativeCourses}
+              hasPastTerms={data.trend.length > 1}
               ungraded={data.ungraded}
               initialPins={data.projections}
             />
@@ -243,57 +244,6 @@ function ExclusionNote({
       {excludedUnits} unit{excludedUnits === 1 ? '' : 's'} {named.length === 1 ? 'is' : 'are'} left
       out. That is why this covers {result.gradedUnits}, not {result.gradedUnits + excludedUnits}.
     </p>
-  )
-}
-
-function TrendRow({
-  label,
-  gwa,
-  previous,
-  isCurrent,
-}: {
-  label: string
-  gwa: number | null
-  previous: number | null
-  isCurrent: boolean
-}) {
-  // 1.00 fills the bar, 5.00 empties it — the scale is inverted, and so is this.
-  const fill = gwa === null ? 0 : ((GRADE_LOWEST - gwa) / (GRADE_LOWEST - GRADE_HIGHEST)) * 100
-  const delta = gwa !== null && previous !== null ? previous - gwa : null
-
-  return (
-    <div>
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="type-subheadline truncate">
-          {label}
-          {isCurrent && <span className="type-footnote text-[var(--label-secondary)]"> · now</span>}
-        </span>
-        <span className="flex items-baseline gap-2">
-          {delta !== null && Math.abs(delta) >= 0.005 && (
-            <span
-              className="type-caption-2 type-data"
-              style={{ color: delta > 0 ? 'var(--ok)' : 'var(--label-secondary)' }}
-            >
-              {delta > 0 ? '↓' : '↑'} {Math.abs(delta).toFixed(2)}
-            </span>
-          )}
-          <span className="type-data font-semibold">{formatGwa(gwa)}</span>
-        </span>
-      </div>
-      <div
-        className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full"
-        style={{ background: 'var(--fill-tertiary)' }}
-        aria-hidden
-      >
-        <motion.div
-          className="h-full rounded-full"
-          initial={{ width: 0 }}
-          animate={{ width: `${fill}%` }}
-          transition={transition(spring.move)}
-          style={{ background: isCurrent ? 'var(--accent)' : 'var(--label-tertiary)' }}
-        />
-      </div>
-    </div>
   )
 }
 

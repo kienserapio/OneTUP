@@ -1,10 +1,20 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { ScrapeError, closeBrowser, scrapeSchedule } from './scrape'
+import {
+  ScrapeError,
+  closeBrowser,
+  closeSessions,
+  openSessionCount,
+  scrapeAll,
+  scrapeGrades,
+  scrapeSchedule,
+  type Credentials,
+} from './scrape'
 
 /**
  * The sync worker.
  *
- * A deliberately small HTTP service with one job. Read the constraints in
+ * A deliberately small HTTP service that reads two pages of the portal and
+ * keeps nothing from either. Read the constraints in
  * 07-AUTH-ERS.md §4.2 before changing anything here — several of them are
  * enforced by what this file does *not* do:
  *
@@ -91,6 +101,109 @@ function timeBoxed<T>(promise: Promise<T>, ms: number): Promise<T> {
   })
 }
 
+/**
+ * Everything this worker will do, keyed by path.
+ *
+ * Both jobs sign in the same way and differ only in which page they read, so
+ * the endpoint list is data rather than a second copy of the handler. A path
+ * that is not in here 404s before a body is read, let alone a browser started.
+ */
+interface JobResult {
+  parser_version: string
+  courses: unknown[]
+  unparsed: unknown[]
+  warnings: unknown[]
+  [field: string]: unknown
+}
+
+interface Job {
+  name: string
+  run(credentials: Credentials): Promise<JobResult>
+}
+
+const JOBS: Record<string, Job | undefined> = {
+  '/scrape/schedule': {
+    name: 'schedule',
+    async run(credentials) {
+      const result = await scrapeSchedule(credentials)
+      return {
+        parser_version: result.parserVersion,
+        courses: result.courses,
+        unparsed: result.unparsed,
+        warnings: result.warnings,
+        // The student's own name and program, read from the page header.
+        identity: result.identity,
+      }
+    },
+  },
+  '/scrape/grades': {
+    name: 'grades',
+    async run(credentials) {
+      const result = await scrapeGrades(credentials)
+      return {
+        parser_version: result.parserVersion,
+        courses: result.courses,
+        unparsed: result.unparsed,
+        warnings: result.warnings,
+        terms: result.terms,
+        // Whose record this actually is. The web app compares it against the
+        // signed-in student and refuses a mismatch.
+        identity: result.identity,
+        // Raw rows, for the reason set out on `GradeScrapeResult`: this page's
+        // markup has never been seen, and the first real import is the only way
+        // to learn what it looks like.
+        debug: {
+          selector: result.debugSelector,
+          rows: result.debugRows,
+          // Only present when nothing was found. This is the evidence that
+          // separates "no grades posted" from "our reader missed them".
+          page: result.diagnostic,
+        },
+      }
+    },
+  },
+  /**
+   * Both pages, one sign-in. What onboarding asks for.
+   *
+   * Shaped as the schedule payload with the grades hanging off it rather than as
+   * two equal halves, because the two halves are not equal: the schedule is the
+   * only one whose failure ends the request, and the shared log line below counts
+   * `courses` and `unparsed`. Those counts mean something only if they belong to
+   * the read that could have failed.
+   */
+  '/scrape/all': {
+    name: 'all',
+    async run(credentials) {
+      const result = await scrapeAll(credentials)
+      return {
+        parser_version: result.schedule.parserVersion,
+        courses: result.schedule.courses,
+        unparsed: result.schedule.unparsed,
+        warnings: result.schedule.warnings,
+        identity: result.schedule.identity,
+        // Null when the grades page would not come. Never fatal: a student who
+        // came for a schedule keeps the schedule.
+        grades: result.grades
+          ? {
+              parser_version: result.grades.parserVersion,
+              courses: result.grades.courses,
+              unparsed: result.grades.unparsed,
+              warnings: result.grades.warnings,
+              terms: result.grades.terms,
+              identity: result.grades.identity,
+              debug: {
+                selector: result.grades.debugSelector,
+                rows: result.grades.debugRows,
+                page: result.grades.diagnostic,
+              },
+            }
+          : null,
+        grades_error: result.gradesError,
+      }
+    },
+  },
+}
+
 const server = createServer((request, response) => {
   void handle(request, response).catch((error) => {
     log('error', 'unhandled', { error: error instanceof Error ? error.message : 'unknown' })
@@ -102,11 +215,14 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
   const url = new URL(request.url ?? '/', `http://localhost:${PORT}`)
 
   if (request.method === 'GET' && url.pathname === '/health') {
-    send(response, 200, { status: 'ok', in_flight: inFlight })
+    // `sessions` is a count and nothing more — no student is identifiable from
+    // it, and it is the one number that says whether reuse is working.
+    send(response, 200, { status: 'ok', in_flight: inFlight, sessions: openSessionCount() })
     return
   }
 
-  if (request.method !== 'POST' || url.pathname !== '/scrape/schedule') {
+  const job = request.method === 'POST' ? JOBS[url.pathname] : undefined
+  if (!job) {
     send(response, 404, { code: 'NOT_FOUND', message: 'No such endpoint.' })
     return
   }
@@ -122,7 +238,8 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
   if (inFlight >= MAX_CONCURRENCY) {
     send(response, 503, {
       code: 'ERS_UNAVAILABLE',
-      message: 'Busy right now. Try again in a minute, or paste your schedule.',
+      // Both jobs land here, so the advice cannot name one of them.
+      message: 'Busy right now. Try again in a minute.',
     })
     return
   }
@@ -149,25 +266,20 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     }
 
     inFlight += 1
-    const result = await timeBoxed(scrapeSchedule({ ...credentials }), JOB_TIMEOUT_MS)
+    const result = await timeBoxed(job.run({ ...credentials }), JOB_TIMEOUT_MS)
 
     log('info', 'scrape.succeeded', {
       request_id: requestId,
-      parser_version: result.parserVersion,
+      job: job.name,
+      parser_version: result.parser_version,
       rows_parsed: result.courses.length,
       rows_failed: result.unparsed.length,
       duration_ms: Date.now() - started,
     })
 
-    send(response, 200, {
-      parser_version: result.parserVersion,
-      courses: result.courses,
-      unparsed: result.unparsed,
-      warnings: result.warnings,
-      // The student's own name and program, read from the page header. Returned
-      // but never logged — see the note at the top of this file.
-      identity: result.identity,
-    })
+    // Counts above, contents here. Nothing in this payload is logged: it is the
+    // student's own record on its way back to the student's own browser.
+    send(response, 200, result)
   } catch (error) {
     if (error instanceof ScrapeError) {
       log('warn', 'scrape.failed', {
@@ -199,7 +311,10 @@ function statusFor(code: string): number {
   switch (code) {
     case 'ERS_AUTH_FAILED':
       return 401
+    case 'ERS_SESSION_LOST':
+      return 503
     case 'SCHEDULE_NOT_FOUND':
+    case 'GRADES_NOT_FOUND':
       return 404
     case 'SCHEDULE_PARSE_FAILED':
       return 422
@@ -223,7 +338,11 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.on(signal, () => {
     log('info', 'worker.stopping', { signal })
     server.close(() => {
-      void closeBrowser().finally(() => process.exit(0))
+      // Sessions first: closing the browser out from under a live context
+      // leaves somebody signed in on the portal's side for the idle timeout.
+      void closeSessions()
+        .then(() => closeBrowser())
+        .finally(() => process.exit(0))
     })
   })
 }

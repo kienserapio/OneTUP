@@ -377,7 +377,7 @@ feature branch → PR → CI (lint, unit, integration, RLS checks) → review
 
 **Pilot (30–50 students).** Recruited deliberately across at least four colleges — not only Computer Science — because the parser and the assumptions need contact with programs that have laboratory blocks, field work, and irregular scheduling. Direct feedback channel, weekly check-in.
 
-**Soft launch.** GDG on Campus and one or two partner organisations. Beadle recruitment begins here: the announcement module has no value until sections have representatives.
+**Soft launch.** GDG on Campus and one or two partner organisations. Class representative recruitment begins here: the announcement module has no value until sections have representatives.
 
 **Public launch.** Timed to the start of a term. Campus map published first as a free-standing public page, since it needs no account and creates a reason to visit before the app itself is relevant.
 

@@ -1085,7 +1085,7 @@ create policy audit_read_own on audit_log for select using (auth.uid() = user_id
 create index idx_audit_user on audit_log(user_id, created_at desc);
 ```
 
-`reason` is what powers the receipt shown beside any automated action — "Added because your beadle posted this at 11:42 PM."
+`reason` is what powers the receipt shown beside any automated action — "Added because your class representative posted this at 11:42 PM."
 
 ```sql
 create table moderation_queue (

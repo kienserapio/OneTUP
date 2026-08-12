@@ -307,7 +307,7 @@ export function AnnouncementsView() {
           <Card>
             <EmptyState
               icon={<IconAnnouncement size={30} />}
-              title="Nothing from your sections yet. When your beadle posts something, share it here and everyone in your section gets it."
+              title="Nothing from your sections yet. When your class representative posts something, share it here and everyone in your section gets it."
               action={
                 <ButtonLink href="/announcements/new" variant="accent">
                   Share one

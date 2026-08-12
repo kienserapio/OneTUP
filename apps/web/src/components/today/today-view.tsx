@@ -16,12 +16,13 @@ import { Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/component
 import { ButtonLink } from '@/components/ui/button'
 import {
   IconAnnouncement,
-  IconAsk,
+  IconAttendance,
   IconCampus,
-  IconCheck,
   IconClock,
   IconCommute,
   IconDeadlines,
+  IconGrades,
+  IconSubjects,
   IconWarning,
 } from '@/components/ui/icon'
 import { AttendancePrompt } from '@/components/today/attendance-prompt'
@@ -83,6 +84,7 @@ export function TodayView({ firstName }: { firstName: string | null }) {
                 key={block.id}
                 block={block}
                 sessionDate={data.date}
+                standing={block.enrollmentId ? data.standings[block.enrollmentId] : null}
                 onRecorded={reload}
               />
             ))}
@@ -224,7 +226,14 @@ export function TodayView({ firstName }: { firstName: string | null }) {
         </section>
       )}
 
-      {data.blocks.length === 0 && (
+      <Overview overview={data.overview} />
+
+      {/* Gated on whether a schedule exists at all, not on whether one exists
+          today. The old test was `data.blocks.length === 0`, and `blocks` is
+          only ever this weekday's classes — so every Sunday, and every free
+          weekday, a student with a fully imported timetable was told they had
+          no schedule and offered a button to import the one they already had. */}
+      {!data.overview.hasSchedule && (
         <Card>
           <EmptyState
             title="No schedule yet. Import it from ERS, or paste it in — either works."
@@ -241,32 +250,164 @@ export function TodayView({ firstName }: { firstName: string | null }) {
 }
 
 /**
- * The six things a student reaches for without navigating. Each is one tap from
- * here because the alternative is three, and three is why people stop bothering.
+ * The four things a student reaches for without navigating.
+ *
+ * Four, not six, and one word each: a quick action competes for the same glance
+ * as the card above it, and "Log attendance" beside "Plan my trip" beside "Share
+ * news" is a sentence to read rather than a target to hit. They are drawn as
+ * solid crimson tiles with the same inset highlight and lift as the buttons,
+ * because they *are* buttons — the previous white cards read as content.
  */
 function QuickActions() {
   const actions = [
-    { href: '/subjects/catch-up', label: 'Log attendance', Icon: IconCheck },
-    { href: '/deadlines/new', label: 'Add a deadline', Icon: IconDeadlines },
-    { href: '/commute/plan', label: 'Plan my trip', Icon: IconCommute },
-    { href: '/announcements/new', label: 'Share news', Icon: IconAnnouncement },
-    { href: '/campus', label: 'Find a room', Icon: IconCampus },
-    { href: '/ask', label: 'Ask OneTUP', Icon: IconAsk },
+    { href: '/subjects/catch-up', label: 'Attendance', Icon: IconAttendance },
+    { href: '/deadlines/new', label: 'Deadline', Icon: IconDeadlines },
+    { href: '/commute', label: 'Commute', Icon: IconCommute },
+    { href: '/campus', label: 'Campus', Icon: IconCampus },
   ]
 
   return (
-    <nav aria-label="Quick actions" className="grid grid-cols-3 gap-2.5">
+    /* Laid out inline rather than through a class: the 30rem cap is what stops
+       four square tiles becoming 250px each across a dashboard column, and it
+       is a no-op on any phone, which is narrower than the cap anyway. */
+    <nav
+      aria-label="Quick actions"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+        gap: 'var(--space-3)',
+        maxWidth: '30rem',
+      }}
+    >
       {actions.map((action) => (
         <Link
           key={action.href}
           href={action.href as never}
-          className="card flex min-h-[5.5rem] flex-col items-center justify-center gap-2 px-2 py-3 text-center transition-colors"
+          className="quick-action squircle"
         >
-          <action.Icon size={22} style={{ color: 'var(--accent)' }} />
-          <span className="type-caption-1 font-medium leading-tight">{action.label}</span>
+          <action.Icon size={26} />
+          <span className="type-caption-1 font-semibold leading-tight">{action.label}</span>
         </Link>
       ))}
     </nav>
+  )
+}
+
+/**
+ * The rest of the app, in one glance.
+ *
+ * Today is the home screen, so it owes the student a state for every other
+ * screen — not a summary of what is on those screens, but the one number that
+ * decides whether they need to open it. Everything here is a link; nothing here
+ * is a place you can act without leaving.
+ */
+function Overview({ overview }: { overview: TodayData['overview'] }) {
+  const tiles: {
+    href: string
+    label: string
+    value: string
+    hint: string
+    Icon: typeof IconGrades
+    tone?: 'warning'
+  }[] = [
+    {
+      href: '/subjects/gwa',
+      label: 'Grades & GWA',
+      value: overview.gwa === null ? '—' : overview.gwa.toFixed(2),
+      hint:
+        overview.gradedCourses === 0
+          ? 'Nothing graded yet'
+          : `${overview.gradedCourses} subject${overview.gradedCourses === 1 ? '' : 's'} graded`,
+      Icon: IconGrades,
+    },
+    {
+      href: '/subjects',
+      label: 'Attendance',
+      value: String(overview.cutWarnings),
+      hint:
+        overview.cutWarnings === 0
+          ? 'No subject near its limit'
+          : `subject${overview.cutWarnings === 1 ? '' : 's'} near the limit`,
+      Icon: IconAttendance,
+      tone: overview.cutWarnings > 0 ? 'warning' : undefined,
+    },
+    {
+      href: '/deadlines',
+      label: 'Deadlines',
+      value: String(overview.openDeadlines),
+      hint:
+        overview.overdue > 0
+          ? `${overview.overdue} overdue`
+          : overview.dueSoon > 0
+            ? `${overview.dueSoon} due soon`
+            : 'Nothing urgent',
+      Icon: IconDeadlines,
+      tone: overview.overdue > 0 ? 'warning' : undefined,
+    },
+    {
+      href: '/announcements',
+      label: 'Announcements',
+      value: String(overview.recentAnnouncements),
+      hint: overview.recentAnnouncements === 0 ? 'Nothing new this week' : 'in the last 3 days',
+      Icon: IconAnnouncement,
+    },
+    {
+      href: '/subjects',
+      label: 'Subjects',
+      value: String(overview.subjects),
+      hint: `${overview.units} unit${overview.units === 1 ? '' : 's'} this term`,
+      Icon: IconSubjects,
+    },
+    {
+      href: '/commute',
+      label: 'Commute',
+      value: overview.hasRoute ? 'Set' : '—',
+      hint: overview.hasRoute ? 'Route saved' : 'Pick your usual route',
+      Icon: IconCommute,
+    },
+  ]
+
+  return (
+    <section>
+      <SectionHeader
+        action={
+          <Link href="/ask" className="type-footnote text-[var(--accent)]">
+            Ask about any of it
+          </Link>
+        }
+      >
+        Everything else
+      </SectionHeader>
+
+      <nav aria-label="Overview" className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
+        {tiles.map((tile) => (
+          <Link
+            key={tile.label}
+            href={tile.href as never}
+            className="card squircle flex flex-col gap-1 p-3.5"
+          >
+            <span className="flex items-center gap-2">
+              <tile.Icon
+                size={18}
+                style={{ color: tile.tone === 'warning' ? 'var(--warning)' : 'var(--accent)' }}
+              />
+              <span className="type-caption-1 truncate text-[var(--label-secondary)]">
+                {tile.label}
+              </span>
+            </span>
+            <span
+              className="type-data type-title-2"
+              style={{ color: tile.tone === 'warning' ? 'var(--warning)' : 'var(--label)' }}
+            >
+              {tile.value}
+            </span>
+            <span className="type-caption-1 leading-tight text-[var(--label-tertiary)]">
+              {tile.hint}
+            </span>
+          </Link>
+        ))}
+      </nav>
+    </section>
   )
 }
 

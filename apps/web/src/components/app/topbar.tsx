@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { titleFor } from './nav-items'
 import { IconAsk, IconSettings } from '@/components/ui/icon'
+import { Mark } from '@/components/ui/mark'
 
 /**
  * The top bar.
@@ -23,7 +24,7 @@ export function Topbar() {
     <header className="topbar">
       <div className="topbar-inner">
       <span className="brand-mark mobile-only" aria-hidden>
-        1
+        <Mark size={18} color="var(--on-accent)" />
       </span>
 
       <span className="min-w-0 flex-1">

@@ -102,12 +102,27 @@ export interface SubjectDetail extends SubjectSummary {
   defaults: SubjectDefaults
 }
 
+/**
+ * A graded course as the GWA screen shows it, rather than as the arithmetic
+ * needs it.
+ *
+ * `GradedCourse` carries only what `computeGwa` reads. A student opening a
+ * semester from two years ago has to recognise the subject and be able to
+ * correct it, so the title and the grade row behind the figure travel with it.
+ * Both are ignored by the arithmetic, which reads the fields it declares.
+ */
+export interface GwaCourse extends GradedCourse {
+  title: string
+  /** The row an edit writes to, so a correction never inserts a second grade. */
+  grade: GradeEntry | null
+}
+
 export interface TermStanding {
   termId: string
   label: string
   isCurrent: boolean
   result: GwaResult
-  courses: GradedCourse[]
+  courses: GwaCourse[]
 }
 
 export interface GwaData {
@@ -120,8 +135,8 @@ export interface GwaData {
   cumulative: GwaResult
   /** Oldest term first, so the trend reads left to right. */
   trend: TermStanding[]
-  termCourses: GradedCourse[]
-  cumulativeCourses: GradedCourse[]
+  termCourses: GwaCourse[]
+  cumulativeCourses: GwaCourse[]
   ungraded: { enrollmentId: string; code: string; units: number }[]
   /** Grades the student marked as expected, keyed by enrolment. */
   projections: Record<string, number>
@@ -266,7 +281,7 @@ export async function loadGwa(): Promise<GwaData> {
   const gradeByEnrollment = new Map(grades.map((grade) => [grade.enrollment_id, grade]))
   const termId = currentTermId(enrollments, terms)
 
-  const toGraded = (enrollment: Enrollment, includeProjections: boolean): GradedCourse => {
+  const toGraded = (enrollment: Enrollment, includeProjections: boolean): GwaCourse => {
     const course = courseById.get(enrollment.course_id)
     const grade = gradeByEnrollment.get(enrollment.id)
     const isProjected = grade?.is_projected ?? false
@@ -279,10 +294,22 @@ export async function loadGwa(): Promise<GwaData> {
     return {
       enrollmentId: enrollment.id,
       code: course?.code ?? '—',
+      title: course?.title ?? '',
       units: Number(course?.units ?? 0),
       value,
       mark: (grade?.mark as NonNumericMark | null) ?? null,
       isProjected,
+      // `value` is deliberately blank for a projection here; the row it came
+      // from is not, so an editor opened on this course still shows what the
+      // student actually recorded.
+      grade: grade
+        ? {
+            id: grade.id,
+            value: grade.value === null ? null : Number(grade.value),
+            mark: (grade.mark as NonNumericMark | null) ?? null,
+            isProjected: grade.is_projected,
+          }
+        : null,
     }
   }
 
@@ -677,7 +704,14 @@ function currentTermId(enrollments: Enrollment[], terms: TermInfo[]): string | n
 
 function labelForTerm(termId: string, terms: TermInfo[], enrollments: Enrollment[]): string {
   const term = terms.find((candidate) => candidate.id === termId)
-  if (term) return `${term.label} ${term.academicYear}`
+  if (term) {
+    // Seeded labels already read "1st Semester AY 2024-2025". Appending the
+    // academic year to those gave "… 2024-2025 2024-2025", which is long enough
+    // to truncate the part that identifies the semester.
+    return term.label.includes(term.academicYear)
+      ? term.label
+      : `${term.label} ${term.academicYear}`
+  }
 
   // Cold first load with no cached terms: number them by when they were enrolled
   // rather than inventing a semester name that might be wrong.

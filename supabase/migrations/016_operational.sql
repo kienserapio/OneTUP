@@ -98,7 +98,7 @@ create table public.audit_log (
 
 comment on column public.audit_log.reason is
   'Powers the receipt shown beside an automated action: '
-  '"Added because your beadle posted this at 11:42 PM."';
+  '"Added because your class representative posted this at 11:42 PM."';
 
 alter table public.audit_log enable row level security;
 create policy audit_read_own on public.audit_log

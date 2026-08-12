@@ -173,7 +173,7 @@ function ShareIntakeInner() {
         subtitle={
           proposal
             ? 'Check every field before your section sees it'
-            : 'Paste what your beadle posted'
+            : 'Paste what your class representative posted'
         }
         back={{ href: '/announcements', label: 'Announcements' }}
         largeTitle={false}

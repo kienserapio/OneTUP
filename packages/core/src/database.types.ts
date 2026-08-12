@@ -1593,6 +1593,60 @@ export type Database = {
         }
         Relationships: []
       }
+      problem_reports: {
+        Row: {
+          college: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          ip_hash: string | null
+          kind: string
+          message: string
+          section: string | null
+          status: string
+          student_number: string | null
+          subject: string
+          updated_at: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          college?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          ip_hash?: string | null
+          kind: string
+          message: string
+          section?: string | null
+          status?: string
+          student_number?: string | null
+          subject: string
+          updated_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          college?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          ip_hash?: string | null
+          kind?: string
+          message?: string
+          section?: string | null
+          status?: string
+          student_number?: string | null
+          subject?: string
+          updated_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       peak_bands: {
         Row: {
           corridor: string
