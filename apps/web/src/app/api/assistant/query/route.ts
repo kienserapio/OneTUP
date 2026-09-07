@@ -1,4 +1,15 @@
 import { z } from 'zod'
+import {
+  chooseOptions,
+  describeCommute,
+  manilaDate,
+  manilaInstant,
+  peakPenaltyAt,
+  type CommutePreference,
+  type PeakBand,
+  type RouteOption,
+  type Weekday,
+} from '@onetup/core'
 import { authenticated, parseBody } from '@/lib/api/handler'
 import { enforceLimit } from '@/lib/api/rate-limit'
 import { supabaseServer } from '@/lib/supabase/server'
@@ -133,10 +144,32 @@ export const POST = authenticated(async (request, { user }) => {
     const intent = (
       await runCapability(
         'commute_intent',
-        { query: body.query, known_areas: names },
+        { query: body.query, known_areas: names, history: body.history },
         { userId: user.id, redaction },
       )
-    ).output as { origin_area: string | null; direction: string; preference: string | null }
+    ).output as {
+      origin_area: string | null
+      direction: string
+      preference: string | null
+      departure_time: string | null
+      confidence: number
+    }
+
+    /* The intent call has its own confidence, and it was being ignored. A
+     * misread area sends a student to the wrong side of the city with a fare
+     * and a travel time attached, which is exactly the kind of confidently
+     * wrong answer the routing floors exist to prevent. */
+    if (intent.confidence < CONFIDENCE_FLOOR.commute) {
+      return {
+        route: 'commute',
+        answer:
+          "I'm not sure where you're travelling from. Which area — the commute screen has the list?",
+        computed: null,
+        citations: [],
+        actions: [{ label: 'Open the commute screen', href: '/commute' }],
+        labelled: false,
+      }
+    }
 
     if (!intent.origin_area) {
       return {
@@ -156,36 +189,69 @@ export const POST = authenticated(async (request, { user }) => {
       .eq('name', intent.origin_area)
       .maybeSingle()
 
+    const direction = intent.direction === 'outbound' ? 'outbound' : 'inbound'
+
     const { data: routes } = await supabase
       .from('v_route_summary')
       .select('*')
       .eq('area_id', area?.id ?? '')
-      .eq('direction', intent.direction === 'outbound' ? 'outbound' : 'inbound')
+      .eq('direction', direction)
 
-    const ranked = (routes ?? []).sort((a, b) =>
-      intent.preference === 'cheapest'
-        ? Number(a.fare_student ?? 0) - Number(b.fare_student ?? 0)
-        : Number(a.base_minutes ?? 0) - Number(b.base_minutes ?? 0),
-    )
-
-    if (ranked.length === 0) {
+    if (!routes || routes.length === 0) {
       return {
         route: 'commute',
         answer: `No routes on file from ${intent.origin_area} yet. You can add one — it takes a minute and it helps everyone from your area.`,
         computed: null,
         citations: [],
-        actions: [],
+        actions: [{ label: 'Add a route', href: '/commute' }],
         labelled: false,
       }
     }
 
-    const best = ranked[0]
+    /* The hour matters. A 9pm answer computed against the current time is wrong
+     * by twenty minutes on exactly the corridors a student asks about, so the
+     * departure time the model extracted is fed through `peak_bands` — the same
+     * bands the departure screen uses. */
+    const now = new Date()
+    const departAt = intent.departure_time
+      ? manilaInstant(manilaDate(now), intent.departure_time)
+      : now
+
+    const options = await withPeak(supabase, routes, departAt)
+    const choice = chooseOptions(options, normalisePreference(intent.preference))
+    if (!choice) {
+      return {
+        route: 'commute',
+        answer: `No routes on file from ${intent.origin_area} yet. You can add one — it takes a minute and it helps everyone from your area.`,
+        computed: null,
+        citations: [],
+        actions: [{ label: 'Add a route', href: '/commute' }],
+        labelled: false,
+      }
+    }
+
     return {
       route: 'commute',
-      answer: `${best.label ?? 'That route'} takes about ${best.base_minutes} minutes for ₱${Number(best.fare_student ?? 0).toFixed(2)} with your student discount.`,
-      computed: { template: 'commute_route', values: best },
+      answer: describeCommute(choice, {
+        originArea: intent.origin_area,
+        departureTime: intent.departure_time,
+        now,
+      }),
+      computed: {
+        template: 'commute_route',
+        values: {
+          primary: choice.primary,
+          alternative: choice.alternative,
+          departure_time: intent.departure_time,
+          direction,
+        },
+      },
       citations: [],
-      actions: [],
+      actions: [{ label: 'Open the commute screen', href: '/commute' }],
+      /* The model extracted an origin and an hour. Every minute and every peso
+       * came from `v_route_summary` and the fare rules, so this is not a
+       * generated answer and marking it as one would make the label meaningless
+       * where it matters (AI spec §8.3). */
       labelled: false,
     }
   }
@@ -253,3 +319,73 @@ export const POST = authenticated(async (request, { user }) => {
     }
   }
 })
+
+
+function normalisePreference(value: string | null): CommutePreference | null {
+  return value === 'cheapest' || value === 'fastest' || value === 'fewest_transfers' ? value : null
+}
+
+/**
+ * The route rows, with what the chosen hour costs each of them.
+ *
+ * The peak penalty is per corridor, so it needs the legs — which is one extra
+ * query for the whole set rather than one per route. Off-peak, and for any
+ * route whose corridors have no band, this adds zero and changes nothing.
+ */
+async function withPeak(
+  supabase: Awaited<ReturnType<typeof supabaseServer>>,
+  routes: readonly Record<string, unknown>[],
+  departAt: Date,
+): Promise<RouteOption[]> {
+  const routeIds = routes.map((row) => String(row.route_id))
+
+  const [{ data: legLinks }, { data: bandRows }] = await Promise.all([
+    supabase
+      .from('route_legs')
+      .select('route_id, commute_legs(corridor)')
+      .in('route_id', routeIds),
+    supabase.from('peak_bands').select('*'),
+  ])
+
+  const corridorsOf = new Map<string, string[]>()
+  for (const link of legLinks ?? []) {
+    const leg = link.commute_legs as { corridor: string | null } | null
+    if (!leg?.corridor) continue
+    const id = String(link.route_id)
+    const list = corridorsOf.get(id) ?? []
+    if (!list.includes(leg.corridor)) list.push(leg.corridor)
+    corridorsOf.set(id, list)
+  }
+
+  const bands: PeakBand[] = (bandRows ?? []).map((band) => ({
+    corridor: String(band.corridor),
+    days: (band.days ?? []) as Weekday[],
+    startTime: String(band.start_time).slice(0, 5),
+    endTime: String(band.end_time).slice(0, 5),
+    penaltyMinutes: Number(band.penalty_minutes ?? 0),
+    severity: (band.severity ?? 'moderate') as PeakBand['severity'],
+  }))
+
+  return routes.map((row) => {
+    const routeId = String(row.route_id)
+    const baseMinutes = Number(row.base_minutes ?? 0)
+    const { minutes } = peakPenaltyAt(
+      departAt,
+      baseMinutes,
+      corridorsOf.get(routeId) ?? [],
+      bands,
+    )
+
+    return {
+      routeId,
+      label: (row.label as string | null) ?? null,
+      baseMinutes,
+      peakMinutes: minutes,
+      fareStudent: Number(row.fare_student ?? 0),
+      fareRegular: Number(row.fare_regular ?? 0),
+      transfers: Number(row.transfers ?? 0),
+      verifiedCount: Number(row.verified_count ?? 0),
+      lastVerifiedAt: (row.last_verified_at as string | null) ?? null,
+    }
+  })
+}
