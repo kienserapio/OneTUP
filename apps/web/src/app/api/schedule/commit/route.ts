@@ -66,7 +66,12 @@ export const POST = authenticated(async (request) => {
   const { data, error } = await supabase.rpc('commit_schedule', {
     p_term_code: body.term_code,
     p_source: body.source,
-    p_job_id: body.job_id ?? null,
+    /* `021` declares `p_job_id uuid` and branches on `is not null` — a paste
+     * import has no job to attach to, and that is the supported case. The
+     * generated types cannot express a nullable *function argument*, so they
+     * report it as `string`; the database disagrees, and the database is
+     * right. */
+    p_job_id: (body.job_id ?? null) as unknown as string,
     p_courses: body.courses,
   })
 
