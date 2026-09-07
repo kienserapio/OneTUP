@@ -176,18 +176,29 @@ function PackRow({ pack }: { pack: PackSummary }) {
         </span>
         <span
           className="type-headline type-data shrink-0"
-          style={pack.dueCount > 0 ? { color: 'var(--accent)' } : { color: 'var(--label-tertiary)' }}
+          style={{
+            color:
+              pack.status === 'failed'
+                ? 'var(--danger)'
+                : pack.dueCount > 0
+                  ? 'var(--accent)'
+                  : 'var(--label-tertiary)',
+          }}
         >
-          {pack.dueCount > 0 ? pack.dueCount : '—'}
+          {pack.status === 'failed' ? '!' : pack.dueCount > 0 ? pack.dueCount : '—'}
         </span>
       </div>
 
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <span className="type-footnote text-[var(--label-secondary)]">
-          {pack.cardCount === 0
-            ? 'No cards yet'
-            : `${pack.cardCount} card${pack.cardCount === 1 ? '' : 's'}`}
-          {pack.dueCount > 0 && ' · due now'}
+          {pack.status === 'processing'
+            ? 'Reading your notes…'
+            : pack.status === 'failed'
+              ? 'Could not read your notes'
+              : pack.cardCount === 0
+                ? 'No cards yet'
+                : `${pack.cardCount} card${pack.cardCount === 1 ? '' : 's'}`}
+          {pack.status === 'ready' && pack.dueCount > 0 && ' · due now'}
         </span>
         {/* Compression is stated rather than left to look like a bug when a
             card comes back sooner than the interval on the button said. */}

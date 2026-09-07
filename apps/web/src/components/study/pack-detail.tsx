@@ -15,7 +15,7 @@ import {
 } from '@/lib/queries/study'
 import { syncNow } from '@/lib/offline/sync'
 import { spring, transition } from '@/design/motion'
-import { Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
+import { Badge, Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
 import { NavBar } from '@/components/app/nav-bar'
@@ -128,6 +128,25 @@ export function PackDetail({ packId }: { packId: string }) {
             note={cards.length === 0 ? 'Add your first below' : 'In this pack'}
           />
         </motion.div>
+
+        {/* A pack that stopped says so, rather than sitting on a spinner the
+            student will come back to. */}
+        {pack.status !== 'ready' && (
+          <Card className="flex flex-wrap items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{
+                background: pack.status === 'failed' ? 'var(--danger)' : 'var(--warning)',
+              }}
+            />
+            <p className="type-subheadline flex-1">
+              {pack.status === 'failed'
+                ? 'Making cards from your notes did not finish. Nothing was lost — add cards by hand below, or try again with a new pack.'
+                : 'Still reading your notes. Come back in a minute.'}
+            </p>
+          </Card>
+        )}
 
         {/* Stated in words, because the behaviour is otherwise invisible until
             a card surprises somebody by coming back early. */}
@@ -244,6 +263,15 @@ function CardRow({ card, onEdit }: { card: Flashcard; onEdit: () => void }) {
         <span className="type-footnote block truncate text-[var(--label-secondary)]">
           {card.back}
         </span>
+        {/* `source_chunk_id` is the marker: a card with one was written by a
+            model from a specific paragraph, and a card without one was written
+            by the student. Only the first is generated content, and only the
+            first can be checked against a source (AI spec §8.3, ADR-007). */}
+        {card.source_chunk_id && (
+          <span className="mt-1 inline-block">
+            <Badge tone="generated">Generated</Badge>
+          </span>
+        )}
         <span className="type-caption-2 mt-0.5 block text-[var(--label-tertiary)]">
           {card.repetitions === 0
             ? 'New'

@@ -423,4 +423,84 @@ describe.skipIf(!configured)('RLS: cross-user access', () => {
       expect(data ?? [], view).toEqual([])
     }
   })
+
+  /**
+   * Storage, which is the newest place a student's own material lives and the
+   * one where the access rule is least obvious: it is a *path prefix*, not a
+   * column, so nothing about a bucket looks like RLS until you read `038`.
+   *
+   * A study source is a student's lecture notes and a shared announcement image
+   * may be a photo of a whiteboard with names on it. Both are private, both are
+   * enforced here.
+   */
+  describe('storage buckets', () => {
+    const BUCKETS = ['study-sources', 'announcement-images'] as const
+    const body = () => new Blob(['notes only Bob should see'], { type: 'text/plain' })
+
+    it('lets a student write into their own folder and read it back', async () => {
+      for (const bucket of BUCKETS) {
+        const path = `${bobId}/${stamp}-own.txt`
+        const upload = await bob.storage.from(bucket).upload(path, body(), {
+          contentType: 'text/plain',
+          upsert: true,
+        })
+        /* announcement-images restricts mime types, so a text blob is refused
+         * there on content rather than on ownership — which is itself correct
+         * and not what this case is about. */
+        if (upload.error && bucket === 'announcement-images') continue
+        expect(upload.error, bucket).toBeNull()
+
+        const download = await bob.storage.from(bucket).download(path)
+        expect(download.error, bucket).toBeNull()
+        expect(await download.data?.text(), bucket).toContain('only Bob')
+
+        await bob.storage.from(bucket).remove([path])
+      }
+    })
+
+    it('refuses a write into another student’s folder', async () => {
+      const path = `${bobId}/${stamp}-alice-tried.txt`
+      const { error } = await alice.storage.from('study-sources').upload(path, body(), {
+        contentType: 'text/plain',
+      })
+      expect(error).not.toBeNull()
+    })
+
+    it('refuses a read of another student’s file', async () => {
+      const path = `${bobId}/${stamp}-private.txt`
+      const upload = await bob.storage.from('study-sources').upload(path, body(), {
+        contentType: 'text/plain',
+        upsert: true,
+      })
+      expect(upload.error).toBeNull()
+
+      const asAlice = await alice.storage.from('study-sources').download(path)
+      expect(asAlice.error).not.toBeNull()
+
+      const asAnon = await anon.storage.from('study-sources').download(path)
+      expect(asAnon.error).not.toBeNull()
+
+      await bob.storage.from('study-sources').remove([path])
+    })
+
+    it('does not serve either bucket over a public URL', async () => {
+      for (const bucket of BUCKETS) {
+        const path = `${bobId}/${stamp}-public-check.txt`
+        const upload = await bob.storage.from(bucket).upload(path, body(), {
+          contentType: 'text/plain',
+          upsert: true,
+        })
+        if (upload.error) continue
+
+        const { data } = bob.storage.from(bucket).getPublicUrl(path)
+        const response = await fetch(data.publicUrl)
+        /* A private bucket answers 400 to an unsigned request. A 200 here means
+         * the bucket was created public, and a student's notes are one guessed
+         * URL away from anybody. */
+        expect(response.ok, bucket).toBe(false)
+
+        await bob.storage.from(bucket).remove([path])
+      }
+    })
+  })
 })

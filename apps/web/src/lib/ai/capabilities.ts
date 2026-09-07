@@ -670,6 +670,120 @@ function stem(word: string): string {
   return word.replace(/(ing|ed|es|s|ly)$/u, '')
 }
 
+// --- study_pack_generate --------------------------------------------------
+
+/**
+ * Flashcards from a chunk of a student's own document.
+ *
+ * One chunk per call, not the whole document, and that is the point rather than
+ * a limitation. Every generated card carries the `source_chunk_id` it came
+ * from, which is what turns "check it against the source" from a disclaimer
+ * into an action a student can actually take (`013_study.sql`, ADR-007). A model
+ * handed the whole document could not tell you which paragraph a card came
+ * from, and neither could anyone else afterwards.
+ *
+ * The rule that matters most here: **a card must be answerable from the chunk.**
+ * A model asked for ten cards from a paragraph containing four facts will
+ * invent six, and a student will then revise from them for a month. So the
+ * prompt asks for as many as the text supports and explicitly permits zero.
+ */
+
+const StudyGenerateInput = z.object({
+  /** One chunk of the source document, verbatim. */
+  chunk: z.string().min(1).max(6000),
+  /** The subject, when the pack is attached to one. Context, never a source. */
+  subject: z.string().max(120).optional(),
+  /** Upper bound for this chunk. The model may return fewer, including none. */
+  max_cards: z.number().int().min(1).max(8).default(5),
+})
+
+const StudyGenerateOutput = z.object({
+  cards: z
+    .array(
+      z.object({
+        front: z.string().min(1).max(500),
+        back: z.string().min(1).max(1000),
+      }),
+    )
+    .max(8)
+    .catch([])
+    .default([]),
+})
+
+export const studyPackGenerate: Capability<
+  z.infer<typeof StudyGenerateInput>,
+  z.infer<typeof StudyGenerateOutput>
+> = {
+  name: 'study_pack_generate',
+  tier: 'long',
+  version: '1.0.0',
+  maxTokens: 2000,
+  /* Extraction, not composition. Two runs over the same notes should produce
+   * the same cards, because a student who regenerates a pack after fixing a
+   * typo has not asked for a different deck. */
+  temperature: 0.2,
+  input: StudyGenerateInput,
+  output: StudyGenerateOutput,
+  system: `You write flashcards from a passage of a student's own study material.
+
+The one rule everything else follows from: **every card must be answerable from
+the passage in front of you.** You are not adding knowledge, you are turning
+what is already written into questions the student can test themselves on.
+
+- Return as many cards as the passage genuinely supports, and no more. A
+  paragraph with three facts in it gives three cards. Padding to a round number
+  means inventing, and a student will revise from the invented ones for a month.
+- Returning zero cards is a correct answer for a passage that is a heading, a
+  table of contents, a page number, or prose with nothing testable in it.
+- The front is one clear question. Not a topic, not a fragment — something with
+  a question mark that has one answer.
+- The back is that answer, short, in the passage's own terms. Two sentences at
+  most.
+- Do not write a card whose answer is "it depends" or that asks for an opinion.
+- Do not write two cards that test the same fact from different angles.
+- Keep the passage's language. Material written in Filipino gets Filipino cards.
+- No markdown. No numbering. Plain text on both sides.
+
+Return ONLY JSON: {"cards": [{"front": "...", "back": "..."}]}`,
+  buildUser: (input) => `${input.subject ? `subject: ${input.subject}\n\n` : ''}at most ${input.max_cards} cards.
+
+passage:
+"""
+${input.chunk}
+"""`,
+  postValidate: (output) => {
+    const warnings: string[] = []
+    const seen = new Set<string>()
+    const cards: { front: string; back: string }[] = []
+
+    for (const card of output.cards) {
+      const front = card.front.trim()
+      const back = card.back.trim()
+      if (!front || !back) continue
+
+      /* Two cards testing the same fact is one card and a waste of a review.
+       * The prompt asks for it; this makes sure of it. */
+      const key = front.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+      if (seen.has(key)) {
+        warnings.push('duplicate_front')
+        continue
+      }
+      seen.add(key)
+
+      /* A "card" whose front is longer than its back is usually the passage
+       * copied out with a question mark added. */
+      if (front.length > back.length * 3 && front.length > 200) {
+        warnings.push('front_looks_like_the_passage')
+        continue
+      }
+
+      cards.push({ front, back })
+    }
+
+    return { output: { cards }, warnings }
+  },
+}
+
 // --- assistant_compose ----------------------------------------------------
 
 /**
@@ -917,6 +1031,7 @@ export const CAPABILITIES = {
   evaluation_polish: evaluationPolish,
   commute_intent: commuteIntent,
   assistant_compose: assistantCompose,
+  study_pack_generate: studyPackGenerate,
 } as const
 
 export type CapabilityName = keyof typeof CAPABILITIES
