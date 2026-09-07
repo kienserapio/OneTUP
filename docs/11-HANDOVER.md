@@ -1,8 +1,8 @@
 # OneTUP — Build Handover
 
-**Status:** V1, classrooms, and the eight features of
-[16-NEXT-EIGHT.md](16-NEXT-EIGHT.md), all built. Public on GitHub. Not
-deployed, and **currently without a database** — see §1.
+**Status:** V1, classrooms, and all eight features of
+[16-NEXT-EIGHT.md](16-NEXT-EIGHT.md), built and running locally against live
+Supabase. Public on GitHub. Not deployed.
 **Repository:** <https://github.com/kienserapio/OneTUP> — public, MIT
 **Date:** September 2026
 
@@ -16,25 +16,28 @@ OneTUP *should* be; this describes what it *is*.
 
 | | |
 |---|---|
-| Migrations written | 37 (`001`–`037`) — `036` and `037` **not yet applied**, see below |
-| Tests | 483 passing, 21 files — 446 domain, 28 web, 9 scripts; 47 database cases skipped |
+| Migrations applied | 38 (`001`–`038`) |
+| Tests | 552 passing, 26 files — 469 domain, 32 web, 9 scripts, 51 against the live database |
 | TypeScript | `tsc --noEmit` clean across the workspace |
-| Lint | `pnpm lint` clean — 0 errors (it had not run since the Next 16 upgrade) |
-| Production build | Clean, 73 route entries |
+| Lint | `pnpm lint` clean — 0 errors (it had not run at all since the Next 16 upgrade) |
+| Production build | Clean, 74 route entries |
+| Schema safeguards | 4/4 passing (`pnpm db:check`) |
 | Model ladders | 21 rungs across five tiers, all live (`pnpm check:models`) |
 | Repository | Public, MIT |
 | Deployed | No |
 
-**The Supabase project is gone.** `SUPABASE_URL` in `.env` points at a ref
-that returns NXDOMAIN from public DNS. Migrations `036` and `037` are written
-but unapplied, `database.types.ts` was extended by hand rather than by
-`pnpm db:types`, and the 47 database test cases skip. Everything that does not
-need Postgres — every domain function, the whole web build, the model ladders,
-the assistant's routing and composition against live OpenRouter — is verified.
-Restoring or recreating the project and running `pnpm db:push && pnpm db:types`
-is the single remaining step before this can be used by anyone.
+Verified by hand in a browser against the live project, not only compiled:
+sign-in, a study pack generated from pasted notes (five cards, each marked
+generated and linked to its source chunk), and three reviews through the
+offline queue to real rows — including an "Again" answer resetting the streak,
+incrementing lapses, dropping the ease factor and scheduling for tomorrow.
 
-Verified by hand in a browser, not only compiled: sign-up, onboarding,
+That browser pass found the one bug worth knowing about, now fixed: `flush()`
+dropped a concurrent call instead of deferring it, so the **second** of two
+writes queued back to back waited up to fifteen minutes. A review is exactly
+two such writes, and only the history row was reaching the server.
+
+Verified earlier, and still true: sign-up, onboarding,
 schedule paste and parse, ERS import, one-tap attendance through the offline
 queue to a server row, commute route comparison, campus tour, the whole
 classroom flow across two accounts (create, invite, request, approve, post,
@@ -218,6 +221,7 @@ everything else lives in `NOTICE.md`.
 | `035` | `classroom_by_invite` compared an invite code against `terms.code` — a SQL-function parameter shadowed by a column of the same name, silently |
 | `036` | Suspension advisories, and `delivery_mode` on `attendance_records`. Read-only reference: everyone selects, only `service_role` writes. Also widens `recorded_via` to allow `suspension` |
 | `037` | `geometry_source` on `commute_legs` — a path a router computed and a path a student traced are different kinds of claim, and were indistinguishable |
+| `038` | The two storage buckets, neither of which existed. `announcement-images` had been referenced by the share target since it shipped, and every upload through it was failing silently. Both private, both scoped by path prefix to their owner |
 
 `023` is the one to read before touching privileges. It is load-bearing for a
 published privacy commitment.
@@ -226,9 +230,10 @@ published privacy commitment.
 
 ## 6. What is not built
 
-- **Study packs (M9).** Spaced repetition logic exists in core and is tested;
-  nothing surfaces it.
-- **Grounded knowledge-base retrieval** for Ask OneTUP.
+- **Grounded knowledge-base retrieval** for Ask OneTUP. `015` built the tables
+  and the match function in full and nothing has ever called them. The decision
+  (16-NEXT-EIGHT.md §2) is that the assistant grounds on the student's own
+  records instead, which is what assistant tool use now does.
 - **Faculty evaluation submission.** The form is built; there is no open
   evaluation period in ERS to test against.
 - **Deployment.** No hosting, no domain, no CI deploy step.
@@ -237,9 +242,18 @@ published privacy commitment.
   a schedule. That is a cron entry, not a feature (12-CLASSROOMS-PLAN.md §13).
 - **Classroom term rollover.** A classroom can be archived; *Start next term's
   classroom* is not built (Phase 6).
-- **Real commute geometry.** No leg has a traced path. The map draws dashed
-  lines between real stops and says so. Do not replace those with generated
-  paths — a straight line presented as a route is a wrong answer about a real
+- **Suspension advisories, Phases 2 and 3.** Phase 1 is built. Phase 2 needs an
+  external PAGASA poller; Phase 3 needs push.
+- **Commute Phases 2–4.** Transit corridors, the rest of the corridors, and
+  fares. Mostly data gathering and per-leg verification with real riders.
+- **PDF text extraction** for study pack generation. The bucket accepts a PDF
+  and stores it, because storing the original is what makes a card checkable,
+  but the text layer is not read — a student is asked to paste instead. Reading
+  it badly would produce cards from binary noise.
+- **Real commute geometry, mostly.** `scripts/route-walk-legs.mjs` will fill in
+  the walk legs, and has not been run against real data yet. Transit corridors
+  stay dashed on purpose: a jeepney route is a social fact, not a shortest path,
+  and a straight line presented as a route is a wrong answer about a real
   city.
 
 ---
