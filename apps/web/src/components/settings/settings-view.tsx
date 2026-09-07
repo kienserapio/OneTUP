@@ -168,6 +168,11 @@ export function SettingsView({ profile }: { profile: SettingsProfile }) {
     // of everything that was just deleted server-side.
     await clearLocalData()
     await supabaseBrowser().auth.signOut()
+    /* A hard navigation on purpose, not an oversight. `router.push` keeps the
+     * React tree, the Supabase client and every cached query belonging to an
+     * account that no longer exists. After a deletion the only safe next state
+     * is a fresh document. */
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = '/'
   }
 

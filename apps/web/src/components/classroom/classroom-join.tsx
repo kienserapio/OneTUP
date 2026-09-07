@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { syncNow } from '@/lib/offline/sync'
 import { currentUserId, loadClassroom, type ClassroomData } from '@/lib/queries/classroom'
@@ -41,8 +40,6 @@ interface Preview {
 }
 
 export function ClassroomJoin({ code }: ClassroomJoinProps) {
-  const router = useRouter()
-
   const [preview, setPreview] = useState<Preview | null>(null)
   const [current, setCurrent] = useState<ClassroomData | null>(null)
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')

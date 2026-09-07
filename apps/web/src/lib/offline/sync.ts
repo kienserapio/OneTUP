@@ -134,6 +134,12 @@ export const OFFLINE_SET: PullSpec[] = [
     filter: (q) => q.gte('created_at', daysAgo(60)),
   },
   { entity: 'class_post_states', table: 'class_post_states' },
+  /* Study. The cards are here for the commute — the one place a student has
+   * twenty spare minutes and no signal — and the packs come with them so a card
+   * can say which pack it belongs to without a second lookup. `flashcard_reviews`
+   * is deliberately absent: it is written, never read. */
+  { entity: 'study_packs', table: 'study_packs' },
+  { entity: 'flashcards', table: 'flashcards' },
 ]
 
 export interface SyncResult {
