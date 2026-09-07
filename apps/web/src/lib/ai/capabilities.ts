@@ -302,6 +302,18 @@ const RouteOutput = z.object({
   route: z.enum(['own_data', 'tup_knowledge', 'commute', 'navigation', 'action', 'general']),
   template: z.string().nullable(),
   parameters: z.record(z.string(), z.unknown()).default({}),
+  /**
+   * Whether answering honestly needs more than one lookup.
+   *
+   * This is what keeps tool use affordable. OpenRouter's free tier allows fifty
+   * requests a *day* for an account that has never bought credits, and one
+   * assistant question already costs at least one. Composing every `own_data`
+   * question would double or triple that — so the router, which is looking at
+   * the question anyway and costs nothing extra, says whether composition is
+   * worth a call. "Ilang cuts pa ako" gets its template's sentence and no
+   * further model call at all, exactly as before.
+   */
+  needs_composition: z.boolean().catch(false).default(false),
   confidence: z.number().min(0).max(1),
 })
 
@@ -311,11 +323,12 @@ export const assistantRoute: Capability<
 > = {
   name: 'assistant_route',
   tier: 'fast',
-  /* 1.1.0: the classifier now reads conversation history. The version bump
+  /* 1.1.0: the classifier reads conversation history. The version bump
    * invalidates the cache by construction, which is what has to happen — a
    * cached routing decision made without history would be reused for a
-   * follow-up whose whole meaning is in the history. */
-  version: '1.1.0',
+   * follow-up whose whole meaning is in the history.
+   * 1.2.0: it also decides whether an answer needs composing. */
+  version: '1.2.0',
   maxTokens: 150,
   input: RouteInput,
   output: RouteOutput,
@@ -339,6 +352,11 @@ Routes:
 For own_data and action, also select the matching template from
 available_templates and extract its parameters. If no template matches, set
 template to null and lower confidence.
+
+Set needs_composition true only when answering honestly requires more than one
+of those lookups. "Ilang cuts pa ako" needs one and is false. "Can I still skip
+Thursday?" needs the cuts and the Thursday class, and is true. When in doubt,
+false — one accurate lookup beats two and a guess.
 
 Return ONLY JSON. Set confidence below 0.7 whenever the question is ambiguous
 or could belong to more than one route — the system will ask the student to
@@ -652,6 +670,151 @@ function stem(word: string): string {
   return word.replace(/(ing|ed|es|s|ly)$/u, '')
 }
 
+// --- assistant_compose ----------------------------------------------------
+
+/**
+ * The tool-use step: read what a template returned, decide whether that is the
+ * whole answer, and compose.
+ *
+ * Today the router picks exactly one template and its sentence is the answer.
+ * That is right for *"ilang cuts pa ako"* and wrong for *"can I still skip
+ * Thursday?"*, which is `absences_remaining` **and** `next_class` composed —
+ * two facts the app already knows and could never previously put in one
+ * sentence.
+ *
+ * The model chooses *which* templates run. It never produces a figure. The
+ * composed answer is checked against the template outputs before it is shown
+ * (`unsupportedNumbers`), and an answer carrying a number nothing computed is
+ * discarded rather than repaired — a fabricated cut count reads exactly like a
+ * real one, and this is the product's founding rule (ADR-007).
+ */
+
+const ComposeInput = z.object({
+  query: z.string().min(1).max(1000),
+  history: HistorySchema,
+  /** What has been read so far, in the order it was read. */
+  results: z
+    .array(z.object({ template: z.string(), answer: z.string() }))
+    .min(1)
+    .max(4),
+  /** `name — description` for everything not yet run. */
+  available: z.array(z.string()),
+  /** False on the final pass, when nothing more may be requested. */
+  may_request_more: z.boolean(),
+})
+
+/**
+ * A requested lookup, however the model chose to write it.
+ *
+ * Small free models return `need: ["next_class"]` about as often as
+ * `need: [{ template: "next_class" }]`, and both plainly mean the same thing.
+ * Rejecting the first would spend the gateway's one repair attempt on a
+ * disagreement about punctuation, so it is accepted and normalised here.
+ */
+const NeededTemplate = z.preprocess(
+  (value) => (typeof value === 'string' ? { template: value } : value),
+  z.object({
+    template: z.string(),
+    parameters: z.record(z.string(), z.unknown()).default({}),
+  }),
+)
+
+const ComposeOutput = z.object({
+  /**
+   * Templates still needed, at most two. Empty means the material in hand is
+   * enough, which is the common case and the cheap one.
+   *
+   * `.catch([])` rather than only `.default([])`: a model that writes
+   * `need: null` means "none", and `default` fires on an absent key, not a null
+   * one. That distinction is invisible until it takes the route down.
+   */
+  need: z.array(NeededTemplate).max(2).catch([]).default([]),
+  /** The answer, when `need` is empty. Ignored otherwise. */
+  answer: z.string().catch('').default(''),
+})
+
+export const assistantCompose: Capability<
+  z.infer<typeof ComposeInput>,
+  z.infer<typeof ComposeOutput>
+> = {
+  name: 'assistant_compose',
+  tier: 'standard',
+  version: '1.0.0',
+  maxTokens: 900,
+  temperature: 0.3,
+  input: ComposeInput,
+  output: ComposeOutput,
+  system: `You are assembling the answer to a student's question inside OneTUP, from
+facts the app has already computed. You have been given the result of one or
+more lookups.
+
+Your job is one of two things:
+
+1. If the lookups already contain what the question asked for, write the answer.
+2. If answering honestly needs another lookup that is available, ask for it.
+
+Rules that are not negotiable:
+- **Never write a number that is not in the lookup results or the question.**
+  Not a rounded one, not an estimated one, not an obvious one. If a figure is
+  missing, the answer is that you cannot tell, or you ask for the lookup that
+  would have it. Every figure a student acts on is computed by the app; you
+  arrange them into a sentence and nothing more.
+- Do not request a lookup that is not in the available list.
+- Do not request more than two.
+- A requested lookup is written as {"template": "<name>", "parameters": {...}}.
+  Leave parameters as {} when the name is enough.
+- Ask for a second lookup only when the question genuinely needs it. "How many
+  cuts do I have" needs one. "Can I still skip Thursday" needs the cuts and the
+  Thursday class, because the answer depends on both.
+- When may_request_more is false, need MUST be empty. Answer with what you have,
+  and say plainly what you could not determine.
+
+How to write the answer:
+- Short. Two to four sentences. A direct question gets a direct answer.
+- Reply in the language of the question. Taglish in, Taglish out.
+- Plain text. A leading "- " is the only markup permitted, and only for a real
+  list of steps or options.
+- No preamble, no restating the question, no offer to help further.
+
+Return ONLY JSON.`,
+  buildUser: (input) => {
+    const readSoFar = input.results
+      .map((result, index) => `${index + 1}. ${result.template}\n   ${result.answer}`)
+      .join('\n')
+
+    return `${renderHistory(input.history)}question:
+"""
+${input.query}
+"""
+
+what the app has looked up so far:
+${readSoFar}
+
+${
+  input.may_request_more
+    ? `lookups still available:\n${input.available.join('\n')}\n\nIf you need one, return {"need": [{"template": "<name>", "parameters": {}}], "answer": ""}. Otherwise return {"need": [], "answer": "<the answer>"}.`
+    : 'No further lookups are possible. Answer with what is above; "need" must be empty.'
+}`
+  },
+  postValidate: (output, input) => {
+    const warnings: string[] = []
+    let need = output.need
+
+    if (!input.may_request_more && need.length > 0) {
+      need = []
+      warnings.push('need_ignored_on_final_pass')
+    }
+
+    /* A request for a template that does not exist would be a lookup to
+     * nowhere, and the loop would spend a pass discovering that. */
+    const names = new Set(input.available.map((entry) => entry.split(' — ')[0].trim()))
+    const known = need.filter((entry) => names.has(entry.template))
+    if (known.length !== need.length) warnings.push('unknown_template_requested')
+
+    return { output: { ...output, need: known }, warnings }
+  },
+}
+
 // --- commute_intent -------------------------------------------------------
 
 const CommuteInput = z.object({
@@ -753,6 +916,7 @@ export const CAPABILITIES = {
   assistant_general: assistantGeneral,
   evaluation_polish: evaluationPolish,
   commute_intent: commuteIntent,
+  assistant_compose: assistantCompose,
 } as const
 
 export type CapabilityName = keyof typeof CAPABILITIES

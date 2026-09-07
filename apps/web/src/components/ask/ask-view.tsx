@@ -30,6 +30,8 @@ interface Turn {
   route?: string
   citations?: { chunk_id: string; source_title: string }[]
   computed?: { template: string; values: Record<string, unknown> }
+  /** Which lookups produced the answer, and what each one read. */
+  receipts?: { template: string; read: string }[]
   /** Screens the answer points at. A pointer with no link is half an answer. */
   actions?: { label: string; href: string }[]
   error?: boolean
@@ -97,6 +99,7 @@ export function AskView() {
           route: body.route,
           citations: body.citations ?? [],
           computed: body.computed,
+          receipts: body.receipts ?? [],
           actions: body.actions ?? [],
         },
       ])
@@ -309,10 +312,58 @@ function TurnBubble({ turn }: { turn: Turn }) {
           <GeneratedMark />
         </p>
       ) : turn.computed ? (
-        <p className="type-caption-2 mt-1.5 pl-1 text-[var(--label-tertiary)]">
-          Worked out from your own records
-        </p>
+        <Receipts receipts={turn.receipts ?? []} />
       ) : null}
+    </div>
+  )
+}
+
+/**
+ * Where the answer's numbers came from.
+ *
+ * One lookup is a provenance note and stays a single line — expanding it would
+ * be ceremony around a sentence the student can already see.
+ *
+ * More than one is different. An answer that combines two facts is the first
+ * thing in this product that composes, and a student told two things at once is
+ * owed the ability to check both separately
+ * (10-FUTURE-ENHANCEMENTS.md §5.1). So the receipts open, and each one shows
+ * exactly what that lookup returned before anything was written around it.
+ */
+function Receipts({ receipts }: { receipts: { template: string; read: string }[] }) {
+  const [open, setOpen] = useState(false)
+
+  if (receipts.length < 2) {
+    return (
+      <p className="type-caption-2 mt-1.5 pl-1 text-[var(--label-tertiary)]">
+        Worked out from your own records
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-1.5 pl-1">
+      <button
+        type="button"
+        onClick={() => setOpen((was) => !was)}
+        className="type-caption-2 text-[var(--label-tertiary)] underline decoration-dotted underline-offset-2"
+        aria-expanded={open}
+      >
+        Worked out from {receipts.length} things in your records
+      </button>
+
+      {open && (
+        <ul className="mt-1.5 space-y-1 border-l pl-2.5" style={{ borderColor: 'var(--separator)' }}>
+          {receipts.map((receipt) => (
+            <li key={receipt.template} className="type-caption-2 text-[var(--label-secondary)]">
+              <span className="type-data text-[var(--label-tertiary)]">
+                {receipt.template.replace(/_/g, ' ')}
+              </span>
+              <span className="block">{receipt.read}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

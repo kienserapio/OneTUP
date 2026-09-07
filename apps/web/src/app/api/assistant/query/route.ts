@@ -15,6 +15,7 @@ import { enforceLimit } from '@/lib/api/rate-limit'
 import { supabaseServer } from '@/lib/supabase/server'
 import { runCapability } from '@/lib/ai/gateway'
 import { HistorySchema } from '@/lib/ai/capabilities'
+import { composeAnswer } from '@/lib/assistant/compose'
 import { TEMPLATES, TEMPLATE_NAMES } from '@/lib/assistant/templates'
 
 /**
@@ -93,6 +94,7 @@ export const POST = authenticated(async (request, { user }) => {
     route: string
     template: string | null
     parameters: Record<string, unknown>
+    needs_composition: boolean
     confidence: number
   }
 
@@ -122,17 +124,57 @@ export const POST = authenticated(async (request, { user }) => {
       }
     }
 
-    const result = await template.run(
-      { supabase, userId: user.id, now: new Date(), locale: body.locale },
-      routed.parameters,
-    )
+    /* One lookup, or several composed — the router already said which, so the
+     * common question costs exactly the one model call it always did. See
+     * `compose.ts` for the cap, the receipts and the grounding check. */
+    const composed = routed.needs_composition
+      ? await composeAnswer({
+          context: { supabase, userId: user.id, now: new Date(), locale: body.locale },
+          userId: user.id,
+          redaction,
+          query: body.query,
+          history: body.history,
+          firstTemplate: template.name,
+          firstParameters: routed.parameters,
+        })
+      : null
+
+    if (!composed) {
+      const result = await template.run(
+        { supabase, userId: user.id, now: new Date(), locale: body.locale },
+        routed.parameters,
+      )
+      return {
+        route: 'own_data',
+        answer: result.answer,
+        computed: { template: template.name, values: result.values },
+        citations: [],
+        actions: [],
+        labelled: false,
+      }
+    }
 
     return {
       route: 'own_data',
-      answer: result.answer,
-      computed: { template: template.name, values: result.values },
+      answer: composed.answer,
+      computed: {
+        template: composed.receipts.map((receipt) => receipt.template).join(' + '),
+        values: Object.fromEntries(
+          composed.receipts.map((receipt) => [receipt.template, receipt.values]),
+        ),
+      },
+      /* Receipts: which lookups ran and what each one read. Non-negotiable for
+       * anything that composes — a student who is told two things at once is
+       * owed the ability to check both (10-FUTURE-ENHANCEMENTS.md §5.1). */
+      receipts: composed.receipts.map((receipt) => ({
+        template: receipt.template,
+        read: receipt.answer,
+      })),
       citations: [],
       actions: [],
+      /* Still false. Every figure was computed; the model chose which lookups
+       * to run and arranged their output into a sentence, and an answer whose
+       * numbers are all computed is not generated content (AI spec §8.3). */
       labelled: false,
     }
   }
