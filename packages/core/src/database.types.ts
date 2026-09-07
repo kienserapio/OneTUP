@@ -286,6 +286,7 @@ export type Database = {
         Row: {
           block_id: string | null
           created_at: string
+          delivery_mode: string | null
           enrollment_id: string
           id: string
           note: string | null
@@ -298,6 +299,7 @@ export type Database = {
         Insert: {
           block_id?: string | null
           created_at?: string
+          delivery_mode?: string | null
           enrollment_id: string
           id?: string
           note?: string | null
@@ -310,6 +312,7 @@ export type Database = {
         Update: {
           block_id?: string | null
           created_at?: string
+          delivery_mode?: string | null
           enrollment_id?: string
           id?: string
           note?: string | null
@@ -2339,6 +2342,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      suspension_advisories: {
+        Row: {
+          city: string | null
+          created_at: string
+          effective_on: string
+          headline: string
+          id: string
+          level: string | null
+          scope: string
+          source: string
+          source_url: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          effective_on: string
+          headline: string
+          id?: string
+          level?: string | null
+          scope: string
+          source: string
+          source_url?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          effective_on?: string
+          headline?: string
+          id?: string
+          level?: string | null
+          scope?: string
+          source?: string
+          source_url?: string | null
+        }
+        Relationships: []
       }
       study_chunks: {
         Row: {

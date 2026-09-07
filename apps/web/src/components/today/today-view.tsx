@@ -26,6 +26,7 @@ import {
   IconWarning,
 } from '@/components/ui/icon'
 import { AttendancePrompt } from '@/components/today/attendance-prompt'
+import { SuspensionCard } from '@/components/today/suspension-card'
 import { UpNextCard } from '@/components/today/up-next-card'
 import { DepartureCard } from '@/components/today/departure-card'
 
@@ -70,6 +71,18 @@ export function TodayView({ firstName }: { firstName: string | null }) {
         </h2>
         <p className="type-body mt-1 text-[var(--label-secondary)]">{summarise(data, now)}</p>
       </header>
+
+      {/* Above everything, because it changes what the rest of the day means —
+          but it never changes a record on its own. */}
+      {data.advisory && (
+        <SuspensionCard
+          advisory={data.advisory}
+          blocks={data.blocks}
+          sessionDate={data.date}
+          standings={data.standings}
+          onRecorded={reload}
+        />
+      )}
 
       <UpNextCard data={data} />
 

@@ -13,6 +13,7 @@ import {
   manilaDate,
   manilaMinutes,
   manilaWeekday,
+  advisoryForToday,
   nextBlock,
   summariseAttendance,
   urgencyOf,
@@ -26,6 +27,7 @@ import type {
   Enrollment,
   Grade,
   ScheduleBlockRow,
+  SuspensionAdvisory,
   Term,
   UserPreferences,
 } from '@onetup/core'
@@ -139,6 +141,14 @@ export interface TodayData {
   /** Cut standing per enrolment id, for any card that has to show consequence. */
   standings: Record<string, AttendanceStanding>
   preferences: UserPreferences | null
+  /**
+   * The advisory in force today, if there is one.
+   *
+   * At most one reaches the screen. Two announcements about the same typhoon —
+   * a national one and the city's — is a stack of cards saying the same thing,
+   * so the narrowest scope wins: a student in Manila is told what Manila said.
+   */
+  advisory: SuspensionAdvisory | null
   overview: TodayOverview
 }
 
@@ -169,6 +179,7 @@ export async function loadToday(now = new Date()): Promise<TodayData> {
     grades,
     announcements,
     terms,
+    advisories,
   ] = await Promise.all([
     readAll<ScheduleBlockRow & { id: string }>('schedule_blocks'),
     readAll<Enrollment & { id: string }>('enrollments'),
@@ -179,6 +190,7 @@ export async function loadToday(now = new Date()): Promise<TodayData> {
     readAll<Grade & { id: string }>('grades'),
     readAll<Announcement & { id: string }>('announcements'),
     readAll<Term & { id: string }>('terms'),
+    readAll<SuspensionAdvisory & { id: string }>('suspension_advisories'),
   ])
 
   const courseById = new Map(courses.map((c) => [c.id, c]))
@@ -347,6 +359,7 @@ export async function loadToday(now = new Date()): Promise<TodayData> {
     attendanceWarnings,
     standings: Object.fromEntries(standings),
     preferences,
+    advisory: advisoryForToday(advisories, today),
     overview: {
       hasSchedule: blocks.length > 0,
       subjects: enrollments.length,
@@ -411,3 +424,4 @@ const WEEK: Weekday[] = [
 function weekdayOfDate(date: string): Weekday {
   return WEEK[new Date(`${date}T00:00:00Z`).getUTCDay()]
 }
+

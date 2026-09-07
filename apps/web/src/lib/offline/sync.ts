@@ -140,6 +140,14 @@ export const OFFLINE_SET: PullSpec[] = [
    * is deliberately absent: it is written, never read. */
   { entity: 'study_packs', table: 'study_packs' },
   { entity: 'flashcards', table: 'flashcards' },
+  /* Reference, and tiny. It is offline for the obvious reason: the day a
+   * suspension is announced is a typhoon day, and a typhoon day is when the
+   * signal is worst. A week is plenty — the card only ever renders for today. */
+  {
+    entity: 'suspension_advisories',
+    table: 'suspension_advisories',
+    filter: (q) => q.gte('effective_on', daysAgo(7).slice(0, 10)),
+  },
 ]
 
 export interface SyncResult {
