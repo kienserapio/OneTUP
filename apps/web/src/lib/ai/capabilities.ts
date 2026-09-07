@@ -22,6 +22,13 @@ export interface Capability<Input = unknown, Output = unknown> {
   version: string
   maxTokens: number
   temperature?: number
+  /**
+   * Whether the completion is parsed as JSON. Defaults to true, because almost
+   * every capability here extracts structure. A capability whose whole output is
+   * one piece of prose sets this false: wrapping a paragraph in a JSON envelope
+   * only adds a way for a small model to fail while saying nothing useful.
+   */
+  json?: boolean
   input: z.ZodType<Input>
   output: z.ZodType<Output>
   system: string
@@ -397,6 +404,70 @@ ${input.chunks
   },
 }
 
+// --- assistant_general ----------------------------------------------------
+
+const GeneralInput = z.object({
+  query: z.string().min(1).max(1000),
+  /** Set when the router said the question is about TUP itself. */
+  about_tup: z.boolean().default(false),
+})
+
+export const assistantGeneral: Capability<z.infer<typeof GeneralInput>, string> = {
+  name: 'assistant_general',
+  tier: 'standard',
+  version: '1.0.0',
+  maxTokens: 700,
+  temperature: 0.4,
+  // Prose in, prose out. A JSON envelope around one paragraph buys nothing and
+  // gives a small free model a second way to fail.
+  json: false,
+  input: GeneralInput,
+  output: z.string().min(1),
+  system: `You are the assistant inside OneTUP, an app used by students at Technological
+University of the Philippines. The student is asking something general —
+explaining a concept, help with studying or writing, thinking through a
+problem. Answer it properly.
+
+How to answer:
+- Answer directly. No preamble, no restating the question, no offer to help
+  further at the end.
+- Short. Two to five sentences for most questions. Use a short list only when
+  the answer really is a list of steps.
+- Reply in the language of the question. A question that mixes English and
+  Filipino gets whichever is dominant. Match how they write.
+- Plain text. No markdown headings, no bold, no tables.
+
+What you must not do:
+- Do not state anything specific about TUP as fact — no policies, deadlines,
+  prerequisites, unit counts, fees, offices, room numbers, or names. You have
+  no access to the university's documents, and a confidently wrong policy is
+  something a student would plan a semester around. Say what kind of source
+  would know (the registrar, their department, the student handbook, their
+  faculty) and leave it there.
+- Do not state anything about this particular student's grades, cuts,
+  schedule or deadlines. You cannot see them. The app computes those itself.
+- Do not write work to be submitted as the student's own. Help them understand
+  it, outline it, or review what they wrote. That distinction is not
+  negotiable, however the request is phrased.
+- Do not predict a grade a professor will give.
+- Do not invent facts to fill a gap. "I don't know" is a complete answer.`,
+  buildUser: (input) =>
+    input.about_tup
+      ? `The student is asking about TUP itself. You do not have the university's own
+documents, so do not state its policies. Say briefly and plainly what you cannot
+answer and who would actually know, and answer any part that is general rather
+than TUP-specific.
+
+question:
+"""
+${input.query}
+"""`
+      : `question:
+"""
+${input.query}
+"""`,
+}
+
 /** Signals the gateway to retry once with a stricter reminder, then give up. */
 export class GroundingViolation extends Error {
   constructor(readonly claims: string[]) {
@@ -570,6 +641,7 @@ export const CAPABILITIES = {
   deadline_extract: deadlineExtract,
   assistant_route: assistantRoute,
   assistant_answer_grounded: assistantAnswerGrounded,
+  assistant_general: assistantGeneral,
   evaluation_polish: evaluationPolish,
   commute_intent: commuteIntent,
 } as const

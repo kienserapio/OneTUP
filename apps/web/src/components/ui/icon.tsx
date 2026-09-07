@@ -8,6 +8,7 @@ import {
   IconBookFilled,
   IconBusFilled,
   IconCalendarFilled,
+  IconCalendarOff,
   IconCheckFilled,
   IconChevronDown as TablerChevronDown,
   IconChevronLeft as TablerChevronLeft,
@@ -35,6 +36,7 @@ import {
   IconTargetArrow,
   IconUpload,
   IconUserFilled,
+  IconUsersGroup,
   IconWalk as TablerWalk,
   IconWifiOff,
   IconX,
@@ -107,6 +109,9 @@ export const IconDocs = alias(IconFileTextFilled)
 export const IconMore = alias(IconDotsFilled)
 export const IconProfile = alias(IconUserFilled)
 export const IconOverview = alias(IconLayoutGridFilled)
+/* Tabler ships no filled users-group, so this one is a line glyph by
+ * necessity, alongside IconRefresh, IconWalk and IconRoute. */
+export const IconClassroom = alias(IconUsersGroup)
 
 /* --- Actions and states -------------------------------------------------- */
 
@@ -120,6 +125,9 @@ export const IconPlus = alias(IconPlusFilled)
 export const IconWarning = alias(IconAlertTriangleFilled)
 export const IconOffline = alias(IconWifiOff)
 export const IconClock = alias(IconClockFilled)
+/* A struck-through calendar: no interior to fill, so this one is a line glyph
+ * by necessity rather than by choice. */
+export const IconCancelled = alias(IconCalendarOff)
 export const IconAlarm = alias(IconAlarmFilled)
 export const IconSparkleSmall = alias(IconSparklesFilled)
 export const IconRefresh = alias(TablerRefresh)

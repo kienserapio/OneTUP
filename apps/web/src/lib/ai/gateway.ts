@@ -95,17 +95,22 @@ export async function runCapability<K extends CapabilityName>(
   // the same announcement still hit the same entry.
   const safeInput = redactDeep(input, options.redaction ?? {})
 
+  const wantsJson = capability.json !== false
+
   const request = {
     system: capability.system,
     user: capability.buildUser(safeInput as never),
     images: capability.images?.(safeInput as never),
     maxTokens: capability.maxTokens,
     temperature: capability.temperature,
-    json: true,
+    json: wantsJson,
   }
 
+  /** A prose capability's completion is its output; there is nothing to extract. */
+  const readOutput = (text: string): unknown => (wantsJson ? extractJson(text) : text.trim())
+
   let completion = await complete(capability.tier, request)
-  let parsed = capability.output.safeParse(extractJson(completion.text))
+  let parsed = capability.output.safeParse(readOutput(completion.text))
 
   if (!parsed.success) {
     // One repair attempt on the same model. A second failure is a real
@@ -114,10 +119,14 @@ export async function runCapability<K extends CapabilityName>(
       ...request,
       user: `${request.user}
 
-Your previous reply did not match the required JSON schema. Reply with ONLY the JSON object, no prose and no code fences.`,
+${
+  wantsJson
+    ? 'Your previous reply did not match the required JSON schema. Reply with ONLY the JSON object, no prose and no code fences.'
+    : 'Your previous reply was unusable. Answer the question directly, in plain text.'
+}`,
       temperature: 0,
     })
-    parsed = capability.output.safeParse(extractJson(completion.text))
+    parsed = capability.output.safeParse(readOutput(completion.text))
   }
 
   if (!parsed.success) {
@@ -157,7 +166,7 @@ ${reminderFor(error)}`,
           temperature: 0,
         })
 
-        const retryParsed = capability.output.safeParse(extractJson(retry.text))
+        const retryParsed = capability.output.safeParse(readOutput(retry.text))
         if (retryParsed.success) {
           try {
             const validated = await capability.postValidate(

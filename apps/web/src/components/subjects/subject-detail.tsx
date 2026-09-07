@@ -21,10 +21,12 @@ import {
 } from '@/lib/queries/subjects'
 import { readOne } from '@/lib/offline/db'
 import { syncNow } from '@/lib/offline/sync'
+import { cx } from '@/lib/cx'
 import { spring, transition } from '@/design/motion'
 import { Badge, Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
-import { Button } from '@/components/ui/button'
+import { Button, ButtonLink } from '@/components/ui/button'
 import { NavBar } from '@/components/app/nav-bar'
+import { NotFoundView } from '@/components/app/not-found-view'
 import { AttendanceMeter, attendanceColor } from '@/components/subjects/attendance-meter'
 import { StatCard } from '@/components/subjects/stat-card'
 import {
@@ -70,8 +72,16 @@ export function SubjectDetail({ enrollmentId }: { enrollmentId: string }) {
       <>
         <NavBar title="Subject" back={{ href: '/subjects', label: 'Subjects' }} />
         <div className="app-container">
-          <Card>
-            <EmptyState title="That subject isn't in your enrolment any more." />
+          <Card padded={false}>
+            <NotFoundView
+              title="That subject isn't here"
+              message="It is not in your enrolment for this term any more. Your other subjects are untouched."
+              actions={
+                <ButtonLink href="/subjects" variant="accent">
+                  Back to Subjects
+                </ButtonLink>
+              }
+            />
           </Card>
         </div>
       </>
@@ -162,11 +172,21 @@ export function SubjectDetail({ enrollmentId }: { enrollmentId: string }) {
 
               <AttendanceMeter summary={attendance} />
 
-              <dl className="grid grid-cols-4 gap-2">
+              {/* Cancelled only earns a column once there is one to show. A
+                  permanent zero on a term with no suspensions is a column of
+                  nothing taking width from four that matter. */}
+              <dl className={cx('grid gap-2', attendance.cancelled > 0 ? 'grid-cols-5' : 'grid-cols-4')}>
                 <Tally label="Present" value={attendance.present} />
                 <Tally label="Absent" value={attendance.absent} color="var(--danger)" />
                 <Tally label="Late" value={attendance.late} color="var(--warning)" />
                 <Tally label="Excused" value={attendance.excused} color="var(--info)" />
+                {attendance.cancelled > 0 && (
+                  <Tally
+                    label="Cancelled"
+                    value={attendance.cancelled}
+                    color="var(--label-secondary)"
+                  />
+                )}
               </dl>
 
               {attendance.late > 0 && Number.isFinite(attendance.latesUntilNextUnit) && (
@@ -321,6 +341,7 @@ const STATUS_LABEL: Record<AttendanceStatus, string> = {
   absent: 'Absent',
   late: 'Late',
   excused: 'Excused',
+  cancelled: 'Cancelled',
 }
 
 const STATUS_COLOR: Record<AttendanceStatus, string> = {
@@ -328,6 +349,9 @@ const STATUS_COLOR: Record<AttendanceStatus, string> = {
   absent: 'var(--danger)',
   late: 'var(--warning)',
   excused: 'var(--info)',
+  // Deliberately grey. A cancelled class is not an outcome the student caused,
+  // and giving it a colour would put it in the same visual language as one.
+  cancelled: 'var(--label-secondary)',
 }
 
 function Tally({ label, value, color }: { label: string; value: number; color?: string }) {

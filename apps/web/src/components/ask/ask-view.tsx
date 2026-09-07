@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring, transition } from '@/design/motion'
 import { NavBar } from '@/components/app/nav-bar'
+import { ButtonLink } from '@/components/ui/button'
 import { Card, EmptyState, GeneratedMark, SectionHeader } from '@/components/ui/surfaces'
 import { IconAsk } from '@/components/ui/icon'
 import { cx } from '@/lib/cx'
@@ -28,6 +29,8 @@ interface Turn {
   route?: string
   citations?: { chunk_id: string; source_title: string }[]
   computed?: { template: string; values: Record<string, unknown> }
+  /** Screens the answer points at. A pointer with no link is half an answer. */
+  actions?: { label: string; href: string }[]
   error?: boolean
 }
 
@@ -88,6 +91,7 @@ export function AskView() {
           route: body.route,
           citations: body.citations ?? [],
           computed: body.computed,
+          actions: body.actions ?? [],
         },
       ])
     } catch {
@@ -253,6 +257,16 @@ function TurnBubble({ turn }: { turn: Turn }) {
               </li>
             ))}
           </ul>
+        )}
+
+        {turn.actions && turn.actions.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {turn.actions.map((action) => (
+              <ButtonLink key={action.href} href={action.href} size="sm">
+                {action.label}
+              </ButtonLink>
+            ))}
+          </div>
         )}
       </div>
 

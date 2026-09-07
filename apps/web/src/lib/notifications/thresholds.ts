@@ -4,6 +4,7 @@ import {
   DEFAULT_ALLOWED_ABSENCES,
   DEFAULT_LATES_PER_ABSENCE,
   computeGwa,
+  countStatuses,
   evaluateThreshold,
   shouldNotifyAttendance,
   shouldNotifyThreshold,
@@ -67,12 +68,7 @@ export async function evaluateAlerts(): Promise<{ fired: number }> {
   for (const enrollment of enrollments) {
     const records = attendance.filter((record) => record.enrollment_id === enrollment.id)
     const summary = summariseAttendance(
-      {
-        present: records.filter((r) => r.status === 'present').length,
-        absent: records.filter((r) => r.status === 'absent').length,
-        late: records.filter((r) => r.status === 'late').length,
-        excused: records.filter((r) => r.status === 'excused').length,
-      },
+      countStatuses(records.map((record) => record.status)),
       {
         allowedAbsences: enrollment.allowed_absences ?? preferences?.default_allowed_absences ?? DEFAULT_ALLOWED_ABSENCES,
         latesPerAbsence: enrollment.lates_per_absence ?? preferences?.lates_per_absence ?? DEFAULT_LATES_PER_ABSENCE,

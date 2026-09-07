@@ -10,7 +10,7 @@ import {
 import type { AttendanceCounts, AttendanceState, AttendanceStatus } from '@onetup/core'
 
 function counts(overrides: Partial<AttendanceCounts> = {}): AttendanceCounts {
-  return { present: 0, absent: 0, late: 0, excused: 0, ...overrides }
+  return { present: 0, absent: 0, late: 0, excused: 0, cancelled: 0, ...overrides }
 }
 
 const RULES = { allowedAbsences: 5, latesPerAbsence: 3 }
@@ -24,12 +24,31 @@ describe('countStatuses', () => {
       'late',
       'late',
       'excused',
+      'cancelled',
     ]
-    expect(countStatuses(statuses)).toEqual({ present: 2, absent: 1, late: 2, excused: 1 })
+    expect(countStatuses(statuses)).toEqual({
+      present: 2,
+      absent: 1,
+      late: 2,
+      excused: 1,
+      cancelled: 1,
+    })
   })
 
   it('returns zeroes for an empty record set', () => {
-    expect(countStatuses([])).toEqual({ present: 0, absent: 0, late: 0, excused: 0 })
+    expect(countStatuses([])).toEqual({
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+      cancelled: 0,
+    })
+  })
+
+  /** The database enum can gain a value before every client has been redeployed. */
+  it('ignores a status this build does not know about', () => {
+    const statuses = ['present', 'teleported'] as unknown as AttendanceStatus[]
+    expect(countStatuses(statuses).present).toBe(1)
   })
 })
 
@@ -109,6 +128,34 @@ describe('excused entries', () => {
     expect(summary.absenceUnits).toBe(0)
     expect(summary.state).toBe('normal')
     expect(summary.remaining).toBe(5)
+  })
+})
+
+describe('cancelled classes', () => {
+  /**
+   * A suspension is not an outcome the student produced. Counting it as an
+   * absence would punish them for a typhoon; counting it as present would put a
+   * class in their record that nobody held.
+   */
+  it('are excluded from absence units, the ratio and the state', () => {
+    const withCancelled = summariseAttendance(counts({ absent: 1, late: 1, cancelled: 6 }), RULES)
+    const without = summariseAttendance(counts({ absent: 1, late: 1 }), RULES)
+
+    expect(withCancelled.absenceUnits).toBe(without.absenceUnits)
+    expect(withCancelled.ratio).toBe(without.ratio)
+    expect(withCancelled.remaining).toBe(without.remaining)
+    expect(withCancelled.state).toBe(without.state)
+  })
+
+  it('are still reported, so a term of suspensions is visible afterwards', () => {
+    expect(summariseAttendance(counts({ cancelled: 6 }), RULES).cancelled).toBe(6)
+  })
+
+  it('never convert into a late, however many of them there are', () => {
+    const summary = summariseAttendance(counts({ cancelled: 12 }), RULES)
+    expect(summary.absenceUnits).toBe(0)
+    expect(summary.latesUntilNextUnit).toBe(3)
+    expect(summary.state).toBe('normal')
   })
 })
 

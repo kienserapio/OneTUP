@@ -15,7 +15,8 @@ import { queueWrite, syncNow } from '@/lib/offline/sync'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { scheduleDeadlineReminders, cancelDeadlineReminders } from '@/lib/notifications/client'
 import { NavBar } from '@/components/app/nav-bar'
-import { Button } from '@/components/ui/button'
+import { NotFoundView } from '@/components/app/not-found-view'
+import { Button, ButtonLink } from '@/components/ui/button'
 import { Card, ListGroup, SectionHeader } from '@/components/ui/surfaces'
 import { Field, FormError } from '@/components/auth/auth-form'
 import { IconCheck, IconClose, IconPlus } from '@/components/ui/icon'
@@ -55,6 +56,7 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
   const [source, setSource] = useState<string>('manual')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [missing, setMissing] = useState(false)
 
   useEffect(() => {
     void (async () => {
@@ -81,7 +83,13 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
 
       const deadlines = await readAll<Deadline & { id: string }>('deadlines')
       const deadline = deadlines.find((entry) => entry.id === deadlineId)
-      if (!deadline) return
+      // A deleted deadline, or a link someone else's phone produced. Rendering
+      // an empty "edit" form here silently invited the student to re-create it
+      // under an id that no longer means anything.
+      if (!deadline) {
+        setMissing(true)
+        return
+      }
 
       const due = new Date(deadline.due_at)
       const manila = new Date(due.getTime() + 8 * 3_600_000).toISOString()
@@ -208,6 +216,31 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
       payload: patch,
       optimistic: { ...subtask, ...patch, updated_at: new Date().toISOString() },
     })
+  }
+
+  if (missing) {
+    return (
+      <>
+        <NavBar
+          title="Deadline"
+          back={{ href: '/deadlines', label: 'Deadlines' }}
+          largeTitle={false}
+        />
+        <div className="app-container pb-4 pt-2">
+          <Card padded={false}>
+            <NotFoundView
+              title="That deadline isn't here"
+              message="It has been deleted, or the link came from an account that is not yours."
+              actions={
+                <ButtonLink href="/deadlines" variant="accent">
+                  Back to Deadlines
+                </ButtonLink>
+              }
+            />
+          </Card>
+        </div>
+      </>
+    )
   }
 
   return (

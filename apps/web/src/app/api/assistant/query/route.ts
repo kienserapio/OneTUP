@@ -161,30 +161,66 @@ export const POST = authenticated(async (request, { user }) => {
     }
   }
 
-  if (routed.route === 'tup_knowledge') {
-    // Retrieval needs an embedding of the query. Until the knowledge base is
-    // seeded and the local embedding model is wired up, saying so plainly beats
-    // answering from the model's own recollection of what TUP might do.
+  if (routed.route === 'navigation') {
     return {
-      route: 'tup_knowledge',
-      answer:
-        "I don't have TUP's curriculum and policy documents in my sources yet, so I'd only be guessing. The registrar or the student handbook is the place for that one.",
+      route: 'navigation',
+      answer: 'The campus map has rooms, gates, printing and food, and it works without signing in.',
+      computed: null,
+      citations: [],
+      actions: [{ label: 'Open the campus map', href: '/campus' }],
+      labelled: false,
+    }
+  }
+
+  /*
+   * Everything else — a general question, or one about TUP itself.
+   *
+   * Retrieval over TUP's own documents is not wired up yet, so a question about
+   * the university cannot be answered from sources. That used to end the
+   * conversation with a flat refusal, which is how an assistant that is working
+   * exactly as designed comes to look broken: most of what a student types is
+   * neither a query against their own rows nor a commute.
+   *
+   * So the model answers, under a prompt that forbids it from stating anything
+   * TUP-specific as fact (capabilities.ts, `assistant_general`). The grounding
+   * rule that matters — never invent a policy, a prerequisite or a deadline —
+   * still holds. What changes is that a student asking how to revise for finals
+   * gets an answer instead of a door.
+   *
+   * `labelled` is true here, and it is the one route where it is: a model wrote
+   * this, start to finish.
+   */
+  const isAboutTup = routed.route === 'tup_knowledge'
+
+  try {
+    const answer = (
+      await runCapability(
+        'assistant_general',
+        { query: body.query, about_tup: isAboutTup },
+        { userId: user.id, redaction },
+      )
+    ).output as string
+
+    return {
+      route: routed.route,
+      answer,
+      computed: null,
+      citations: [],
+      actions: [],
+      labelled: true,
+    }
+  } catch {
+    // The ladder is exhausted or the daily free-model quota is spent. Say what
+    // still works rather than what does not.
+    return {
+      route: routed.route,
+      answer: isAboutTup
+        ? "I can't answer that one right now, and I don't have TUP's own handbook to check. The registrar or your department would know."
+        : "I can't answer that one right now. Your schedule, cuts, grades and deadlines all still work — try asking about those.",
       computed: null,
       citations: [],
       actions: [],
       labelled: false,
     }
-  }
-
-  return {
-    route: routed.route,
-    answer:
-      routed.route === 'navigation'
-        ? 'The campus map has rooms, gates, printing and food, and it works without signing in.'
-        : "That one's outside what I can answer from your data or from TUP's own sources.",
-    computed: null,
-    citations: [],
-    actions: [],
-    labelled: false,
   }
 })

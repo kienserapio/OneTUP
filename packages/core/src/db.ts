@@ -46,6 +46,11 @@ export type CommuteArea = Tables<'commute_areas'>
 export type CampusPlace = Tables<'campus_places'>
 export type DeparturePlanRow = Tables<'departure_plans'>
 export type UserThreshold = Tables<'user_thresholds'>
+export type Group = Tables<'groups'>
+export type GroupMember = Tables<'group_members'>
+export type GroupJoinRequest = Tables<'group_join_requests'>
+export type ClassPost = Tables<'class_posts'>
+export type ClassPostState = Tables<'class_post_states'>
 
 export type TodayRow = Views<'v_today'>
 export type GwaRow = Views<'v_gwa'>

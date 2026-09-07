@@ -37,9 +37,40 @@ const PUBLIC_PREFIXES = [
   '/docs',
 ]
 
+/**
+ * The authenticated area, named explicitly.
+ *
+ * The gate used to be "everything that is not on the public list", which meant
+ * a signed-out visitor mistyping a URL was sent to sign in — and then, having
+ * signed in, forwarded to a page that does not exist. A URL that matches no
+ * route is not a private page; it is a 404, and it should say so to everyone.
+ *
+ * This list is an optimisation, not the gate. `(app)/layout.tsx` redirects an
+ * unauthenticated visitor itself, so a route added here and forgotten fails
+ * closed rather than open.
+ */
+const PRIVATE_PREFIXES = [
+  '/today',
+  '/schedule',
+  '/subjects',
+  '/deadlines',
+  '/announcements',
+  '/classroom',
+  '/evaluations',
+  '/commute',
+  '/ask',
+  '/settings',
+  '/welcome',
+  '/share',
+  '/api',
+]
+
 function isPublic(pathname: string): boolean {
   if (pathname === '/') return true
-  return PUBLIC_PREFIXES.some((prefix) => prefix !== '/' && pathname.startsWith(prefix))
+  if (PUBLIC_PREFIXES.some((prefix) => prefix !== '/' && pathname.startsWith(prefix))) return true
+  // Anything the app does not claim falls through to the router, which renders
+  // the 404 rather than a sign-in wall.
+  return !PRIVATE_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 }
 
 export async function proxy(request: NextRequest) {

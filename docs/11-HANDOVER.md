@@ -1,9 +1,8 @@
 # OneTUP — Build Handover
 
-**Status:** V1 built and running locally against live Supabase. Public on
-GitHub. Not deployed.
+**Status:** V1 plus classrooms, built and running locally against live
+Supabase. Public on GitHub. Not deployed.
 **Repository:** <https://github.com/kienserapio/OneTUP> — public, MIT
-**Last commit:** `88bb2f5`
 **Date:** August 2026
 
 This document covers what exists, what does not, what will bite you, and what
@@ -16,18 +15,19 @@ OneTUP *should* be; this describes what it *is*.
 
 | | |
 |---|---|
-| Migrations applied | 29 (`001`–`029`) |
-| Domain tests | 335 passing, 13 files |
+| Migrations applied | 35 (`001`–`035`) |
+| Tests | 435 passing, 18 files — 375 domain, 12 web, 48 against the live database |
 | TypeScript | `tsc --noEmit` clean across the workspace |
-| Production build | Clean, 56 route entries — 40 pages, 16 API |
+| Production build | Clean, 69 route entries — 45 pages, 24 API |
 | Schema safeguards | 4/4 passing (`pnpm db:check`) |
 | Repository | Public, MIT, CI green on `main` |
 | Deployed | No |
 
 Verified by hand in a browser, not only compiled: sign-up, onboarding,
 schedule paste and parse, ERS import, one-tap attendance through the offline
-queue to a server row, commute route comparison, campus tour, and every screen
-at 414px and 1440px.
+queue to a server row, commute route comparison, campus tour, the whole
+classroom flow across two accounts (create, invite, request, approve, post,
+mark submitted, leave), and every screen at 414px and 1440px.
 
 ---
 
@@ -35,7 +35,7 @@ at 414px and 1440px.
 
 ### Domain logic — `packages/core`
 
-Pure functions, no I/O, 297 tests. This is where every number comes from.
+Pure functions, no I/O, 375 tests. This is where every number comes from.
 
 | Module | Covers |
 |---|---|
@@ -48,13 +48,17 @@ Pure functions, no I/O, 297 tests. This is where every number comes from.
 | `study/sm2` | Spaced repetition scheduling |
 | `text/simhash` | Near-duplicate announcement detection |
 | `grades/parse-grades` | ERS grade rows into subjects, units and marks, per term |
+| `sections/parse` | Block-section codes. One section typed four ways canonicalises to one classroom |
+| `classroom/tracker` | The classroom projections. Per post, never across posts — the shapes here cannot express a per-member score |
 
 ### Web app — `apps/web`
 
 Next.js 16 App Router, React 19, Tailwind v4.
 
 Daily: Today, Commute (+ wake-up plan, directions chat), Schedule (+ day,
-import, re-sync), Deadlines (+ detail, new), Announcements (+ share intake).
+import, re-sync), Deadlines (+ detail, new), Announcements (+ share intake),
+Classroom (+ create, join by invite, members, post detail with its submission
+log).
 Academics: Subjects (+ detail, GWA, grade import, term breakdown, catch-up),
 Faculty evaluations.
 More: Ask OneTUP, Campus, Settings.
@@ -195,6 +199,12 @@ everything else lives in `NOTICE.md`.
 | `027` | Deduplicates campus places, unique index on `tour_scene_url` |
 | `028` | Seeds past terms so an imported grade history has terms to attach to |
 | `029` | `problem_reports` — the table behind `/report`, RLS and policies in the same file |
+| `030` | `cancelled` attendance status — a class that did not happen is not an absence and not an excuse |
+| `031` | Classrooms. `groups` gains a block-section identity, `group_join_requests`, `is_group_rep`, `decide_join_request` |
+| `032` | `class_posts` and `class_post_states`. The submission log, and the trigger that stops it being enabled after publishing |
+| `033` | Leaving takes a student's submission marks with it; promote, remove and hand-over as definer functions; the 60-day claim path for a classroom whose owner went quiet |
+| `034` | A student can read back their own `group_members` row. `insert … returning` re-checks the select policies, and `is_group_member` is `stable`, so creating a classroom failed for its own owner |
+| `035` | `classroom_by_invite` compared an invite code against `terms.code` — a SQL-function parameter shadowed by a column of the same name, silently |
 
 `023` is the one to read before touching privileges. It is load-bearing for a
 published privacy commitment.
@@ -209,6 +219,11 @@ published privacy commitment.
 - **Faculty evaluation submission.** The form is built; there is no open
   evaluation period in ERS to test against.
 - **Deployment.** No hosting, no domain, no CI deploy step.
+- **Push notifications**, classroom ones included. The whole stack exists —
+  service worker, subscriptions, dispatch route — and nothing calls dispatch on
+  a schedule. That is a cron entry, not a feature (12-CLASSROOMS-PLAN.md §13).
+- **Classroom term rollover.** A classroom can be archived; *Start next term's
+  classroom* is not built (Phase 6).
 - **Real commute geometry.** No leg has a traced path. The map draws dashed
   lines between real stops and says so. Do not replace those with generated
   paths — a straight line presented as a route is a wrong answer about a real

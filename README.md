@@ -70,6 +70,7 @@ LRT-1 takes at 6 AM in the rain.
 | 🗓️ **Deadlines** | Every requirement in one list, sorted by what is actually next. |
 | 📣 **Announcements** | Share a screenshot or a wall of text into it; it comes back as a dated, structured item. |
 | 🚌 **Commute** | Real routes and real fares, working backwards to when you should wake up and walk out. |
+| 👥 **Classroom** | One shared tracker for your block section. Anyone can post; it lands in everyone's deadlines. |
 | 🗺️ **Campus** | Room codes, buildings, gates, printing spots, the clinic — and a 360° walkthrough. No account needed. |
 | 🤖 **Assistant** | Phrases and explains. It never invents a number — see the constraint below. |
 
@@ -358,7 +359,7 @@ deeper from Today, because a bar with nine destinations is a menu.
 ## Testing
 
 ```sh
-pnpm test          # 335 tests, ~17s
+pnpm test          # 435 tests, ~30s
 pnpm test:watch
 ```
 
@@ -412,6 +413,10 @@ this project can be picked up by someone who did not write it.
 | 09 | [Implementation Plan & QA](docs/09-IMPLEMENTATION-PLAN.md) | Phases, testing, release, ops |
 | 10 | [Future Enhancements](docs/10-FUTURE-ENHANCEMENTS.md) | Roadmap and the data-API strategy |
 | 11 | [Build Handover](docs/11-HANDOVER.md) | What was built, what bites, what is pending |
+| 12 | [Classrooms](docs/12-CLASSROOMS-PLAN.md) | Block-section classrooms and the shared tracker — built |
+| 13 | [Commute Routing](docs/13-COMMUTE-ROUTING-PLAN.md) | Real paths on the map, and where route and fare data comes from — planned |
+| 14 | [Assistant](docs/14-ASSISTANT-PLAN.md) | A second provider, memory, and commute answers worth asking for — planned |
+| 15 | [Class Suspensions](docs/15-SUSPENSIONS-PLAN.md) | *Walang pasok* as an advisory, never an automatic cancellation — planned |
 
 **Reading order** — building it: 01 → 02 → 04 → 03 → 07 → 06 → 05 → 09 ·
 evaluating it: 01 → 02 → 10 · designing it: 01 → 08 → 03 ·
@@ -450,8 +455,9 @@ next person are all real contributions.
 ## Status
 
 V1 modules — schedule, attendance, grades, deadlines, announcements, commute —
-are implemented. Faculty evaluation (M8) and study packs (M9) are specified in
-the docs and not yet built. See
+are implemented, and so are block-section classrooms with their shared tracker
+(`docs/12`). Faculty evaluation (M8) and study packs (M9) are specified in the
+docs and not yet built; `docs/13`–`15` are planned and not started. See
 [09-IMPLEMENTATION-PLAN.md](docs/09-IMPLEMENTATION-PLAN.md) for the sequencing
 and the exit criteria each phase has to meet.
 

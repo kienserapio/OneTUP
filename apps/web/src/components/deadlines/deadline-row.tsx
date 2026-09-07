@@ -6,10 +6,18 @@ import { motion, useMotionValue, useTransform } from 'motion/react'
 import { describeTimeLeft, urgencyOf, type Urgency } from '@onetup/core'
 import { rubberband, spring, transition } from '@/design/motion'
 import { IconCheck } from '@/components/ui/icon'
+import { Badge } from '@/components/ui/surfaces'
 import { cx } from '@/lib/cx'
 
 /**
- * One deadline row, with swipe-to-complete.
+ * One row in the tracker — a personal deadline, or a post from the classroom.
+ *
+ * Both are completed the same way and by the same gesture. What differs is
+ * where it is written: a personal deadline changes its own row, and a class
+ * post changes only this student's state on a shared one. The caller decides
+ * that; this component just reports the tap.
+ *
+ * Swipe-to-complete.
  *
  * The gesture tracks the finger one-to-one, resists past its bound rather than
  * stopping dead, and commits on the *sign of the velocity* at release — a
@@ -40,6 +48,10 @@ export interface DeadlineRowProps {
   courseCode?: string | null
   status: 'open' | 'done' | 'dismissed'
   fromAnnouncement?: boolean
+  /** The block section that published this, when the class did rather than you. */
+  sectionCode?: string | null
+  /** Where the row leads. Defaults to the deadline it came from. */
+  href?: string
   now: Date
   onComplete: (id: string) => void
   /** Provided only while a detail pane is mounted beside the list. */
@@ -56,6 +68,8 @@ export function DeadlineRow({
   courseCode,
   status,
   fromAnnouncement,
+  sectionCode,
+  href,
   now,
   onComplete,
   onOpen,
@@ -127,7 +141,7 @@ export function DeadlineRow({
           </button>
 
           <Link
-            href={`/deadlines/${id}` as never}
+            href={(href ?? `/deadlines/${id}`) as never}
             aria-current={selected ? 'true' : undefined}
             onClick={(event) => {
               if (!onOpen) return
@@ -145,6 +159,11 @@ export function DeadlineRow({
               {title}
             </span>
             <span className="type-footnote flex items-center gap-1.5 truncate text-[var(--label-secondary)]">
+              {/* Neutral, never accented. A class post's urgency is computed by
+                  the same `urgencyOf` as everything else, because a student does
+                  not care who created a thing that is due in four hours — the
+                  badge says where it came from, not how much it matters. */}
+              {sectionCode && <Badge tone="neutral">{sectionCode}</Badge>}
               {courseCode && <span className="type-data">{courseCode}</span>}
               {courseCode && <span aria-hidden>·</span>}
               <span

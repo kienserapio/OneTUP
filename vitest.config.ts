@@ -49,8 +49,25 @@ export default defineConfig({
         },
       },
       {
+        // The web app's own pure modules — key derivation, and anything else
+        // whose failure mode is silent enough to be worth pinning down.
         resolve: {
-          alias: supabaseJs ? { '@supabase/supabase-js': supabaseJs } : {},
+          alias: { '@onetup/core': resolve(repoRoot, 'packages/core/src/index.ts') },
+        },
+        test: {
+          name: 'web',
+          environment: 'node',
+          include: ['apps/web/tests/**/*.test.ts'],
+        },
+      },
+      {
+        resolve: {
+          alias: {
+            ...(supabaseJs ? { '@supabase/supabase-js': supabaseJs } : {}),
+            // See the stub for why. Without it, anything importing a
+            // server-only module throws at import time under vitest.
+            'server-only': resolve(repoRoot, 'supabase/tests/stubs/server-only.ts'),
+          },
         },
         test: {
           name: 'integration',

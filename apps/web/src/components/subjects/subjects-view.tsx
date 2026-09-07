@@ -135,8 +135,8 @@ export function SubjectsView() {
               <Card className="flex flex-wrap items-center gap-3">
                 <IconClock size={22} className="shrink-0 text-[var(--label-secondary)]" />
                 <p className="type-subheadline flex-1">
-                  {data.catchUpCount} class{data.catchUpCount === 1 ? '' : 'es'} from the past week
-                  still need an answer.
+                  {data.catchUpCount} class{data.catchUpCount === 1 ? '' : 'es'} from the past four
+                  weeks still need an answer.
                 </p>
                 <ButtonLink href="/subjects/catch-up" size="sm" variant="plain">
                   Catch up

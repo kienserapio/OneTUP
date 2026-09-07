@@ -164,9 +164,9 @@ export function Hero() {
             /* Sized in `em` of the wordmark rather than of the viewport, so the
                label keeps its proportion to the word it introduces instead of
                drifting away from it as the screen widens. */
-            style={{ fontSize: 'clamp(0.8125rem, 0.09em, 1.75rem)' }}
+            style={{ fontSize: 'clamp(0.6875rem, 0.075em, 1.375rem)' }}
           >
-            Welcome to
+            Built by TUPians, for TUPians
           </motion.span>
 
           <motion.span

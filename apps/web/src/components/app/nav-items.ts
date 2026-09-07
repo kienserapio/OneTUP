@@ -3,6 +3,7 @@ import {
   IconAnnouncement,
   IconAsk,
   IconCampus,
+  IconClassroom,
   IconAttendance,
   IconGrades,
   IconCommute,
@@ -72,6 +73,10 @@ export const NAV_GROUPS: NavGroup[] = [
         match: startsWith('/announcements'),
         badge: 'announcements',
       },
+      /* No badge. A class post with a due date is already counted by
+       * Deadlines, and counting it twice would make the two numbers disagree
+       * about the same piece of work. */
+      { href: '/classroom', label: 'Classroom', short: 'Class', Icon: IconClassroom, match: startsWith('/classroom') },
     ],
   },
   {
