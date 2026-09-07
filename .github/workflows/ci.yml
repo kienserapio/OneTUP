@@ -45,6 +45,11 @@ jobs:
 
       - run: pnpm test
 
+      # A free model withdrawn from OpenRouter shortens a ladder without
+      # breaking anything, so nothing reports it. This does. It skips itself if
+      # OpenRouter is unreachable — a bad minute upstream is not a broken build.
+      - run: pnpm check:models
+
       - run: pnpm build
 
   # The schema safeguards from 04-DATA-MODEL.md §17. A table without RLS, a

@@ -71,7 +71,8 @@ TTL 30 days. Bumping a prompt version invalidates everything for that capability
 
 ### 3.1 Provider
 
-**OpenRouter**, single provider, single key, server-side only.
+**OpenRouter**, single provider, single key, server-side only. A second vendor
+was considered and rejected — see [16-NEXT-EIGHT.md](16-NEXT-EIGHT.md) §2.
 
 > **Verify before building.** Free model identifiers, availability, and rate limits on OpenRouter change frequently. Check `https://openrouter.ai/models?q=free` and the current rate-limit documentation at build time. The ladder below is a *shape*, not a fixed list — the point is that model choice lives in configuration, so a change is an environment edit rather than a code change.
 
@@ -94,6 +95,26 @@ AI_TIER_STANDARD=modelD:free,modelE:free,modelA:free
 AI_TIER_LONG=modelF:free,modelD:free
 AI_TIER_REASON=modelG:free,modelD:free
 ```
+
+**Keeping the ladders honest.** `pnpm check:models` fetches
+`https://openrouter.ai/api/v1/models`, diffs it against the ladders in
+`.env.example`, and exits non-zero on a rung that no longer exists or on a tier
+that has worn down to fewer than two rungs. CI runs it, so a withdrawal is a red
+build rather than a tier that is quietly one model deep. It skips itself when
+OpenRouter is unreachable.
+
+The ladders were last verified against the live list on **7 September 2026**:
+21 rungs across five tiers, all live. Three earlier rungs
+(`nvidia/nemotron-3-nano-30b-a3b:free`, `openai/gpt-oss-20b:free`,
+`nvidia/nemotron-nano-12b-v2-vl:free`) had been withdrawn without notice and
+were removed then — the check script exists because nobody noticed for weeks.
+
+**A note on what "JSON-capable" means here.** The provider asks for JSON with
+`response_format: { type: 'json_object' }`, so the capability to look for in
+OpenRouter's `supported_parameters` is `response_format` — *not*
+`structured_outputs`, which is the stricter `json_schema` mode nothing here
+uses. Far fewer free models advertise the latter, and reading the wrong field
+makes a healthy ladder look broken.
 
 **Selection criteria when choosing actual models:**
 
