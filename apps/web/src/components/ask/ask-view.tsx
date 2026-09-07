@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring, transition } from '@/design/motion'
+import { historyFrom, splitIntoBlocks } from '@/lib/assistant/conversation'
 import { NavBar } from '@/components/app/nav-bar'
 import { ButtonLink } from '@/components/ui/button'
 import { Card, EmptyState, GeneratedMark, SectionHeader } from '@/components/ui/surfaces'
@@ -56,6 +57,11 @@ export function AskView() {
     const text = query.trim()
     if (!text || pending) return
 
+    /* Read before the new turn is appended, so history is what came *before*
+     * this question. `turns` here is the value from this render, which is
+     * exactly that. */
+    const history = historyFrom(turns)
+
     setDraft('')
     setTurns((prev) => [...prev, { id: crypto.randomUUID(), role: 'student', text }])
     setPending(true)
@@ -64,7 +70,7 @@ export function AskView() {
       const response = await fetch('/api/assistant/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: text, locale: 'auto' }),
+        body: JSON.stringify({ query: text, locale: 'auto', history }),
       })
       const body = await response.json()
 
@@ -225,6 +231,32 @@ function Rail({ onPick }: { onPick: (suggestion: string) => void }) {
   )
 }
 
+/** Renders the one piece of markup the prompt permits: a leading "- ". */
+function AnswerBody({ text }: { text: string }) {
+  return (
+    <div className="space-y-2">
+      {splitIntoBlocks(text).map((block, index) =>
+        block.kind === 'list' ? (
+          <ul key={index} className="type-body ml-1 space-y-1">
+            {block.items.map((item, itemIndex) => (
+              <li key={itemIndex} className="flex gap-2">
+                <span aria-hidden="true" className="text-[var(--label-tertiary)]">
+                  •
+                </span>
+                <span className="min-w-0 flex-1">{item}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p key={index} className="type-body whitespace-pre-wrap">
+            {block.text}
+          </p>
+        ),
+      )}
+    </div>
+  )
+}
+
 function TurnBubble({ turn }: { turn: Turn }) {
   if (turn.role === 'student') {
     return (
@@ -247,7 +279,7 @@ function TurnBubble({ turn }: { turn: Turn }) {
           color: turn.error ? 'var(--label-secondary)' : undefined,
         }}
       >
-        <p className="type-body whitespace-pre-wrap">{turn.text}</p>
+        <AnswerBody text={turn.text} />
 
         {turn.citations && turn.citations.length > 0 && (
           <ul className="mt-3 space-y-1">
