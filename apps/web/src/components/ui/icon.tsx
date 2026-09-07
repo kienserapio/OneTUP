@@ -9,6 +9,7 @@ import {
   IconBusFilled,
   IconCalendarFilled,
   IconCalendarOff,
+  IconCardsFilled,
   IconCheckFilled,
   IconChevronDown as TablerChevronDown,
   IconChevronLeft as TablerChevronLeft,
@@ -101,7 +102,11 @@ export const IconSubjects = alias(IconBookFilled)
 export const IconCommute = alias(IconBusFilled)
 export const IconAnnouncement = alias(IconBellFilled)
 export const IconCampus = alias(IconMapPinFilled)
+/* Study and Faculty eval are different destinations and want different
+ * glyphs. The mortarboard stays with evaluation — that is where a student
+ * reports on teaching — and the review deck gets the cards. */
 export const IconStudy = alias(IconSchoolFilled)
+export const IconCards = alias(IconCardsFilled)
 export const IconGrades = alias(IconAwardFilled)
 export const IconAttendance = alias(IconSquareCheckFilled)
 export const IconSettings = alias(IconSettingsFilled)

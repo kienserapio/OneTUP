@@ -51,6 +51,9 @@ export type GroupMember = Tables<'group_members'>
 export type GroupJoinRequest = Tables<'group_join_requests'>
 export type ClassPost = Tables<'class_posts'>
 export type ClassPostState = Tables<'class_post_states'>
+export type StudyPack = Tables<'study_packs'>
+export type Flashcard = Tables<'flashcards'>
+export type FlashcardReview = Tables<'flashcard_reviews'>
 
 export type TodayRow = Views<'v_today'>
 export type GwaRow = Views<'v_gwa'>

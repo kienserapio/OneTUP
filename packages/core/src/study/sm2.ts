@@ -122,3 +122,76 @@ export function orderReviewQueue<T extends DueCard>(cards: readonly T[], today: 
       return a.intervalDays - b.intervalDays
     })
 }
+
+export interface ScheduleContext {
+  /**
+   * Days until the pack's nearest open deadline, or null when it has none — or
+   * none inside the compression horizon.
+   */
+  daysUntilDeadline: number | null
+  cardsInPack: number
+}
+
+export interface ScheduledReview extends ReviewOutcome {
+  /** The interval actually applied, after any deadline compression. */
+  appliedIntervalDays: number
+  /** True when the deadline pulled the interval in. Worth saying out loud. */
+  compressed: boolean
+}
+
+/**
+ * The whole scheduling decision for one review: the SM-2 step, then the
+ * deadline compression, then what actually gets written.
+ *
+ * This exists so there is exactly one answer to "when does this card come
+ * back". A review can be made offline — a commute is the best time to review
+ * and the worst time for signal — so the queued write computes the interval on
+ * the device, while an online review computes it on the server. Two
+ * implementations of that arithmetic would drift, and the drift would present
+ * as a card reappearing on the wrong day weeks later, which is close to
+ * undebuggable.
+ */
+export function scheduleReview(
+  state: CardState,
+  quality: ReviewQuality,
+  context: ScheduleContext,
+): ScheduledReview {
+  const outcome = reviewCard(state, quality)
+
+  const appliedIntervalDays =
+    context.daysUntilDeadline === null
+      ? outcome.nextIntervalDays
+      : compressForDeadline(
+          outcome.nextIntervalDays,
+          context.daysUntilDeadline,
+          context.cardsInPack,
+        )
+
+  return {
+    ...outcome,
+    appliedIntervalDays,
+    compressed: appliedIntervalDays < outcome.nextIntervalDays,
+  }
+}
+
+/**
+ * The calendar date a card next falls due.
+ *
+ * `flashcards.due_on` is a `date`, not a `timestamptz`, and the comparison that
+ * builds tomorrow's queue happens against the student's local day the way
+ * `attendance_records.session_date` does. Doing this with a local `Date` shifts
+ * the queue by a day for eight months of the year, which is why it is here
+ * rather than re-derived at each call site.
+ */
+export function dueDateAfter(today: string, intervalDays: number): string {
+  const shifted = new Date(`${today}T00:00:00Z`)
+  shifted.setUTCDate(shifted.getUTCDate() + intervalDays)
+  return shifted.toISOString().slice(0, 10)
+}
+
+/** Whole days between two calendar dates, ignoring clocks entirely. */
+export function daysBetweenDates(from: string, to: string): number {
+  return Math.round(
+    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000,
+  )
+}

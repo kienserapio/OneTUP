@@ -4,6 +4,9 @@ packages:
 
 allowBuilds:
   esbuild: true
+  # Native resolver binding behind eslint-config-next. Already on the
+  # onlyBuiltDependencies list; this is the newer switch for the same thing.
+  unrs-resolver: true
 
 onlyBuiltDependencies:
   - '@tailwindcss/oxide'

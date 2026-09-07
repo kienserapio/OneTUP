@@ -121,6 +121,12 @@ export function AttendancePrompt({
 
     setRecorded({ status, id })
     setBusy(false)
+
+    /* Today passes its own `reload` here. Without this call the cut count and
+     * the attendance warning beside this prompt kept the figures they were
+     * rendered with, so a student who marked themselves absent watched the
+     * screen agree with them and then show the old number. */
+    onRecorded?.()
   }
 
   async function undo() {
@@ -132,6 +138,7 @@ export function AttendancePrompt({
       payload: { id: recorded.id },
     })
     setRecorded(null)
+    onRecorded?.()
   }
 
   if (recorded) {

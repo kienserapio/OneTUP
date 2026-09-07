@@ -12,9 +12,18 @@ import { withLocalKey } from './keys'
  * their next class instantly rather than a spinner (ADR-005).
  *
  * The offline set is fixed and deliberate. Announcements older than fourteen
- * days, study pack contents, and assistant history are excluded: they are not
- * what a student needs while walking between buildings, and keeping them would
- * bloat the store on the mid-range phones this is designed for.
+ * days, study pack *contents* — the source chunks and the practice questions —
+ * and assistant history are excluded: they are not what a student needs while
+ * walking between buildings, and keeping them would bloat the store on the
+ * mid-range phones this is designed for.
+ *
+ * Flashcards are the exception, and they were on the wrong side of that line
+ * until Study shipped. A commute is the single best time to review cards and
+ * the single worst time for signal, and a pack's cards are small text rows —
+ * they are the point, not the bloat. So `study_packs` and `flashcards` are in;
+ * `study_chunks`, `practice_questions` and `study_sessions` stay out.
+ * `flashcard_reviews` is queued and never read back, which is what an
+ * append-only table needs and no more.
  */
 
 export type EntityName =
@@ -38,6 +47,12 @@ export type EntityName =
   | 'group_members'
   | 'class_posts'
   | 'class_post_states'
+  | 'study_packs'
+  | 'flashcards'
+  /* Queued, never pulled. It is append-only, so it needs no local copy and no
+   * conflict target — but a mutation's entity must name a real table, and this
+   * is the one the review write lands in. */
+  | 'flashcard_reviews'
 
 export interface StoredRecord {
   id: string
