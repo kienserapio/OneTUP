@@ -67,6 +67,17 @@ export default defineConfig({
         },
       },
       {
+        // Repo scripts. `route-walk-legs.mjs` decides whether a routed path is
+        // believable enough to store, and a wrong line on a map is
+        // indistinguishable from a right one — so that judgement is tested
+        // rather than trusted.
+        test: {
+          name: 'scripts',
+          environment: 'node',
+          include: ['scripts/tests/**/*.test.mjs'],
+        },
+      },
+      {
         resolve: {
           alias: {
             ...(supabaseJs ? { '@supabase/supabase-js': supabaseJs } : {}),

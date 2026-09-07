@@ -21,12 +21,16 @@
     "db:types": "node scripts/db.mjs types",
     "worker:dev": "pnpm run env:sync && pnpm --filter @onetup/worker dev",
     "env:sync": "node scripts/sync-env.mjs",
-    "check:models": "node scripts/check-models.mjs"
+    "check:models": "node scripts/check-models.mjs",
+    "route:walk": "node scripts/route-walk-legs.mjs"
   },
   "devDependencies": {
+    "@mapbox/polyline": "^1.2.1",
+    "@turf/length": "^7.4.0",
+    "@turf/simplify": "^7.4.0",
     "@types/node": "^24.10.1",
+    "prettier": "^3.6.2",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.10",
-    "prettier": "^3.6.2"
+    "vitest": "^4.1.10"
   }
 }
