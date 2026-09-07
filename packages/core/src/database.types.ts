@@ -7,31 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       ai_cache: {
@@ -694,6 +669,7 @@ export type Database = {
           from_hub_id: string | null
           from_label: string
           geometry: Json | null
+          geometry_source: string | null
           id: string
           last_verified_at: string | null
           mode: Database["public"]["Enums"]["transport_mode"]
@@ -715,6 +691,7 @@ export type Database = {
           from_hub_id?: string | null
           from_label: string
           geometry?: Json | null
+          geometry_source?: string | null
           id?: string
           last_verified_at?: string | null
           mode: Database["public"]["Enums"]["transport_mode"]
@@ -736,6 +713,7 @@ export type Database = {
           from_hub_id?: string | null
           from_label?: string
           geometry?: Json | null
+          geometry_source?: string | null
           id?: string
           last_verified_at?: string | null
           mode?: Database["public"]["Enums"]["transport_mode"]
@@ -2343,42 +2321,6 @@ export type Database = {
           },
         ]
       }
-      suspension_advisories: {
-        Row: {
-          city: string | null
-          created_at: string
-          effective_on: string
-          headline: string
-          id: string
-          level: string | null
-          scope: string
-          source: string
-          source_url: string | null
-        }
-        Insert: {
-          city?: string | null
-          created_at?: string
-          effective_on: string
-          headline: string
-          id?: string
-          level?: string | null
-          scope: string
-          source: string
-          source_url?: string | null
-        }
-        Update: {
-          city?: string | null
-          created_at?: string
-          effective_on?: string
-          headline?: string
-          id?: string
-          level?: string | null
-          scope?: string
-          source?: string
-          source_url?: string | null
-        }
-        Relationships: []
-      }
       study_chunks: {
         Row: {
           content: string
@@ -2526,6 +2468,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      suspension_advisories: {
+        Row: {
+          city: string | null
+          created_at: string
+          effective_on: string
+          headline: string
+          id: string
+          level: string | null
+          scope: string
+          source: string
+          source_url: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          effective_on: string
+          headline: string
+          id?: string
+          level?: string | null
+          scope: string
+          source: string
+          source_url?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          effective_on?: string
+          headline?: string
+          id?: string
+          level?: string | null
+          scope?: string
+          source?: string
+          source_url?: string | null
+        }
+        Relationships: []
       }
       sync_jobs: {
         Row: {
@@ -2903,7 +2881,7 @@ export type Database = {
       commit_schedule: {
         Args: {
           p_courses: Json
-          p_job_id?: string | null
+          p_job_id: string
           p_source: string
           p_term_code: string
         }
@@ -3105,9 +3083,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       announcement_type: [
