@@ -49,6 +49,7 @@ export type EntityName =
   | 'class_post_states'
   | 'study_packs'
   | 'flashcards'
+  | 'suspension_advisories'
   /* Queued, never pulled. It is append-only, so it needs no local copy and no
    * conflict target — but a mutation's entity must name a real table, and this
    * is the one the review write lands in. */

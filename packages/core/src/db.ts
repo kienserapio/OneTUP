@@ -54,6 +54,7 @@ export type ClassPostState = Tables<'class_post_states'>
 export type StudyPack = Tables<'study_packs'>
 export type Flashcard = Tables<'flashcards'>
 export type FlashcardReview = Tables<'flashcard_reviews'>
+export type SuspensionAdvisory = Tables<'suspension_advisories'>
 
 export type TodayRow = Views<'v_today'>
 export type GwaRow = Views<'v_gwa'>

@@ -56,6 +56,19 @@ const CANCELLED: Option = {
 
 const ALL_OPTIONS = [...OPTIONS, CANCELLED]
 
+/**
+ * The two answers a suspension day actually poses.
+ *
+ * On an ordinary day the question is "were you there", with four shades of
+ * answer. On a suspension day it is "did this one go ahead", and there are only
+ * two honest replies: it moved online and I was in it, or it did not happen.
+ * Late and Excused have no meaning about a class that was never held.
+ */
+const COMPACT_OPTIONS: Option[] = [
+  OPTIONS[0], // present — relabelled "Attended online" when the mode says so
+  CANCELLED,
+]
+
 /** The meter tracks the same three states the Subjects screen uses, so a colour
  * means the same thing wherever a student sees it. */
 const STATE_COLOR: Record<string, string> = {
@@ -72,6 +85,18 @@ export interface AttendancePromptProps {
    * behind it has no standing to show, and that is not an error. */
   standing?: AttendanceStanding | null
   onRecorded?: () => void
+  /**
+   * How the session was actually held, when it differs from normal.
+   *
+   * Set to `'online'` by the suspension card: a signal-2 announcement moves as
+   * many classes online as it cancels, and the two are different facts about
+   * the same day. Null — the ordinary case — records nothing, because "as
+   * scheduled" is not worth a column value.
+   */
+  deliveryMode?: 'f2f' | 'online' | null
+  /** Narrower copy for the suspension card, where the question is not "were
+   *  you there" but "did this one go ahead". */
+  compact?: boolean
 }
 
 export function AttendancePrompt({
@@ -79,6 +104,8 @@ export function AttendancePrompt({
   sessionDate,
   standing,
   onRecorded,
+  deliveryMode = null,
+  compact = false,
 }: AttendancePromptProps) {
   const [recorded, setRecorded] = useState<{ status: AttendanceStatus; id: string } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -106,6 +133,7 @@ export function AttendancePrompt({
         session_date: sessionDate,
         status,
         recorded_via: 'prompt',
+        delivery_mode: deliveryMode,
       },
       optimistic: {
         id,
@@ -115,6 +143,7 @@ export function AttendancePrompt({
         session_date: sessionDate,
         status,
         recorded_via: 'prompt',
+        delivery_mode: deliveryMode,
         updated_at: new Date().toISOString(),
       },
     })
@@ -160,6 +189,10 @@ export function AttendancePrompt({
               <>
                 <span className="type-data">{block.label}</span> was cancelled. It does not count
                 either way.
+              </>
+            ) : option.status === 'present' && deliveryMode === 'online' ? (
+              <>
+                <span className="type-data">{block.label}</span> marked present, held online.
               </>
             ) : (
               <>
@@ -208,8 +241,11 @@ export function AttendancePrompt({
 
       {/* What the answer costs. Recording an absence at 8 of 9 is a different
           decision from recording one at 0 of 9, and a prompt that hides the
-          count is asking the question without the stakes. */}
-      {standing && (
+          count is asking the question without the stakes.
+
+          Not on a suspension day: neither answer there touches a count, so the
+          meter would be a number with nothing riding on it. */}
+      {standing && !compact && (
         <div className="mt-3 flex items-center gap-3">
           <span
             className="h-1.5 flex-1 overflow-hidden rounded-full"
@@ -232,9 +268,9 @@ export function AttendancePrompt({
       <div
         role="group"
         aria-label={`Attendance for ${block.label}`}
-        className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"
+        className={cx('mt-3 grid gap-2', compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4')}
       >
-        {OPTIONS.map((option) => (
+        {(compact ? COMPACT_OPTIONS : OPTIONS).map((option) => (
           <motion.button
             key={option.status}
             type="button"
@@ -257,11 +293,13 @@ export function AttendancePrompt({
             }}
           >
             <option.Icon size={19} />
-            {option.label}
+            {option.status === 'present' && deliveryMode === 'online' ? 'Attended online' : option.label}
           </motion.button>
         ))}
       </div>
 
+      {/* The fifth answer is already one of the two in compact mode. */}
+      {compact ? null : (
       <motion.button
         type="button"
         disabled={busy}
@@ -282,6 +320,7 @@ export function AttendancePrompt({
         <CANCELLED.Icon size={18} />
         {CANCELLED.label}
       </motion.button>
+      )}
     </Card>
   )
 }
