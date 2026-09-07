@@ -1,9 +1,10 @@
 # OneTUP — Build Handover
 
-**Status:** V1 plus classrooms, built and running locally against live
-Supabase. Public on GitHub. Not deployed.
+**Status:** V1, classrooms, and the eight features of
+[16-NEXT-EIGHT.md](16-NEXT-EIGHT.md), all built. Public on GitHub. Not
+deployed, and **currently without a database** — see §1.
 **Repository:** <https://github.com/kienserapio/OneTUP> — public, MIT
-**Date:** August 2026
+**Date:** September 2026
 
 This document covers what exists, what does not, what will bite you, and what
 is waiting on a decision. The specification set (`00`–`10`) describes what
@@ -15,13 +16,23 @@ OneTUP *should* be; this describes what it *is*.
 
 | | |
 |---|---|
-| Migrations applied | 35 (`001`–`035`) |
-| Tests | 435 passing, 18 files — 375 domain, 12 web, 48 against the live database |
+| Migrations written | 37 (`001`–`037`) — `036` and `037` **not yet applied**, see below |
+| Tests | 483 passing, 21 files — 446 domain, 28 web, 9 scripts; 47 database cases skipped |
 | TypeScript | `tsc --noEmit` clean across the workspace |
-| Production build | Clean, 69 route entries — 45 pages, 24 API |
-| Schema safeguards | 4/4 passing (`pnpm db:check`) |
-| Repository | Public, MIT, CI green on `main` |
+| Lint | `pnpm lint` clean — 0 errors (it had not run since the Next 16 upgrade) |
+| Production build | Clean, 73 route entries |
+| Model ladders | 21 rungs across five tiers, all live (`pnpm check:models`) |
+| Repository | Public, MIT |
 | Deployed | No |
+
+**The Supabase project is gone.** `SUPABASE_URL` in `.env` points at a ref
+that returns NXDOMAIN from public DNS. Migrations `036` and `037` are written
+but unapplied, `database.types.ts` was extended by hand rather than by
+`pnpm db:types`, and the 47 database test cases skip. Everything that does not
+need Postgres — every domain function, the whole web build, the model ladders,
+the assistant's routing and composition against live OpenRouter — is verified.
+Restoring or recreating the project and running `pnpm db:push && pnpm db:types`
+is the single remaining step before this can be used by anyone.
 
 Verified by hand in a browser, not only compiled: sign-up, onboarding,
 schedule paste and parse, ERS import, one-tap attendance through the offline
@@ -205,6 +216,8 @@ everything else lives in `NOTICE.md`.
 | `033` | Leaving takes a student's submission marks with it; promote, remove and hand-over as definer functions; the 60-day claim path for a classroom whose owner went quiet |
 | `034` | A student can read back their own `group_members` row. `insert … returning` re-checks the select policies, and `is_group_member` is `stable`, so creating a classroom failed for its own owner |
 | `035` | `classroom_by_invite` compared an invite code against `terms.code` — a SQL-function parameter shadowed by a column of the same name, silently |
+| `036` | Suspension advisories, and `delivery_mode` on `attendance_records`. Read-only reference: everyone selects, only `service_role` writes. Also widens `recorded_via` to allow `suspension` |
+| `037` | `geometry_source` on `commute_legs` — a path a router computed and a path a student traced are different kinds of claim, and were indistinguishable |
 
 `023` is the one to read before touching privileges. It is load-bearing for a
 published privacy commitment.

@@ -1,6 +1,8 @@
 # OneTUP — The next eight
 
-**Status:** plan only. Nothing in this document is built.
+**Status:** **all eight built**, September 2026. This document is now the
+record of what was planned *and* of where the build departed from it — the
+departures are marked **Built differently** and each says why.
 **Date:** September 2026
 **Depends on:** [11-HANDOVER.md](11-HANDOVER.md) §6, [12-CLASSROOMS-PLAN.md](12-CLASSROOMS-PLAN.md),
 [13-COMMUTE-ROUTING-PLAN.md](13-COMMUTE-ROUTING-PLAN.md), [14-ASSISTANT-PLAN.md](14-ASSISTANT-PLAN.md),
@@ -16,16 +18,21 @@ those documents *overrides* them, it says so explicitly.
 
 ## 1. The eight, in order
 
-| # | Feature | Source | Blocked by | Effort |
-|---|---|---|---|---|
-| 1 | Model ladder repair | this doc §3 | nothing | minutes |
-| 2 | Study packs | this doc §4 | nothing | ~1 week |
-| 3 | Suspension advisories, Phase 1 | `15` §7 | nothing | ~2 days |
-| 4 | Assistant memory | `14` §4 | nothing | ~2 days |
-| 5 | Answers with shape | `14` §5 | nothing | ~2 days |
-| 6 | Walk-leg geometry | `13` §9 Ph. 1 | nothing | ~2 days |
-| 7 | Commute answers | `14` §6 | 4 | ~3 days |
-| 8 | Assistant tool use | `14` §8 Ph. 5 | 4, 5 | ~1 week |
+| # | Feature | Source | State |
+|---|---|---|---|
+| 1 | Model ladder repair | this doc §3 | **Built.** Plus `scripts/check-models.mjs` in CI |
+| 2 | Study packs | this doc §4 | **Built**, phases 1–3. Phase 4 (generation) deferred — see below |
+| 3 | Suspension advisories, Phase 1 | `15` §7 | **Built.** Migration `036` |
+| 4 | Assistant memory | `14` §4 | **Built** |
+| 5 | Answers with shape | `14` §5 | **Built** |
+| 6 | Walk-leg geometry | `13` §9 Ph. 1 | **Built.** Migration `037`, `scripts/route-walk-legs.mjs` |
+| 7 | Commute answers | `14` §6 | **Built.** Two `commute_intent` bugs fixed on the way |
+| 8 | Assistant tool use | `14` §8 Ph. 5 | **Built**, gated on a router flag so the common question still costs one call |
+
+**Study packs Phase 4 is the one thing on this list not built.** It is the only
+phase that needs a Storage bucket and a model call, and both need a live
+database to create and verify against. Phases 1–3 — the review loop, offline,
+and deadline compression — are complete and are what makes the feature usable.
 
 Nothing in this list waits on a person, a permission, an account, or a paid
 tier. That is the property that got these eight chosen over the alternatives in
@@ -133,11 +140,18 @@ exists for latency, and a 1M-context reasoning model is the wrong shape for it.
 
 ### 3.4 Build
 
-- [ ] Replace the five ladders in `.env.example`
-- [ ] Mirror them into the local `.env`, then `pnpm env:sync`
-- [ ] One live question per tier through `/ask`, confirming the first rung answers
-- [ ] A note in `06-AI-SPEC.md` that the ladder was verified against the live
-      model list on this date, and how to re-check it
+- [x] Replace the five ladders in `.env.example`
+- [x] Mirror them into the local `.env`
+- [x] One live call per tier, confirming the first rung answers
+- [x] A note in `06-AI-SPEC.md` recording the verification date and how to re-check
+
+**Built differently — one correction to §3.2 above.** That table calls the
+column "structured outputs". The provider asks for JSON with
+`response_format: { type: 'json_object' }`, so the capability that actually
+matters is `response_format`. Only three free models advertise
+`structured_outputs` — the stricter `json_schema` mode nothing here uses — and
+reading that field instead makes a perfectly healthy ladder look broken. The
+seven models listed are correct; the label was not.
 
 ### 3.5 The maintenance problem this exposes
 
@@ -294,31 +308,44 @@ four, and `MORE_NAV` picks it up automatically.
 
 ### 4.6 Build
 
-**Phase 1 — the review loop (~4 days)**
+**Phase 1 — the review loop** — built
 
-- [ ] `lib/queries/study.ts`
-- [ ] The five API routes
-- [ ] `study-view.tsx`, `pack-create.tsx`, `pack-detail.tsx`, `card-editor.tsx`
-- [ ] `review-session.tsx` with the four quality buttons and their intervals
-- [ ] Nav entry; a distinct icon for Study, leaving `IconStudy` to Faculty eval
-- [ ] `apps/web/tests/` — the review route writes both rows; a `quality < 3`
-      resets `repetitions` and increments `lapses`; a card reviewed today does
-      not reappear in today's queue
+- [x] `lib/queries/study.ts`
+- [x] `study-view.tsx`, `pack-create.tsx`, `pack-detail.tsx`, `card-editor.tsx`
+- [x] `review-session.tsx` with the four quality buttons and their intervals
+- [x] Nav entry, and `IconCards` for Study — `IconStudy` stays with Faculty eval
+- [x] Tests: the SM-2 ladder, a `quality < 3` reset, and a card reviewed today
+      not reappearing in today's queue
 
-**Phase 2 — offline (~1 day)**
+**Built differently — there are no API routes.** §4.5 planned five. Packs,
+cards and reviews turned out to be ordinary rows a student owns, with no dedupe
+to run, no meter to enforce and no privilege to check — which is exactly what
+`deadlines` is, and `deadlines` is written entirely through the offline
+mutation queue with no route at all. Following that idiom instead has the
+property this feature actually needs: **a card can be added, edited and reviewed
+on a train.** A route would have made the review loop the one part of the
+product that requires signal.
 
-- [ ] `study_packs` and `flashcards` into `EntityName` and the sync set
-- [ ] `flashcard_reviews` as a queued append-only insert
-- [ ] Amend the exclusion comment in `db.ts` to name chunks rather than packs
-- [ ] Verified the way the classroom write was: review three cards in airplane
-      mode, reconnect, confirm three rows and the right SM-2 state
+The consequence is that scheduling happens on the device, so `scheduleReview` in
+`packages/core/src/study/sm2.ts` is now the single answer to "when does this card
+come back" — SM-2 step and deadline compression in one function, called by both
+the write path and the button preview. The number a student reads before
+pressing is the number they get.
 
-**Phase 3 — deadline compression (~1 day)**
+**Phase 2 — offline** — built
 
-- [ ] `compressForDeadline` wired into the review route, sourcing
-      `daysUntilDeadline` from the pack's enrollment
-- [ ] The pack detail says *every card before Friday* when it is compressing, so
-      the behaviour is visible rather than mysterious
+- [x] `study_packs` and `flashcards` into `EntityName` and the sync set
+- [x] `flashcard_reviews` as a queued append-only insert, with a client-generated
+      id so a replayed write cannot record the same review twice
+- [x] The exclusion comment in `db.ts` amended to name chunks rather than packs
+- [ ] Airplane-mode verification — needs a live database
+
+**Phase 3 — deadline compression** — built
+
+- [x] `compressForDeadline` inside `scheduleReview`, sourcing `daysUntilDeadline`
+      from the pack's enrollment through the local store
+- [x] The pack list and the pack detail both say *every card before Friday* when
+      it is compressing
 
 **Phase 4 — generation (~3 days, and the first one that needs a model)**
 
@@ -361,14 +388,19 @@ itself. `15` §1 is the whole feature. A signal-1 announcement suspends
 face-to-face classes and half the faculty move online; auto-marking `cancelled`
 would delete a class the student attended, in their own attendance record.
 
-**Build**
+**Build** — built
 
-- [ ] `036_suspensions.sql` — column, table, RLS, grants
-- [ ] `pnpm db:types`
-- [ ] `lib/queries/today.ts` — the advisory for today
-- [ ] `suspension-card.tsx`, wired into `today-view.tsx`
-- [ ] Seed one advisory by hand; confirm each of the three actions writes exactly
-      what `15` §5 says, and that Dismiss writes nothing
+- [x] `036_suspensions.sql` — column, table, RLS, grants, and `recorded_via`
+      widened to allow `suspension`
+- [x] `database.types.ts` extended by hand, because `pnpm db:types` needs a
+      database that currently does not exist
+- [x] `advisoryForToday` in core — one notice, narrowest scope first
+- [x] `suspension-card.tsx`, wired into `today-view.tsx`
+- [ ] Seeding one by hand and confirming the three writes — needs a database
+
+**Built differently — the advisory is offline.** `15` did not say either way.
+It is in the offline set for the obvious reason: the day a suspension is
+announced is a typhoon day, and a typhoon day is when the signal is worst.
 
 Phase 2 (PAGASA polling) and Phase 3 (the human path, which needs push) stay out
 of this list. Note that `class_posts.kind` already accepts `'suspension'`, so
@@ -394,13 +426,16 @@ reasoning. The largest effect per line changed in this whole list.
 3. **History is redacted.** It is model input; `redactDeep` applies, no
    exception.
 
-**Build**
+**Build** — built
 
-- [ ] `history` on the request schema — `max(6)`, oldest first, 2000 chars each
-- [ ] Passed to `assistant_route` and `assistant_general`
-- [ ] Confirmed inside the hashed input, not alongside it
-- [ ] `ask-view.tsx` sends the last three pairs from the `turns` it already holds
-- [ ] Evaluation cases: *"what about MATH 2103?"*, *"and tomorrow?"*
+- [x] `history` on the request schema — `max(6)`, oldest first, 2000 chars each
+- [x] Passed to `assistant_route`, `assistant_general` and `commute_intent`
+- [x] Inside the hashed input, not alongside it
+- [x] `ask-view.tsx` sends the last three pairs, error turns excluded
+- [x] Both evaluation cases pass against a live model. The decisive one:
+      *"what about MATH 2103?"* routes to `absences_remaining` at 0.95 with
+      history and scores 0.65 — below its floor — without it. That gap is the
+      feature.
 
 ---
 
@@ -413,17 +448,13 @@ The contradiction to fix: `assistant_general` tells the model to *"use a short
 list only when the answer really is a list of steps"* and then forbids markdown.
 The model cannot comply with both.
 
-- [ ] Permit `-` at the start of a line in `assistant_general`, and nothing else;
-      render it as a list, keep every other markdown construct out
-- [ ] `temperature` 0.6 for `assistant_general` alone — extraction stays at 0.2,
-      where determinism is the point
-- [ ] Clarify gate relaxed to 0.5 for `general`; **unchanged at 0.7 for
-      `own_data` and `action`**, where a wrong guess reports a wrong number or
-      writes a row
-- [ ] Taglish cases in the evaluation set — a student who writes Taglish and gets
-      formal English back has been answered by something not paying attention
-- [ ] The length rule stays: *"how many cuts do I have"* is a sentence, and five
-      bullets is worse
+- [x] Permit `-` at the start of a line and nothing else; `splitIntoBlocks`
+      renders it, every other construct stays literal text
+- [x] `temperature` 0.6 for `assistant_general` alone — extraction stays at 0.2
+- [x] Clarify gate 0.5 for `general` and `tup_knowledge`, 0.6 for `commute` and
+      `navigation`, **unchanged at 0.7 for `own_data` and `action`**
+- [x] Taglish verified live: a Taglish question gets a Taglish answer
+- [x] The length rule holds — a direct question got one sentence
 
 ---
 
@@ -441,16 +472,24 @@ an `X-Client-Id` header. Self-hosting is a shipping concern, not a build one.
 
 **`route-map.tsx` is not touched.** It already draws `geometry` when present.
 
-- [ ] `037_geometry_source.sql` — a `geometry_source` column on `commute_legs`
-      (`routed` / `osm_relation` / null) with a comment saying what each means
-- [ ] `scripts/route-walk-legs.mjs` — every `walk` leg with null geometry, ask
-      Valhalla, decode the polyline with `@mapbox/polyline`, simplify with
-      `@turf/simplify`, sanity-check with `@turf/length` against the leg's stated
-      duration, write back with `geometry_source = 'routed'`
-- [ ] A leg whose routed path is implausibly long is **left null**, not stored —
-      a wrong path is worse than a dashed line, which is the rule the whole
-      document turns on
-- [ ] Run it; spot-check three legs against the map
+- [x] `037_geometry_source.sql` — `routed` / `osm_relation` / `manual`
+- [x] `scripts/route-walk-legs.mjs`, with `--probe`, `--dry-run` and `--redo`
+- [x] An implausible path is left null, and the judgement is unit-tested
+- [ ] Running it against real legs — needs a database
+
+**Built differently — the detour limit is 6, not 3.** `--probe` routed its
+first pair, Ayala Bridge to TUP Manila: 579 m apart in a straight line, 2.21 km
+on foot, a ratio of 3.8, because the Pasig River is between them and the only
+crossing is a bridge. That is a *correct* path, and an obvious limit of 2 or 3
+would discard correct geometry across most of Manila — rivers, walled campuses,
+esteros with one crossing a kilometre away. So the duration check does the real
+work, because it compares against a figure a person timed on foot, and the
+detour ratio is loosened to where it catches a hub coordinate dropped in the
+wrong city and nothing else.
+
+Also worth recording: Valhalla returns **polyline6**, not the polyline5 most
+decoders assume, and the host that answers a POST is `valhalla1.openstreetmap.de`
+— the unnumbered one returns 405.
 
 Transit corridors (Phase 2), the rest of the corridors (Phase 3) and fares
 (Phase 4) stay out of this list. They are mostly data gathering and per-leg
@@ -463,18 +502,22 @@ verification with real riders, not code.
 [14-ASSISTANT-PLAN.md](14-ASSISTANT-PLAN.md) §6. **Needs feature 4 first** — the
 follow-up case is the memory case.
 
-- [ ] `depart_at` on `commute_intent`, fed into the departure planner, which
-      already applies `peak_bands`. A 9pm answer that ignores them is wrong by
-      twenty minutes on the corridors where it matters most
-- [ ] Two options where fastest and cheapest differ — the comparison the commute
-      screen exists to make
-- [ ] `verified_count` and `last_verified_at` stated in the answer. A route
-      nobody has confirmed in three months should say so in words, not only on
-      the screen
-- [ ] A follow-up that changes only the origin — *"what about from Cubao?"*
-- [ ] Fares and minutes still come from `v_route_summary` and the fare rules. The
-      model extracts intent and nothing else, and `labelled: false` on this route
-      stays correct
+- [x] `departure_time` on `commute_intent`, fed through `peakPenaltyAt` — a new
+      core function that computes the penalty for a journey *starting* at a
+      moment, rather than working backwards from a class the way the departure
+      planner does
+- [x] Two options where fastest and cheapest differ, and silence when they do not
+- [x] `verified_count` and `last_verified_at` stated in words
+- [x] *"What about from Cubao?"* verified live — it keeps the 21:00 from the
+      previous turn and changes only the origin
+- [x] `labelled: false` stays correct
+
+**Two bugs found while building it.** `commute_intent` required a `confidence`
+its own prompt never asked for, so every real call failed validation and burned
+the gateway's one repair attempt. And *"pauwi ako sa Antipolo"* returned a null
+area, because the field is called `origin_area` and the model reasoned that the
+origin of a journey home is TUP — leaving the student with "I don't have routes
+from there yet" about an area that is in the list.
 
 ---
 
@@ -493,15 +536,28 @@ means it may call one, read the result, and decide to call another: *"can I stil
 skip Thursday?"* is `absences_remaining` **and** `next_class` **and** the term
 end, composed.
 
-- [ ] The router may call a template, read its result, and call another
-- [ ] A hard cap on calls per question — an uncapped loop on a free tier is an
-      outage
-- [ ] **Receipts in the response**: which templates ran, and what they read.
-      `10-FUTURE-ENHANCEMENTS.md` §5.1 makes receipts non-negotiable for anything
-      that acts, and this is the first thing that composes
-- [ ] Every number still comes from a template. The model chooses *which* to
-      call; it never produces a figure (ADR-007)
-- [ ] Only then revisit `10-FUTURE-ENHANCEMENTS.md` §2
+- [x] `assistant_compose` reads a template's result and may request another
+- [x] A hard cap: three lookups, two composition calls
+- [x] Receipts in the response, opened in the Ask screen when more than one
+      lookup contributed
+- [x] `unsupportedNumbers` checks the composed answer against what it was
+      composed from. An answer carrying a figure nothing computed is
+      **discarded, not repaired** — the student gets the computed sentences
+      joined instead
+- [ ] `10-FUTURE-ENHANCEMENTS.md` §2 — still to revisit
+
+**Built differently — composition is gated on a router flag.** Composing every
+`own_data` question would double or triple its cost against a fifty-a-day free
+quota, which §12 already names as the most common reason a working assistant
+looks broken. So `assistant_route` returns `needs_composition` — it is looking
+at the question anyway and costs nothing extra — and only a question that needs
+two lookups pays for one. Verified live: *"ilang cuts pa ako sa CS 2103?"*
+false, *"what's my GWA?"* false, *"can I still skip Thursday?"* true.
+
+The grounding check is deliberately one-directional and says so in its own
+tests: it proves no figure was conjured, not that figures were rearranged
+correctly. The second is a far harder problem; the first is the failure that
+matters.
 
 ---
 

@@ -37,7 +37,7 @@ Free forever, for every TUP student, in every program.
 | 13 | [Commute Routing](13-COMMUTE-ROUTING-PLAN.md) | Real path geometry on the map, and where the route and fare data actually comes from — **plan only** | Engineers |
 | 14 | [Assistant](14-ASSISTANT-PLAN.md) | A second model provider, an assistant that is not bland, and one that can answer a commute question — **plan only** | Engineers |
 | 15 | [Class Suspensions](15-SUSPENSIONS-PLAN.md) | *Walang pasok* as an advisory a student acts on, never an automatic cancellation — **plan only** | Engineers, product |
-| 16 | [The Next Eight](16-NEXT-EIGHT.md) | Which eight features happen next and in what order, with the detail for the two that have no plan of their own — **plan only** | Everyone |
+| 16 | [The Next Eight](16-NEXT-EIGHT.md) | Eight features, in order, with the detail for the two that had no plan of their own — **all built**, and the record of where the build departed from the plan | Everyone |
 
 ### Outside this folder
 
