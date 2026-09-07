@@ -2,6 +2,7 @@
 
 import { supabaseBrowser } from '../supabase/client'
 import { naturalKeyFor, primaryKeyOf } from './keys'
+import { singleFlight } from './single-flight'
 import {
   type EntityName,
   type Mutation,
@@ -221,42 +222,58 @@ export async function queueWrite(options: QueueWriteOptions): Promise<string> {
   return id
 }
 
-let flushing = false
+function emptyResult(): SyncResult {
+  return { pulled: 0, pushed: 0, failed: 0, conflicts: 0, at: Date.now() }
+}
 
-export async function flush(): Promise<SyncResult> {
-  const result: SyncResult = { pulled: 0, pushed: 0, failed: 0, conflicts: 0, at: Date.now() }
-  if (flushing || typeof navigator !== 'undefined' && !navigator.onLine) return result
+/**
+ * One flush at a time, and one more if anything was queued during it.
+ *
+ * The deferral is the part that matters. A flush reads the mutation queue once,
+ * at the start, so anything enqueued after that read is invisible to it. A
+ * guard that simply *drops* a concurrent call therefore does not mean "already
+ * handled" — it means "your write waits for the next trigger", which here is up
+ * to fifteen minutes.
+ *
+ * That was a real bug, found by reviewing one flashcard. A review is two queued
+ * writes in immediate succession — the history row and the SM-2 state — and
+ * only the first reached the server. The student saw it save, because locally
+ * it had; their other device disagreed. See `single-flight.ts`.
+ */
+const runFlush = singleFlight(async (): Promise<SyncResult> => {
+  const result = emptyResult()
+  const supabase = supabaseBrowser()
+  const queue = await pendingMutations()
 
-  flushing = true
-  try {
-    const supabase = supabaseBrowser()
-    const queue = await pendingMutations()
-
-    for (const mutation of queue) {
-      if (mutation.attempts >= MAX_ATTEMPTS) {
-        // Keep the local value and let the student retry by hand. Dropping it
-        // silently would lose data they believe they recorded.
-        result.failed += 1
-        continue
-      }
-
-      try {
-        const conflict = await applyMutation(supabase, mutation)
-        if (conflict) result.conflicts += 1
-        await resolveMutation(mutation.id)
-        result.pushed += 1
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        await failMutation(mutation.id, message, backoffFor(mutation.attempts))
-        result.failed += 1
-      }
+  for (const mutation of queue) {
+    if (mutation.attempts >= MAX_ATTEMPTS) {
+      // Keep the local value and let the student retry by hand. Dropping it
+      // silently would lose data they believe they recorded.
+      result.failed += 1
+      continue
     }
-  } finally {
-    flushing = false
+
+    try {
+      const conflict = await applyMutation(supabase, mutation)
+      if (conflict) result.conflicts += 1
+      await resolveMutation(mutation.id)
+      result.pushed += 1
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      await failMutation(mutation.id, message, backoffFor(mutation.attempts))
+      result.failed += 1
+    }
   }
 
   await setMeta('lastFlushAt', result.at)
   return result
+}, emptyResult)
+
+export async function flush(): Promise<SyncResult> {
+  /* Offline is checked here rather than inside the gated job, so being offline
+   * never occupies the gate or schedules a pointless re-run. */
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return emptyResult()
+  return runFlush()
 }
 
 type SupabaseClient = ReturnType<typeof supabaseBrowser>
