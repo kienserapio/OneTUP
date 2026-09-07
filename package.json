@@ -20,7 +20,8 @@
     "db:psql": "node scripts/db.mjs psql",
     "db:types": "node scripts/db.mjs types",
     "worker:dev": "pnpm run env:sync && pnpm --filter @onetup/worker dev",
-    "env:sync": "node scripts/sync-env.mjs"
+    "env:sync": "node scripts/sync-env.mjs",
+    "check:models": "node scripts/check-models.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
