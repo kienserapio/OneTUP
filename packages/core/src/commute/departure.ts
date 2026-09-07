@@ -150,6 +150,39 @@ export function computeDeparturePlan(input: DeparturePlanInput): DeparturePlan {
  * Each corridor contributes at most one penalty, however many legs travel it.
  * Charging per leg would double-count a transfer within the same corridor.
  */
+/**
+ * The peak penalty on a journey that *starts* at a given moment.
+ *
+ * `computeDeparturePlan` works backwards from a class — arrive by, therefore
+ * leave at — which is the right shape for the departure screen and the wrong
+ * one for a question. A student asking "how long from Cubao at 9pm?" has
+ * already chosen when they are leaving, and the answer they want is what that
+ * hour costs them.
+ *
+ * The window is resolved the same way the planner does it: compute once
+ * unadjusted, then again over the window that produces. Two passes settle it,
+ * because a penalty can only push the arrival later into or out of a band.
+ */
+export function peakPenaltyAt(
+  departAt: Date,
+  baseMinutes: number,
+  corridors: readonly string[],
+  bands: readonly PeakBand[],
+): { minutes: number; adjustments: DepartureAdjustment[] } {
+  let adjustments: DepartureAdjustment[] = []
+  let total = 0
+
+  for (let pass = 0; pass < 2; pass++) {
+    const arriveBy = addMinutes(departAt, baseMinutes + total)
+    adjustments = peakAdjustments(departAt, arriveBy, corridors, bands)
+    const next = adjustments.reduce((sum, a) => sum + a.minutes, 0)
+    if (next === total) break
+    total = next
+  }
+
+  return { minutes: total, adjustments }
+}
+
 function peakAdjustments(
   leaveAt: Date,
   arriveBy: Date,

@@ -657,14 +657,31 @@ function stem(word: string): string {
 const CommuteInput = z.object({
   query: z.string().min(1).max(500),
   known_areas: z.array(z.string()),
+  history: HistorySchema,
 })
 
 const CommuteOutput = z.object({
   origin_area: z.string().nullable(),
   direction: z.enum(['inbound', 'outbound']),
   preference: z.enum(['fastest', 'cheapest', 'fewest_transfers']).nullable(),
-  departure_time: z.string().nullable(),
-  confidence: z.number().min(0).max(1),
+  /**
+   * When they are leaving, as `HH:MM` on a 24-hour clock, or null for "now".
+   *
+   * This is the field that stops a 9pm answer being wrong by twenty minutes.
+   * The corridors where the peak penalty matters most are exactly the ones a
+   * student asks about, and an answer computed against the current hour when
+   * they meant tomorrow morning is confidently wrong.
+   */
+  departure_time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable()
+    .catch(null),
+  /* Defaulted, not required. The prompt asks for it, but a small free model
+   * that answers everything else correctly and omits one field should not take
+   * the whole route down with a validation error — and 0.5 is the honest
+   * reading of "the model did not say". */
+  confidence: z.number().min(0).max(1).catch(0.5).default(0.5),
 })
 
 export const commuteIntent: Capability<
@@ -673,7 +690,9 @@ export const commuteIntent: Capability<
 > = {
   name: 'commute_intent',
   tier: 'fast',
-  version: '1.0.0',
+  /* 1.1.0: reads conversation history, and `departure_time` is now a real
+   * parameter rather than a field nothing consumed. */
+  version: '1.1.0',
   maxTokens: 150,
   input: CommuteInput,
   output: CommuteOutput,
@@ -684,16 +703,31 @@ Rules:
 - origin_area MUST be one of known_areas, or null. Never invent a place name.
   Match loosely: "Caloocan", "Monumento area", "sa Grace Park" may all map to
   the same known area.
+- origin_area is the student's own area — where they live — in BOTH directions.
+  "Pauwi ako sa Antipolo" is origin_area "Antipolo" with direction outbound, not
+  null. Routes are stored per area with a direction, so an outbound journey
+  still needs the area named.
 - direction: inbound means going to TUP, outbound means going home. Default
   inbound unless the question clearly indicates leaving campus.
 - preference: only when the student expressed one ("mura", "cheapest",
   "fastest", "ayoko ng maraming sakay").
-- Return ONLY JSON.
+- departure_time: HH:MM on a 24-hour clock when the student says when they are
+  leaving or arriving — "at 9pm" is "21:00", "mamayang alas-6 ng umaga" is
+  "06:00", "bukas ng 7" is "07:00". Null when they did not say. Do not guess a
+  plausible time; null means "now", which is the right default.
+- confidence: 0 to 1, how sure you are of the whole reading. Below 0.6 when the
+  place could be one of several known areas, or when you cannot tell which
+  direction they are travelling.
+- Return ONLY JSON, with all five fields present.
+
+If earlier turns are given, read the question as a continuation. "What about
+from Cubao?" after a commute question keeps the same direction, preference and
+departure time, and changes only the origin.
 
 You never state a fare, a route, or a travel time. That is not your role.`,
   buildUser: (input) => `known_areas: ${input.known_areas.join(' | ')}
 
-question:
+${renderHistory(input.history)}question:
 """
 ${input.query}
 """`,
