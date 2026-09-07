@@ -8,7 +8,7 @@ import { deleteRecord } from '@/lib/offline/db'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { spring, transition } from '@/design/motion'
 import { Card } from '@/components/ui/surfaces'
-import { IconCheck, IconClock, IconClose, IconShield } from '@/components/ui/icon'
+import { IconCancelled, IconCheck, IconClock, IconClose, IconShield } from '@/components/ui/icon'
 import type { AttendanceStanding, CourseBlock } from '@/lib/queries/today'
 import { cx } from '@/lib/cx'
 
@@ -26,17 +26,35 @@ import { cx } from '@/lib/cx'
  * row rather than duplicate it.
  */
 
-const OPTIONS: {
+interface Option {
   status: AttendanceStatus
   label: string
   color: string
   Icon: typeof IconCheck
-}[] = [
+}
+
+/** The four answers about the student. One tap, four targets, no scrolling. */
+const OPTIONS: Option[] = [
   { status: 'present', label: 'Present', color: 'var(--ok)', Icon: IconCheck },
   { status: 'absent', label: 'Absent', color: 'var(--danger)', Icon: IconClose },
   { status: 'late', label: 'Late', color: 'var(--warning)', Icon: IconClock },
   { status: 'excused', label: 'Excused', color: 'var(--info)', Icon: IconShield },
 ]
+
+/**
+ * The fifth answer is not about the student at all — the class did not happen.
+ * It sits apart from the other four and below them because it is a different
+ * kind of statement, and because a suspension is rarer than a normal day: the
+ * common answers keep the top row and the full-width target.
+ */
+const CANCELLED: Option = {
+  status: 'cancelled',
+  label: 'Class cancelled',
+  color: 'var(--label-secondary)',
+  Icon: IconCancelled,
+}
+
+const ALL_OPTIONS = [...OPTIONS, CANCELLED]
 
 /** The meter tracks the same three states the Subjects screen uses, so a colour
  * means the same thing wherever a student sees it. */
@@ -117,7 +135,7 @@ export function AttendancePrompt({
   }
 
   if (recorded) {
-    const option = OPTIONS.find((o) => o.status === recorded.status)!
+    const option = ALL_OPTIONS.find((o) => o.status === recorded.status)!
     return (
       <motion.div
         initial={{ opacity: 0, y: 6 }}
@@ -131,7 +149,17 @@ export function AttendancePrompt({
             style={{ background: option.color }}
           />
           <p className="type-subheadline flex-1">
-            <span className="type-data">{block.label}</span> marked {option.label.toLowerCase()}.
+            {option.status === 'cancelled' ? (
+              <>
+                <span className="type-data">{block.label}</span> was cancelled. It does not count
+                either way.
+              </>
+            ) : (
+              <>
+                <span className="type-data">{block.label}</span> marked{' '}
+                {option.label.toLowerCase()}.
+              </>
+            )}
           </p>
           <button
             type="button"
@@ -226,6 +254,27 @@ export function AttendancePrompt({
           </motion.button>
         ))}
       </div>
+
+      <motion.button
+        type="button"
+        disabled={busy}
+        onClick={() => void record(CANCELLED.status)}
+        whileTap={{ scale: 0.98 }}
+        transition={transition(spring.snap)}
+        className={cx(
+          'mt-2 flex min-h-[var(--target-min)] w-full items-center justify-center gap-1.5',
+          'rounded-[var(--radius-sm)] text-[0.9375rem] font-medium',
+          'transition-transform disabled:opacity-50',
+        )}
+        style={{
+          color: CANCELLED.color,
+          background: 'var(--fill-quaternary)',
+          border: '1px solid var(--separator)',
+        }}
+      >
+        <CANCELLED.Icon size={18} />
+        {CANCELLED.label}
+      </motion.button>
     </Card>
   )
 }

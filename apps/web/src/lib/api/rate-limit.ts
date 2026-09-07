@@ -33,6 +33,11 @@ export const POLICIES = {
   announcement_ingest: { limit: 20, windowSeconds: 3600 },
   deadline_extract: { limit: 15, windowSeconds: 3600 },
   study_pack: { limit: 3, windowSeconds: 86_400 },
+  /* A published post reaches every member's tracker, so posting is the one
+   * classroom write worth metering. Ten an hour is far above what a real class
+   * produces and far below what makes a section unusable. */
+  class_post: { limit: 10, windowSeconds: 3600 },
+  class_join: { limit: 10, windowSeconds: 3600 },
 } as const satisfies Record<string, LimitPolicy>
 
 export type Bucket = keyof typeof POLICIES

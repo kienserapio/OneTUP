@@ -463,6 +463,126 @@ export type Database = {
         }
         Relationships: []
       }
+      class_post_states: {
+        Row: {
+          note: string | null
+          post_id: string
+          reminder_offsets: number[] | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          note?: string | null
+          post_id: string
+          reminder_offsets?: number[] | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          note?: string | null
+          post_id?: string
+          reminder_offsets?: number[] | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_post_states_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "class_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_posts: {
+        Row: {
+          author_id: string | null
+          content_hash: string | null
+          course_id: string | null
+          created_at: string
+          detail: string | null
+          due_at: string | null
+          edited_at: string | null
+          group_id: string
+          hidden_by: string | null
+          id: string
+          kind: string
+          pinned: boolean
+          requires_submission: boolean
+          status: string
+          submission_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          content_hash?: string | null
+          course_id?: string | null
+          created_at?: string
+          detail?: string | null
+          due_at?: string | null
+          edited_at?: string | null
+          group_id: string
+          hidden_by?: string | null
+          id?: string
+          kind?: string
+          pinned?: boolean
+          requires_submission?: boolean
+          status?: string
+          submission_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          content_hash?: string | null
+          course_id?: string | null
+          created_at?: string
+          detail?: string | null
+          due_at?: string | null
+          edited_at?: string | null
+          group_id?: string
+          hidden_by?: string | null
+          id?: string
+          kind?: string
+          pinned?: boolean
+          requires_submission?: boolean
+          status?: string
+          submission_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_posts_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_posts_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_posts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "announcement_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_reps: {
         Row: {
           basis: string | null
@@ -1383,26 +1503,82 @@ export type Database = {
           },
         ]
       }
+      group_join_requests: {
+        Row: {
+          claimed_full_name: string | null
+          claimed_section_code: string | null
+          claimed_student_number: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          group_id: string
+          id: string
+          message: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          claimed_full_name?: string | null
+          claimed_section_code?: string | null
+          claimed_student_number?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          group_id: string
+          id?: string
+          message?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          claimed_full_name?: string | null
+          claimed_section_code?: string | null
+          claimed_student_number?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          group_id?: string
+          id?: string
+          message?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_join_requests_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_members: {
         Row: {
+          display_name: string | null
           group_id: string
           joined_at: string
           role: string
           shares_availability: boolean
+          term_id: string | null
           user_id: string
         }
         Insert: {
+          display_name?: string | null
           group_id: string
           joined_at?: string
           role?: string
           shares_availability?: boolean
+          term_id?: string | null
           user_id: string
         }
         Update: {
+          display_name?: string | null
           group_id?: string
           joined_at?: string
           role?: string
           shares_availability?: boolean
+          term_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1413,32 +1589,63 @@ export type Database = {
             referencedRelation: "groups"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "group_members_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "terms"
+            referencedColumns: ["id"]
+          },
         ]
       }
       groups: {
         Row: {
+          archived_at: string | null
+          campus: string | null
           course_id: string | null
           created_at: string
           created_by: string
           id: string
           invite_code: string
+          kind: string
           name: string
+          program_code: string | null
+          section_code: string | null
+          term_id: string | null
+          who_can_post: string
+          year_level: number | null
         }
         Insert: {
+          archived_at?: string | null
+          campus?: string | null
           course_id?: string | null
           created_at?: string
           created_by: string
           id?: string
           invite_code?: string
+          kind?: string
           name: string
+          program_code?: string | null
+          section_code?: string | null
+          term_id?: string | null
+          who_can_post?: string
+          year_level?: number | null
         }
         Update: {
+          archived_at?: string | null
+          campus?: string | null
           course_id?: string | null
           created_at?: string
           created_by?: string
           id?: string
           invite_code?: string
+          kind?: string
           name?: string
+          program_code?: string | null
+          section_code?: string | null
+          term_id?: string | null
+          who_can_post?: string
+          year_level?: number | null
         }
         Relationships: [
           {
@@ -1446,6 +1653,13 @@ export type Database = {
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groups_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "terms"
             referencedColumns: ["id"]
           },
         ]
@@ -1593,60 +1807,6 @@ export type Database = {
         }
         Relationships: []
       }
-      problem_reports: {
-        Row: {
-          college: string | null
-          created_at: string
-          email: string | null
-          full_name: string
-          id: string
-          ip_hash: string | null
-          kind: string
-          message: string
-          section: string | null
-          status: string
-          student_number: string | null
-          subject: string
-          updated_at: string | null
-          user_agent: string | null
-          user_id: string | null
-        }
-        Insert: {
-          college?: string | null
-          created_at?: string
-          email?: string | null
-          full_name: string
-          id?: string
-          ip_hash?: string | null
-          kind: string
-          message: string
-          section?: string | null
-          status?: string
-          student_number?: string | null
-          subject: string
-          updated_at?: string | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          college?: string | null
-          created_at?: string
-          email?: string | null
-          full_name?: string
-          id?: string
-          ip_hash?: string | null
-          kind?: string
-          message?: string
-          section?: string | null
-          status?: string
-          student_number?: string | null
-          subject?: string
-          updated_at?: string | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       peak_bands: {
         Row: {
           corridor: string
@@ -1771,6 +1931,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      problem_reports: {
+        Row: {
+          college: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          ip_hash: string | null
+          kind: string
+          message: string
+          section: string | null
+          status: string
+          student_number: string | null
+          subject: string
+          updated_at: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          college?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          ip_hash?: string | null
+          kind: string
+          message: string
+          section?: string | null
+          status?: string
+          student_number?: string | null
+          subject: string
+          updated_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          college?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          ip_hash?: string | null
+          kind?: string
+          message?: string
+          section?: string | null
+          status?: string
+          student_number?: string | null
+          subject?: string
+          updated_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -2630,6 +2844,23 @@ export type Database = {
     }
     Functions: {
       attach_updated_at: { Args: { target: unknown }; Returns: undefined }
+      claim_classroom_ownership: {
+        Args: { target_group: string }
+        Returns: undefined
+      }
+      classroom_by_invite: {
+        Args: { invite: string }
+        Returns: {
+          archived: boolean
+          campus: string
+          id: string
+          member_count: number
+          rep_name: string
+          section_code: string
+          term_id: string
+          term_label: string
+        }[]
+      }
       commit_schedule: {
         Args: {
           p_courses: Json
@@ -2639,7 +2870,12 @@ export type Database = {
         }
         Returns: Json
       }
+      decide_join_request: {
+        Args: { approve: boolean; request: string }
+        Returns: undefined
+      }
       is_group_member: { Args: { target_group: string }; Returns: boolean }
+      is_group_rep: { Args: { target_group: string }; Returns: boolean }
       match_knowledge_chunks: {
         Args: {
           match_count?: number
@@ -2656,6 +2892,14 @@ export type Database = {
           source_url: string
         }[]
       }
+      remove_classroom_member: {
+        Args: { target_group: string; target_user: string }
+        Returns: undefined
+      }
+      set_member_role: {
+        Args: { new_role: string; target_group: string; target_user: string }
+        Returns: undefined
+      }
     }
     Enums: {
       announcement_type:
@@ -2666,7 +2910,7 @@ export type Database = {
         | "suspension"
         | "schedule_change"
         | "general"
-      attendance_status: "present" | "absent" | "late" | "excused"
+      attendance_status: "present" | "absent" | "late" | "excused" | "cancelled"
       deadline_status: "open" | "done" | "dismissed"
       place_category:
         | "building"
@@ -2836,7 +3080,7 @@ export const Constants = {
         "schedule_change",
         "general",
       ],
-      attendance_status: ["present", "absent", "late", "excused"],
+      attendance_status: ["present", "absent", "late", "excused", "cancelled"],
       deadline_status: ["open", "done", "dismissed"],
       place_category: [
         "building",

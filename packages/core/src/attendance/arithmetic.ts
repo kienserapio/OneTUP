@@ -7,9 +7,13 @@
  * `excused` is deliberately excluded from every count. It exists so a student
  * can record an approved absence without it inflating a total that would
  * otherwise push them toward a decision they should not have to make.
+ *
+ * `cancelled` is excluded for a different reason: there was no class. A
+ * suspension is not something a student attended or missed, and counting it
+ * either way would be a statement about them rather than about the day.
  */
 
-export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused' | 'cancelled'
 
 export type AttendanceState = 'normal' | 'caution' | 'warning' | 'at_limit'
 
@@ -18,6 +22,7 @@ export interface AttendanceCounts {
   absent: number
   late: number
   excused: number
+  cancelled: number
 }
 
 export interface AttendanceSummary extends AttendanceCounts {
@@ -51,8 +56,13 @@ export const ATTENDANCE_THRESHOLDS = {
 } as const
 
 export function countStatuses(statuses: readonly AttendanceStatus[]): AttendanceCounts {
-  const counts: AttendanceCounts = { present: 0, absent: 0, late: 0, excused: 0 }
-  for (const status of statuses) counts[status] += 1
+  const counts: AttendanceCounts = { present: 0, absent: 0, late: 0, excused: 0, cancelled: 0 }
+  // A status this build does not know about is ignored rather than crashing the
+  // whole subject screen: the database enum can gain a value before a client
+  // that reads it has been redeployed.
+  for (const status of statuses) {
+    if (status in counts) counts[status] += 1
+  }
   return counts
 }
 

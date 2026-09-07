@@ -4,6 +4,14 @@
 
 Nothing here is in the V1–V2 scope. This document exists so the architecture built now does not preclude any of it later.
 
+Three of the pieces this roadmap assumes have since been written down as
+buildable plans rather than ambitions, and they are the near-term path into
+everything below: [13-COMMUTE-ROUTING-PLAN.md](13-COMMUTE-ROUTING-PLAN.md),
+[14-ASSISTANT-PLAN.md](14-ASSISTANT-PLAN.md) and
+[15-SUSPENSIONS-PLAN.md](15-SUSPENSIONS-PLAN.md). `14` §7 in particular is the
+join: an agent's chain is a conversation with itself, so the assistant needs
+memory and tool use before any of §2 here is worth starting.
+
 ---
 
 ## 1. The reframe: agentic means it works when you are not looking
@@ -182,6 +190,8 @@ An agent that acts without an undo is just an app doing things you did not ask f
 
 **Second: one background agent, one event.** Announcement lands → deadline created → study pack built → review blocks proposed. Ship that single chain end to end, with receipts and undo. If it feels right, the pattern generalises to everything else.
 
+**Before either: an assistant that answers well.** [14-ASSISTANT-PLAN.md](14-ASSISTANT-PLAN.md) §7 puts it bluntly — an agent built on a bland assistant is a bland assistant that also writes to the database. Memory, a second provider and tool use are Phases 1, 2 and 5 there, and the last of those *is* the loop this section describes, minus the trigger.
+
 The enrollment agent is the demo that gets people talking, but it needs the API underneath. So the API is genuinely step one.
 
 ---
@@ -211,6 +221,9 @@ Free-block finder across groups · classmate and section discovery · study-budd
 
 **Retention**
 End-of-term recap, shareable · light streaks · weather and commute widget
+
+**Now planned in their own documents**
+Real route geometry and current fare data (`13`) · a second model provider, assistant memory and commute answers (`14`) · suspension advisories (`15`) · classroom push notifications and term rollover (`12` §13, Phase 6)
 
 **Community**
 Moderated shared reviewer library per course · professor consultation hours, crowd-maintained · lost and found

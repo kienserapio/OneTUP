@@ -14,6 +14,12 @@ import { readAll } from '@/lib/offline/db'
 import { queueWrite, syncNow } from '@/lib/offline/sync'
 import { useNow } from '@/lib/hooks/use-local'
 import { cancelDeadlineReminders } from '@/lib/notifications/client'
+import {
+  currentUserId,
+  loadClassTrackerItems,
+  markPostState,
+  type ClassTrackerItem,
+} from '@/lib/queries/classroom'
 import { spring, transition } from '@/design/motion'
 import { NavBar } from '@/components/app/nav-bar'
 import { ButtonLink } from '@/components/ui/button'
@@ -24,6 +30,30 @@ import { DeadlineDetail } from './deadline-detail'
 import { cx } from '@/lib/cx'
 
 type Filter = 'all' | 'overdue' | 'next48' | 'week' | 'done'
+
+/**
+ * One line in the list, from either source.
+ *
+ * A class post is never copied into `deadlines` — it stays one shared row that
+ * thirty people read — so the union happens here, at the point of display,
+ * rather than in the table. That keeps `deadlines` exactly as private as it was
+ * before classrooms existed, and it means a student can always tell which of
+ * their commitments they created and which the class did.
+ */
+interface TrackerRow {
+  id: string
+  title: string
+  dueAt: string
+  courseCode: string | null
+  status: 'open' | 'done' | 'dismissed'
+  fromAnnouncement: boolean
+  /** Set only for a class post: the section that published it. */
+  sectionCode: string | null
+  source: 'personal' | 'class'
+  href: string
+  /** Personal deadlines only; used to order the finished list. */
+  completedAt: string | null
+}
 
 /** The two windows the summary strip counts, in hours. */
 const NEXT_48H = 48
@@ -49,16 +79,22 @@ export function DeadlinesView() {
   const paneOpen = useDetailPane()
 
   const [deadlines, setDeadlines] = useState<(Deadline & { id: string })[]>([])
+  const [classItems, setClassItems] = useState<ClassTrackerItem[]>([])
+  const [userId, setUserId] = useState<string | null>(null)
   const [courseByEnrollment, setCourseByEnrollment] = useState<Map<string, string>>(new Map())
   const [filter, setFilter] = useState<Filter>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   const reload = useCallback(async () => {
-    const [rows, enrollments, courses] = await Promise.all([
+    const id = await currentUserId()
+    setUserId(id)
+
+    const [rows, enrollments, courses, fromClass] = await Promise.all([
       readAll<Deadline & { id: string }>('deadlines'),
       readAll<Enrollment & { id: string }>('enrollments'),
       readAll<Course & { id: string }>('courses'),
+      id ? loadClassTrackerItems(id) : Promise.resolve([]),
     ])
 
     const courseById = new Map(courses.map((course) => [course.id, course.code]))
@@ -68,6 +104,7 @@ export function DeadlinesView() {
       ),
     )
     setDeadlines(rows)
+    setClassItems(fromClass)
     setLoading(false)
   }, [])
 
@@ -76,60 +113,104 @@ export function DeadlinesView() {
     void syncNow().then(reload)
   }, [reload])
 
-  const open = useMemo(
-    () => deadlines.filter((deadline) => deadline.status === 'open'),
-    [deadlines],
+  const rows = useMemo<TrackerRow[]>(
+    () => [
+      ...deadlines.map((deadline) => ({
+        id: deadline.id,
+        title: deadline.title,
+        dueAt: deadline.due_at,
+        courseCode: deadline.enrollment_id
+          ? (courseByEnrollment.get(deadline.enrollment_id) ?? null)
+          : null,
+        status: deadline.status,
+        fromAnnouncement: deadline.source === 'announcement',
+        sectionCode: null,
+        source: 'personal' as const,
+        href: `/deadlines/${deadline.id}`,
+        completedAt: deadline.completed_at,
+      })),
+      ...classItems.map((item) => ({
+        id: item.id,
+        title: item.title,
+        dueAt: item.dueAt,
+        courseCode: item.courseCode,
+        status: item.status === 'submitted' ? ('done' as const) : (item.status as TrackerRow['status']),
+        fromAnnouncement: false,
+        sectionCode: item.sectionCode,
+        source: 'class' as const,
+        href: `/classroom/posts/${item.id}`,
+        completedAt: null,
+      })),
+    ],
+    [deadlines, classItems, courseByEnrollment],
   )
+
+  const open = useMemo(() => rows.filter((row) => row.status === 'open'), [rows])
 
   const counts = useMemo(
     () => ({
-      overdue: open.filter((d) => urgencyOf({ dueAt: d.due_at, status: 'open' }, now) === 'overdue')
+      overdue: open.filter((d) => urgencyOf({ dueAt: d.dueAt, status: 'open' }, now) === 'overdue')
         .length,
-      next48: open.filter((d) => within(d.due_at, now, NEXT_48H)).length,
-      week: open.filter((d) => within(d.due_at, now, THIS_WEEK_H)).length,
+      next48: open.filter((d) => within(d.dueAt, now, NEXT_48H)).length,
+      week: open.filter((d) => within(d.dueAt, now, THIS_WEEK_H)).length,
     }),
     [open, now],
   )
 
   const visible = useMemo(() => {
     if (filter === 'done') {
-      return deadlines
-        .filter((deadline) => deadline.status === 'done')
-        .sort(
-          (a, b) => Date.parse(b.completed_at ?? b.due_at) - Date.parse(a.completed_at ?? a.due_at),
-        )
+      return rows
+        .filter((row) => row.status === 'done')
+        .sort((a, b) => Date.parse(b.completedAt ?? b.dueAt) - Date.parse(a.completedAt ?? a.dueAt))
     }
 
-    const matching = open.filter((deadline) => {
+    const matching = open.filter((row) => {
       switch (filter) {
         case 'overdue':
-          return urgencyOf({ dueAt: deadline.due_at, status: 'open' }, now) === 'overdue'
+          return urgencyOf({ dueAt: row.dueAt, status: 'open' }, now) === 'overdue'
         case 'next48':
-          return within(deadline.due_at, now, NEXT_48H)
+          return within(row.dueAt, now, NEXT_48H)
         case 'week':
-          return within(deadline.due_at, now, THIS_WEEK_H)
+          return within(row.dueAt, now, THIS_WEEK_H)
         default:
           return true
       }
     })
 
     return matching.sort((a, b) =>
-      compareByUrgency({ dueAt: a.due_at, status: 'open' }, { dueAt: b.due_at, status: 'open' }, now),
+      compareByUrgency({ dueAt: a.dueAt, status: 'open' }, { dueAt: b.dueAt, status: 'open' }, now),
     )
-  }, [deadlines, open, filter, now])
+  }, [rows, open, filter, now])
 
   // The pane always has something in it: falling back to the top of the list is
   // less jarring than an empty half-screen after completing the selected item.
   useEffect(() => {
     if (!paneOpen) return
-    if (selectedId && visible.some((deadline) => deadline.id === selectedId)) return
-    setSelectedId(visible[0]?.id ?? null)
+    // The pane shows a personal deadline; a class post has its own screen,
+    // where the submission control and the log live.
+    const own = visible.filter((row) => row.source === 'personal')
+    if (selectedId && own.some((row) => row.id === selectedId)) return
+    setSelectedId(own[0]?.id ?? null)
   }, [paneOpen, selectedId, visible])
 
-  const selected = visible.find((deadline) => deadline.id === selectedId) ?? null
+  const selected = deadlines.find((deadline) => deadline.id === selectedId) ?? null
 
   const complete = useCallback(
     async (id: string) => {
+      /* A class post is marked done on the student's own state row, which is
+       * the only part of a shared post they own. The post itself is untouched:
+       * one person finishing something does not finish it for thirty. */
+      const item = classItems.find((entry) => entry.id === id)
+      if (item) {
+        if (!userId) return
+        const next = item.status === 'done' || item.status === 'submitted' ? 'open' : 'done'
+        setClassItems((prev) =>
+          prev.map((entry) => (entry.id === id ? { ...entry, status: next } : entry)),
+        )
+        await markPostState(id, userId, next)
+        return
+      }
+
       const deadline = deadlines.find((entry) => entry.id === id)
       if (!deadline) return
 
@@ -152,7 +233,7 @@ export function DeadlinesView() {
       // Reminders for something already done are pure noise.
       if (done) await cancelDeadlineReminders(id)
     },
-    [deadlines],
+    [deadlines, classItems, userId],
   )
 
   return (
@@ -235,9 +316,9 @@ export function DeadlinesView() {
             ) : (
               <ListGroup>
                 <AnimatePresence initial={false}>
-                  {visible.map((deadline) => (
+                  {visible.map((row) => (
                     <motion.div
-                      key={deadline.id}
+                      key={`${row.source}-${row.id}`}
                       layout
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
@@ -245,20 +326,18 @@ export function DeadlinesView() {
                       transition={transition(spring.ui)}
                     >
                       <DeadlineRow
-                        id={deadline.id}
-                        title={deadline.title}
-                        dueAt={deadline.due_at}
-                        courseCode={
-                          deadline.enrollment_id
-                            ? courseByEnrollment.get(deadline.enrollment_id)
-                            : null
-                        }
-                        status={deadline.status}
-                        fromAnnouncement={deadline.source === 'announcement'}
+                        id={row.id}
+                        title={row.title}
+                        dueAt={row.dueAt}
+                        courseCode={row.courseCode}
+                        status={row.status}
+                        fromAnnouncement={row.fromAnnouncement}
+                        sectionCode={row.sectionCode}
+                        href={row.href}
                         now={now}
                         onComplete={complete}
-                        onOpen={paneOpen ? setSelectedId : undefined}
-                        selected={paneOpen && deadline.id === selectedId}
+                        onOpen={paneOpen && row.source === 'personal' ? setSelectedId : undefined}
+                        selected={paneOpen && row.source === 'personal' && row.id === selectedId}
                       />
                     </motion.div>
                   ))}

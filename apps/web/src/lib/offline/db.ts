@@ -1,6 +1,7 @@
 'use client'
 
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+import { withLocalKey } from './keys'
 
 /**
  * The local store.
@@ -32,6 +33,11 @@ export type EntityName =
   | 'announcements'
   | 'user_preferences'
   | 'user_thresholds'
+  | 'terms'
+  | 'groups'
+  | 'group_members'
+  | 'class_posts'
+  | 'class_post_states'
 
 export interface StoredRecord {
   id: string
@@ -129,31 +135,10 @@ function stripInternal(row: StoredRecord & { __entity: EntityName }): StoredReco
 
 // --- Writes --------------------------------------------------------------
 
-/**
- * Not every table is keyed on `id`. `user_preferences` is one row per student
- * keyed on `user_id`, and a record with no `id` cannot be written to a store
- * whose key path expects one — it fails at the IndexedDB layer with a message
- * that says nothing about which entity caused it.
- *
- * Rather than special-case the store, the local copy is stamped with a stable
- * `id` derived from whatever the real key is.
+/*
+ * Key derivation lives in `./keys`, shared with the sync engine so the local
+ * store and the queued write can never disagree about what identifies a row.
  */
-const ALTERNATE_KEY: Partial<Record<EntityName, string>> = {
-  user_preferences: 'user_id',
-}
-
-function withLocalKey(entity: EntityName, record: StoredRecord): StoredRecord | null {
-  if (typeof record.id === 'string' && record.id) return record
-
-  const alternate = ALTERNATE_KEY[entity]
-  const value = alternate ? record[alternate] : undefined
-  if (typeof value === 'string' && value) return { ...record, id: value }
-
-  // Skipped rather than thrown: one unkeyable row must not abort the whole
-  // pull and leave a student with an empty offline store.
-  console.warn(`onetup: skipped an unkeyable ${entity} row while caching.`)
-  return null
-}
 
 function keyed(entity: EntityName, records: readonly StoredRecord[]): StoredRecord[] {
   return records

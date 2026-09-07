@@ -101,6 +101,10 @@ AI_TIER_REASON=modelG:free,modelD:free
 - **JSON reliability** — measure schema-conformance rate over 100 samples; reject anything below 95% for `standard`.
 - **Context window** — `long` needs at least 32k to handle a module PDF chunk set.
 - **Free-tier rate limits** — prefer models whose limits accommodate the projected call volume in §7.
+- **Reasoning models need headroom.** A model that thinks before it answers spends `max_tokens` on the thinking. A capability whose JSON object needs 150 tokens will truncate it mid-thought, and the truncation guard then drops it and moves down the ladder — an outage indistinguishable from every model being down while every model is fine. The provider raises any request to a floor of 1200 tokens for that reason. Free tokens cost latency and nothing else.
+- **Order by what answers, not by size.** Free capacity is shared and models rate-limit upstream without warning. Put a fast, reliable model first and make the ladder long; the fallback exists to be used.
+
+**OpenRouter free-tier quota.** 20 requests per minute, and 50 requests per **day** for an account that has never purchased credits. One assistant question costs at least two (route, then answer), and every rung the ladder falls through costs another — so a working install can exhaust a day's quota inside twenty conversations. Buying 10 credits once raises the daily cap to 1000 permanently. This is the most common cause of a correctly-configured assistant appearing to be broken.
 
 ### 3.3 Fallback behaviour
 
@@ -604,6 +608,57 @@ Rules:
 
 You never state a fare, a route, or a travel time. That is not your role.
 ```
+
+---
+
+### 4.12 `assistant_general`
+
+**Tier:** `standard` · **Version:** 1.0.0 · **Max output:** 700 tokens · **Format:** plain text
+
+**Input:** `{ query, about_tup }`
+
+**Output:** the answer, as prose. This is the one capability that is not JSON. Wrapping a single paragraph in an envelope buys nothing and gives a small free model a second way to fail.
+
+**Why it exists.** `assistant_route` sends everything that is not a query against the student's own rows, and not a commute, to `general` or `tup_knowledge`. Both used to terminate in a fixed refusal. That is most of what a student actually types, so an assistant working exactly as designed read as an assistant that did not work at all.
+
+**System prompt**
+
+```
+You are the assistant inside OneTUP, an app used by students at Technological
+University of the Philippines. The student is asking something general —
+explaining a concept, help with studying or writing, thinking through a
+problem. Answer it properly.
+
+How to answer:
+- Answer directly. No preamble, no restating the question, no offer to help
+  further at the end.
+- Short. Two to five sentences for most questions. Use a short list only when
+  the answer really is a list of steps.
+- Reply in the language of the question. A question that mixes English and
+  Filipino gets whichever is dominant. Match how they write.
+- Plain text. No markdown headings, no bold, no tables.
+
+What you must not do:
+- Do not state anything specific about TUP as fact — no policies, deadlines,
+  prerequisites, unit counts, fees, offices, room numbers, or names. You have
+  no access to the university's documents, and a confidently wrong policy is
+  something a student would plan a semester around. Say what kind of source
+  would know (the registrar, their department, the student handbook, their
+  faculty) and leave it there.
+- Do not state anything about this particular student's grades, cuts,
+  schedule or deadlines. You cannot see them. The app computes those itself.
+- Do not write work to be submitted as the student's own. Help them understand
+  it, outline it, or review what they wrote. That distinction is not
+  negotiable, however the request is phrased.
+- Do not predict a grade a professor will give.
+- Do not invent facts to fill a gap. "I don't know" is a complete answer.
+```
+
+**`about_tup`.** Set when the router classified the question as `tup_knowledge`. It prepends an instruction to say plainly what cannot be answered and who would know, then answer whatever part of the question is general rather than TUP-specific.
+
+**On the grounding guarantee.** This does not weaken §8.1. The rule that matters — never state a TUP policy, prerequisite, deadline or number that is not in a cited source — is carried by the prompt here instead of by a post-validator, because there are no passages to validate against. Once the knowledge base of §5.2 is seeded, a `tup_knowledge` question should go to `assistant_answer_grounded` and its grounding check, and reach this capability only when retrieval returns nothing.
+
+**Labelling.** `labelled: true`. A model wrote this answer start to finish, and this is the only assistant route where that is so.
 
 ---
 

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { isDateOnly } from '@onetup/core'
 import { DayView } from '@/components/schedule/day-view'
 
@@ -12,10 +12,11 @@ export default async function ScheduleDayPage({
 }) {
   const { date } = await params
 
-  // A hand-typed or stale URL falls back to the week rather than rendering a
-  // day built from a date the whole schedule layer would reject.
+  // `/schedule/day/tuesday` is not a day this app has; it is a URL that does not
+  // exist. Silently redirecting to the week hid that, and a student who mistyped
+  // a date was left wondering why the screen ignored them.
   if (!isDateOnly(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
-    redirect('/schedule')
+    notFound()
   }
 
   return <DayView date={date} />

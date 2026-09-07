@@ -4,6 +4,7 @@ import {
   DEFAULT_ALLOWED_ABSENCES,
   DEFAULT_LATES_PER_ABSENCE,
   computeGwa,
+  countStatuses,
   formatGwa,
   formatTime12,
   formatWeekday,
@@ -14,6 +15,7 @@ import {
   summariseAttendance,
   urgencyOf,
   weekdayOf,
+  type AttendanceStatus,
   type ScheduleBlock,
   type Weekday,
 } from '@onetup/core'
@@ -119,12 +121,7 @@ const absencesRemaining: Template = {
     const summaries = enrollments.map((enrollment) => {
       const own = (records ?? []).filter((record) => record.enrollment_id === enrollment.id)
       const summary = summariseAttendance(
-        {
-          present: own.filter((r) => r.status === 'present').length,
-          absent: own.filter((r) => r.status === 'absent').length,
-          late: own.filter((r) => r.status === 'late').length,
-          excused: own.filter((r) => r.status === 'excused').length,
-        },
+        countStatuses(own.map((record) => record.status as AttendanceStatus)),
         {
           allowedAbsences:
             enrollment.allowed_absences ?? preferences?.default_allowed_absences ?? DEFAULT_ALLOWED_ABSENCES,

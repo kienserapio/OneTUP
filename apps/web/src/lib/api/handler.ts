@@ -131,6 +131,16 @@ function handleError(
   })
 }
 
+/**
+ * The path segments of a request, for a handler that needs its own route
+ * parameters. `authenticated()` wraps the handler rather than proxying Next's
+ * `context`, so a dynamic route reads its ids from the URL — the same thing
+ * `api/ai/[capability]` already does.
+ */
+export function segments(request: Request): string[] {
+  return new URL(request.url).pathname.split('/').filter(Boolean)
+}
+
 /** Parses and validates a JSON body, turning a schema failure into a 422. */
 export async function parseBody<T>(
   request: Request,

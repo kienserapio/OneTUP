@@ -1,6 +1,7 @@
 'use client'
 
 import { supabaseBrowser } from '../supabase/client'
+import { naturalKeyFor, primaryKeyOf } from './keys'
 import {
   type EntityName,
   type Mutation,
@@ -93,6 +94,10 @@ export const OFFLINE_SET: PullSpec[] = [
   { entity: 'user_preferences', table: 'user_preferences' },
   { entity: 'user_thresholds', table: 'user_thresholds' },
   { entity: 'courses', table: 'courses' },
+  // Reference, and tiny. It is here because the catch-up window has to know
+  // when the term began: without it, backfilling four weeks invents classes
+  // for dates that fell in the semestral break.
+  { entity: 'terms', table: 'terms' },
   { entity: 'enrollments', table: 'enrollments' },
   { entity: 'schedule_blocks', table: 'schedule_blocks' },
   { entity: 'grades', table: 'grades' },
@@ -117,6 +122,18 @@ export const OFFLINE_SET: PullSpec[] = [
     table: 'announcements',
     filter: (q) => q.gte('created_at', daysAgo(14)),
   },
+  /* The classroom. Small — a term of posts for one section is tens of rows —
+   * and read-only offline apart from a student's own state. `groups` is here
+   * because the section badge in Deadlines reads `section_code` from it, and a
+   * badge that disappears without signal is worse than no badge. */
+  { entity: 'groups', table: 'groups' },
+  { entity: 'group_members', table: 'group_members' },
+  {
+    entity: 'class_posts',
+    table: 'class_posts',
+    filter: (q) => q.gte('created_at', daysAgo(60)),
+  },
+  { entity: 'class_post_states', table: 'class_post_states' },
 ]
 
 export interface SyncResult {
@@ -302,24 +319,6 @@ async function applyMutation(supabase: SupabaseClient, mutation: Mutation): Prom
   const { error } = await target.update(mutation.payload).eq(keyColumn, id)
   if (error) throw new Error(error.message)
   return false
-}
-
-/** The column an update targets. Everything not listed is keyed on `id`. */
-function primaryKeyOf(entity: EntityName): string {
-  return entity === 'user_preferences' ? 'user_id' : 'id'
-}
-
-function naturalKeyFor(entity: EntityName): string | undefined {
-  switch (entity) {
-    case 'attendance_records':
-      return 'user_id,enrollment_id,session_date,block_id'
-    case 'grades':
-      return 'user_id,enrollment_id'
-    case 'user_preferences':
-      return 'user_id'
-    default:
-      return undefined
-  }
 }
 
 // --- Triggers ------------------------------------------------------------

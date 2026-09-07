@@ -8,6 +8,7 @@ import {
   blockNow,
   blocksOnDay,
   computeGwa,
+  countStatuses,
   freeBlocks,
   manilaDate,
   manilaMinutes,
@@ -25,9 +26,11 @@ import type {
   Enrollment,
   Grade,
   ScheduleBlockRow,
+  Term,
   UserPreferences,
 } from '@onetup/core'
 import { readAll } from '@/lib/offline/db'
+import { currentUserId, loadClassTrackerItems } from '@/lib/queries/classroom'
 
 /**
  * Assembles the Today view from the local store.
@@ -59,6 +62,26 @@ export interface AttendanceStanding {
   allowed: number
   remaining: number
   state: string
+}
+
+/**
+ * One thing that is due, from either source.
+ *
+ * Personal deadlines and class posts are merged here rather than in the
+ * database: a class post stays one shared row that thirty people read, and
+ * nothing is ever copied into a student's private `deadlines` table. The
+ * screens above this see one list and do not have to care which is which,
+ * except to say where a thing came from and where tapping it leads.
+ */
+export interface TrackerItem {
+  id: string
+  title: string
+  dueAt: string
+  status: 'open' | 'done' | 'dismissed'
+  source: 'personal' | 'class'
+  /** Set only for a class post: the section that published it. */
+  sectionCode: string | null
+  href: string
 }
 
 export interface AttendanceGap {
@@ -105,10 +128,11 @@ export interface TodayData {
   next: { block: CourseBlock; date: string; minutesUntil: number; isToday: boolean } | null
   /** Today's classes with no attendance recorded and whose end time has passed. */
   pendingAttendance: CourseBlock[]
-  /** Unrecorded classes from the previous 7 days. */
+  /** Unrecorded classes inside the catch-up window. See `CATCH_UP_DAYS`. */
   catchUp: AttendanceGap[]
-  dueSoon: Deadline[]
-  overdue: Deadline[]
+  /** Personal deadlines and class posts together, newest urgency first. */
+  dueSoon: TrackerItem[]
+  overdue: TrackerItem[]
   gaps: ReturnType<typeof freeBlocks>
   /** Courses at or past the caution threshold, worth surfacing unprompted. */
   attendanceWarnings: { code: string; remaining: number; state: string }[]
@@ -118,18 +142,44 @@ export interface TodayData {
   overview: TodayOverview
 }
 
+/**
+ * How far back the catch-up list looks.
+ *
+ * Seven days was the *reminder* window being reused as the *backfill* window,
+ * and the two are not the same thing. A student who lost a fortnight — flu, a
+ * phone that never fired the prompt, a schedule imported three weeks into the
+ * term — could never answer for those sessions at all, and every "absences
+ * left" figure in the module stayed permanently wrong as a result.
+ *
+ * Four weeks, and not more: attendance a student can no longer honestly
+ * remember is worse data than an unanswered session. The window is bounded
+ * again by the term's own start date below, so a backfill never invents
+ * classes that fell in the break.
+ */
+export const CATCH_UP_DAYS = 28
+
 export async function loadToday(now = new Date()): Promise<TodayData> {
-  const [blockRows, enrollments, courses, attendance, deadlines, prefsRows, grades, announcements] =
-    await Promise.all([
-      readAll<ScheduleBlockRow & { id: string }>('schedule_blocks'),
-      readAll<Enrollment & { id: string }>('enrollments'),
-      readAll<Course & { id: string }>('courses'),
-      readAll<AttendanceRecord & { id: string }>('attendance_records'),
-      readAll<Deadline & { id: string }>('deadlines'),
-      readAll<UserPreferences & { id: string }>('user_preferences'),
-      readAll<Grade & { id: string }>('grades'),
-      readAll<Announcement & { id: string }>('announcements'),
-    ])
+  const [
+    blockRows,
+    enrollments,
+    courses,
+    attendance,
+    deadlines,
+    prefsRows,
+    grades,
+    announcements,
+    terms,
+  ] = await Promise.all([
+    readAll<ScheduleBlockRow & { id: string }>('schedule_blocks'),
+    readAll<Enrollment & { id: string }>('enrollments'),
+    readAll<Course & { id: string }>('courses'),
+    readAll<AttendanceRecord & { id: string }>('attendance_records'),
+    readAll<Deadline & { id: string }>('deadlines'),
+    readAll<UserPreferences & { id: string }>('user_preferences'),
+    readAll<Grade & { id: string }>('grades'),
+    readAll<Announcement & { id: string }>('announcements'),
+    readAll<Term & { id: string }>('terms'),
+  ])
 
   const courseById = new Map(courses.map((c) => [c.id, c]))
   const enrollmentById = new Map(enrollments.map((e) => [e.id, e]))
@@ -181,12 +231,7 @@ export async function loadToday(now = new Date()): Promise<TodayData> {
   for (const enrollment of enrollments) {
     const records = attendance.filter((r) => r.enrollment_id === enrollment.id)
     const summary = summariseAttendance(
-      {
-        present: records.filter((r) => r.status === 'present').length,
-        absent: records.filter((r) => r.status === 'absent').length,
-        late: records.filter((r) => r.status === 'late').length,
-        excused: records.filter((r) => r.status === 'excused').length,
-      },
+      countStatuses(records.map((record) => record.status)),
       {
         allowedAbsences:
           enrollment.allowed_absences ??
@@ -204,13 +249,24 @@ export async function loadToday(now = new Date()): Promise<TodayData> {
     })
   }
 
+  /* A session is only offerable back to the day its own term began. The bound
+   * is per enrolment rather than global because a student can be carrying a
+   * subject from a term that started on a different date. */
+  const termStartByEnrollment = new Map<string, string | null>()
+  const startsOn = new Map(terms.map((term) => [term.id, term.starts_on]))
+  for (const enrollment of enrollments) {
+    termStartByEnrollment.set(enrollment.id, startsOn.get(enrollment.term_id) ?? null)
+  }
+
   const catchUp: AttendanceGap[] = []
-  for (let offset = 1; offset <= 7; offset++) {
+  for (let offset = 1; offset <= CATCH_UP_DAYS; offset++) {
     const date = shiftDate(today, -offset)
     const day = weekdayOfDate(date)
     for (const block of blocksOnDay(blocks, day) as CourseBlock[]) {
       if (!block.enrollmentId) continue
       if (recorded.has(`${block.id}|${date}`)) continue
+      const termStart = termStartByEnrollment.get(block.enrollmentId)
+      if (termStart && date < termStart) continue
       catchUp.push({
         block,
         date,
@@ -219,17 +275,48 @@ export async function loadToday(now = new Date()): Promise<TodayData> {
     }
   }
 
-  const openDeadlines = deadlines.filter((d) => d.status === 'open')
-  const dueSoon = openDeadlines
-    .filter((d) => {
-      const urgency = urgencyOf({ dueAt: d.due_at, status: 'open' }, now)
+  /* The union. A class post with a due date is a thing that is due, and Today
+   * has no reason to sort it into a different pile from the student's own — the
+   * only difference that matters on this screen is where tapping it leads. */
+  const userId = await currentUserId()
+  const classItems = userId ? await loadClassTrackerItems(userId) : []
+
+  const openItems: TrackerItem[] = [
+    ...deadlines
+      .filter((deadline) => deadline.status === 'open')
+      .map((deadline) => ({
+        id: deadline.id,
+        title: deadline.title,
+        dueAt: deadline.due_at,
+        status: 'open' as const,
+        source: 'personal' as const,
+        sectionCode: null,
+        href: `/deadlines/${deadline.id}`,
+      })),
+    ...classItems
+      .filter((item) => item.status === 'open')
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        dueAt: item.dueAt,
+        status: 'open' as const,
+        source: 'class' as const,
+        sectionCode: item.sectionCode,
+        href: `/classroom/posts/${item.id}`,
+      })),
+  ]
+
+  const openDeadlines = openItems
+  const dueSoon = openItems
+    .filter((item) => {
+      const urgency = urgencyOf({ dueAt: item.dueAt, status: 'open' }, now)
       return urgency === 'critical' || urgency === 'urgent'
     })
-    .sort((a, b) => Date.parse(a.due_at) - Date.parse(b.due_at))
+    .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt))
 
-  const overdue = openDeadlines
-    .filter((d) => urgencyOf({ dueAt: d.due_at, status: 'open' }, now) === 'overdue')
-    .sort((a, b) => Date.parse(a.due_at) - Date.parse(b.due_at))
+  const overdue = openItems
+    .filter((item) => urgencyOf({ dueAt: item.dueAt, status: 'open' }, now) === 'overdue')
+    .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt))
 
   const attendanceWarnings = enrollments
     .map((enrollment) => {

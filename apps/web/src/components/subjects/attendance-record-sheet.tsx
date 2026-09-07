@@ -26,6 +26,12 @@ const OPTIONS: { status: AttendanceStatus; label: string; color: string; hint?: 
     color: 'var(--info)',
     hint: 'Approved absences are not counted against your limit.',
   },
+  {
+    status: 'cancelled',
+    label: 'Cancelled',
+    color: 'var(--label-secondary)',
+    hint: 'The class did not meet — a suspension, or nobody came. Counted neither way.',
+  },
 ]
 
 export interface AttendanceRecordSheetProps {
@@ -90,7 +96,7 @@ export function AttendanceRecordSheet({
         <div
           role="group"
           aria-label="Attendance status"
-          className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+          className="grid grid-cols-2 gap-2 sm:grid-cols-5"
         >
           {OPTIONS.map((option) => (
             <motion.button

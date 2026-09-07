@@ -33,6 +33,11 @@ Free forever, for every TUP student, in every program.
 | 09 | [Implementation Plan & QA](09-IMPLEMENTATION-PLAN.md) | SDLC phases, sprints, testing, release, ops | Everyone |
 | 10 | [Future Enhancements](10-FUTURE-ENHANCEMENTS.md) | Agentic roadmap, TUP Data API strategy | Product |
 | 11 | [Build Handover](11-HANDOVER.md) | What was actually built, what bites, what is pending | Engineers |
+| 12 | [Classrooms](12-CLASSROOMS-PLAN.md) | Block-section classrooms, the shared tracker, submission logs — built through Phase 4; push deferred | Engineers, product |
+| 13 | [Commute Routing](13-COMMUTE-ROUTING-PLAN.md) | Real path geometry on the map, and where the route and fare data actually comes from — **plan only** | Engineers |
+| 14 | [Assistant](14-ASSISTANT-PLAN.md) | A second model provider, an assistant that is not bland, and one that can answer a commute question — **plan only** | Engineers |
+| 15 | [Class Suspensions](15-SUSPENSIONS-PLAN.md) | *Walang pasok* as an advisory a student acts on, never an automatic cancellation — **plan only** | Engineers, product |
+| 16 | [The Next Eight](16-NEXT-EIGHT.md) | Which eight features happen next and in what order, with the detail for the two that have no plan of their own — **plan only** | Everyone |
 
 ### Outside this folder
 

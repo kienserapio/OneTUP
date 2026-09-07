@@ -65,6 +65,18 @@ const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
 const DEFAULT_TIMEOUT_MS = 30_000
 
 /**
+ * Most of the free ladder is now reasoning models, and a reasoning model spends
+ * its budget thinking before it writes a character of the answer. A capability
+ * that asks for 150 tokens because its JSON object is small was handing those
+ * models a budget they exhausted mid-thought, and the truncation guard below
+ * then dropped them one by one until the ladder ran out — an outage that looked
+ * exactly like "the AI is down" while every model in it was perfectly healthy.
+ *
+ * Free tokens are free. The floor costs latency and nothing else.
+ */
+const MIN_MAX_TOKENS = 1200
+
+/**
  * Tries each model in the tier in order, moving on for a rate limit, a 5xx, a
  * timeout or an empty completion. Exhausting the ladder is `AI_UNAVAILABLE` —
  * a designed state that names only the affected capability, never a stack.
@@ -136,7 +148,7 @@ async function callModel(
           { role: 'system', content: request.system },
           { role: 'user', content: userContent },
         ],
-        max_tokens: request.maxTokens,
+        max_tokens: Math.max(request.maxTokens, MIN_MAX_TOKENS),
         temperature: request.temperature ?? 0.2,
         ...(request.json ? { response_format: { type: 'json_object' } } : {}),
       }),

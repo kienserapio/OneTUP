@@ -150,19 +150,21 @@ export function TodayView({ firstName }: { firstName: string | null }) {
             Due soon
           </SectionHeader>
           <ListGroup>
-            {urgent.slice(0, 5).map((deadline) => (
+            {urgent.slice(0, 5).map((item) => (
               <ListRow
-                key={deadline.id}
-                href={`/deadlines/${deadline.id}`}
-                title={deadline.title}
-                subtitle={describeTimeLeft(deadline.due_at, now)}
+                key={`${item.source}-${item.id}`}
+                href={item.href}
+                title={item.title}
+                subtitle={[item.sectionCode, describeTimeLeft(item.dueAt, now)]
+                  .filter(Boolean)
+                  .join(' · ')}
                 leading={
                   <span
                     aria-hidden
                     className="block size-2.5 rounded-full"
                     style={{
                       background: urgencyColor(
-                        urgencyOf({ dueAt: deadline.due_at, status: 'open' }, now),
+                        urgencyOf({ dueAt: item.dueAt, status: 'open' }, now),
                       ),
                     }}
                   />
@@ -198,8 +200,8 @@ export function TodayView({ firstName }: { firstName: string | null }) {
         <Card className="flex items-center gap-3 p-4">
           <IconClock size={22} className="shrink-0 text-[var(--label-secondary)]" />
           <p className="type-subheadline flex-1">
-            {data.catchUp.length} class{data.catchUp.length === 1 ? '' : 'es'} from the past week
-            still need an answer.
+            {data.catchUp.length} class{data.catchUp.length === 1 ? '' : 'es'} from the past four
+            weeks still need an answer.
           </p>
           <ButtonLink href="/subjects/catch-up" size="sm" variant="plain">
             Catch up
