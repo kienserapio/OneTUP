@@ -97,7 +97,7 @@ function matchCourse(
 
 const absencesRemaining: Template = {
   name: 'absences_remaining',
-  description: 'How many absences the student has left, overall or in one subject',
+  description: 'How many absences the student has left, overall or in one subject — use for any question about cuts, skipping, or being absent',
   async run({ supabase, userId }, parameters) {
     const enrollments = await loadEnrollments(supabase)
     if (enrollments.length === 0) {
@@ -169,7 +169,7 @@ const absencesRemaining: Template = {
 
 const freeBlocksTemplate: Template = {
   name: 'free_blocks',
-  description: 'When the student is free on a given day',
+  description: 'Which classes a student has on a given weekday, and the gaps between them — use to find out whether there is a class on a particular day',
   async run({ supabase, userId, now }, parameters) {
     const { data: blocks } = await supabase
       .from('schedule_blocks')
@@ -229,7 +229,7 @@ const freeBlocksTemplate: Template = {
 
 const deadlinesDue: Template = {
   name: 'deadlines_due',
-  description: 'What is due, optionally within a window',
+  description: 'Deadlines and requirements coming up, optionally within a window',
   async run({ supabase, now }, parameters) {
     const horizonDays = Number(parameters.days ?? 7)
     const until = new Date(now.getTime() + horizonDays * 86_400_000).toISOString()
@@ -320,7 +320,7 @@ const gradeNeeded: Template = {
 
 const nextClass: Template = {
   name: 'next_class',
-  description: 'What and where the next class is',
+  description: 'The next class: which subject, when, and which room',
   async run({ supabase, now }) {
     const weekday = manilaWeekday(now)
     const { data } = await supabase
