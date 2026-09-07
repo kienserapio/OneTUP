@@ -52,7 +52,13 @@ export default defineConfig({
         // The web app's own pure modules — key derivation, and anything else
         // whose failure mode is silent enough to be worth pinning down.
         resolve: {
-          alias: { '@onetup/core': resolve(repoRoot, 'packages/core/src/index.ts') },
+          alias: {
+            '@onetup/core': resolve(repoRoot, 'packages/core/src/index.ts'),
+            // The app's own path alias, so a test can import a module by the
+            // same specifier the app uses rather than by a relative path that
+            // breaks the moment either file moves.
+            '@': resolve(repoRoot, 'apps/web/src'),
+          },
         },
         test: {
           name: 'web',

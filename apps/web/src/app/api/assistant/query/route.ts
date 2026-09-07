@@ -3,15 +3,22 @@ import { authenticated, parseBody } from '@/lib/api/handler'
 import { enforceLimit } from '@/lib/api/rate-limit'
 import { supabaseServer } from '@/lib/supabase/server'
 import { runCapability } from '@/lib/ai/gateway'
+import { HistorySchema } from '@/lib/ai/capabilities'
 import { TEMPLATES, TEMPLATE_NAMES } from '@/lib/assistant/templates'
 
 /**
  * The assistant.
  *
  * Routing is the main failure mode, so classification is a small, tightly
- * constrained call with a fixed enum output. Below 0.7 confidence the assistant
- * asks rather than guesses — a confidently misrouted question is worse than one
- * more exchange.
+ * constrained call with a fixed enum output. Below its route's confidence floor
+ * the assistant asks rather than guesses — a confidently misrouted question is
+ * worse than one more exchange. The floors differ by what a wrong guess costs;
+ * see `CONFIDENCE_FLOOR`.
+ *
+ * The router sees the conversation, not just the latest message. Most of what a
+ * student types after their first question is a fragment — "what about MATH
+ * 2103?", "and tomorrow?" — and a classifier reading those alone has nothing to
+ * go on.
  *
  * `labelled` is false for `own_data` and `commute`, because the numbers were
  * computed and only the phrasing came from a template. Labelling those would
@@ -24,7 +31,29 @@ export const maxDuration = 60
 const QueryRequest = z.object({
   query: z.string().min(1).max(1000),
   locale: z.enum(['en', 'fil', 'auto']).default('auto'),
+  /** The last few turns, oldest first. See `HistorySchema` for why it matters. */
+  history: HistorySchema,
 })
+
+/**
+ * How sure the router has to be before the assistant acts rather than asks.
+ *
+ * Not one number. A wrong guess on `own_data` reports a wrong cut count, and a
+ * wrong guess on `action` writes a row — both are worse than one more exchange,
+ * so those stay at 0.7. A wrong guess on `general` costs a mediocre answer to a
+ * question the student can simply rephrase, and holding it to the same bar was
+ * making the assistant ask "what do you mean?" about perfectly clear questions.
+ */
+const CONFIDENCE_FLOOR: Record<string, number> = {
+  own_data: 0.7,
+  action: 0.7,
+  commute: 0.6,
+  navigation: 0.6,
+  tup_knowledge: 0.5,
+  general: 0.5,
+}
+
+const DEFAULT_FLOOR = 0.7
 
 export const POST = authenticated(async (request, { user }) => {
   const body = await parseBody(request, QueryRequest)
@@ -46,7 +75,7 @@ export const POST = authenticated(async (request, { user }) => {
   const routed = (
     await runCapability(
       'assistant_route',
-      { query: body.query, available_templates: TEMPLATE_NAMES },
+      { query: body.query, available_templates: TEMPLATE_NAMES, history: body.history },
       { userId: user.id, redaction },
     )
   ).output as {
@@ -56,7 +85,7 @@ export const POST = authenticated(async (request, { user }) => {
     confidence: number
   }
 
-  if (routed.confidence < 0.7) {
+  if (routed.confidence < (CONFIDENCE_FLOOR[routed.route] ?? DEFAULT_FLOOR)) {
     return {
       route: 'clarify',
       answer:
@@ -196,7 +225,7 @@ export const POST = authenticated(async (request, { user }) => {
     const answer = (
       await runCapability(
         'assistant_general',
-        { query: body.query, about_tup: isAboutTup },
+        { query: body.query, about_tup: isAboutTup, history: body.history },
         { userId: user.id, redaction },
       )
     ).output as string

@@ -241,11 +241,61 @@ ${input.ocr_text}
   },
 }
 
+// --- Conversation history --------------------------------------------------
+
+/**
+ * The last few turns, oldest first.
+ *
+ * This is what makes *"what about MATH 2103?"* a question at all. Without it
+ * the router sees six words with no verb and classifies them as `general` at
+ * low confidence, and the assistant asks the student to repeat themselves —
+ * which is the loudest complaint the assistant has.
+ *
+ * Three things about it are load-bearing:
+ *
+ * 1. **It goes to the router, not only to the answer.** The follow-up above is
+ *    only `own_data` with template `absences_remaining` if the previous turn is
+ *    in front of the classifier. That is the entire point.
+ * 2. **It lives inside the capability input**, so `buildCacheKey` hashes it.
+ *    Passed alongside the input instead, two students asking the same follow-up
+ *    after different questions would share an answer — a privacy bug wearing a
+ *    caching bug's clothes.
+ * 3. **It is redacted like everything else.** `redactDeep` walks the whole
+ *    input object, so history is covered by construction rather than by
+ *    remembering to cover it.
+ *
+ * Six turns and 2000 characters each. Long enough for a real exchange, short
+ * enough that a fast-tier model still has room to think.
+ */
+export const HistoryTurn = z.object({
+  role: z.enum(['student', 'assistant']),
+  text: z.string().max(2000),
+})
+
+export const HistorySchema = z.array(HistoryTurn).max(6).default([])
+
+export type HistoryTurn = z.infer<typeof HistoryTurn>
+
+/** History as the model reads it. Empty history contributes nothing at all. */
+export function renderHistory(history: readonly HistoryTurn[]): string {
+  if (history.length === 0) return ''
+  const lines = history.map(
+    (turn) => `${turn.role === 'student' ? 'Student' : 'Assistant'}: ${turn.text}`,
+  )
+  return `earlier in this conversation (oldest first):
+"""
+${lines.join('\n')}
+"""
+
+`
+}
+
 // --- assistant_route ------------------------------------------------------
 
 const RouteInput = z.object({
   query: z.string().min(1).max(1000),
   available_templates: z.array(z.string()),
+  history: HistorySchema,
 })
 
 const RouteOutput = z.object({
@@ -261,7 +311,11 @@ export const assistantRoute: Capability<
 > = {
   name: 'assistant_route',
   tier: 'fast',
-  version: '1.0.0',
+  /* 1.1.0: the classifier now reads conversation history. The version bump
+   * invalidates the cache by construction, which is what has to happen — a
+   * cached routing decision made without history would be reused for a
+   * follow-up whose whole meaning is in the history. */
+  version: '1.1.0',
   maxTokens: 150,
   input: RouteInput,
   output: RouteOutput,
@@ -291,10 +345,19 @@ or could belong to more than one route — the system will ask the student to
 clarify rather than guessing.
 
 The student may write in English, Filipino, or a mix. Classify on meaning,
-not language.`,
+not language.
+
+If earlier turns are given, read the question as a continuation of them. A
+follow-up is usually a fragment: "what about MATH 2103?" after a question about
+cuts is own_data with the same template as before, not general. "and tomorrow?"
+after a schedule question is still about the schedule. Carry the earlier
+template and fill its parameters from the fragment. Confidence should go UP when
+the history makes an ambiguous fragment clear, not down.
+
+A question that changes the subject outright ignores the history entirely.`,
   buildUser: (input) => `available_templates: ${input.available_templates.join(', ')}
 
-question:
+${renderHistory(input.history)}question:
 """
 ${input.query}
 """`,
@@ -410,14 +473,20 @@ const GeneralInput = z.object({
   query: z.string().min(1).max(1000),
   /** Set when the router said the question is about TUP itself. */
   about_tup: z.boolean().default(false),
+  history: HistorySchema,
 })
 
 export const assistantGeneral: Capability<z.infer<typeof GeneralInput>, string> = {
   name: 'assistant_general',
   tier: 'standard',
-  version: '1.0.0',
+  /* Raised for this capability alone. Extraction stays at 0.2, where
+   * determinism is the entire point — a deadline parsed two different ways
+   * from the same message is a bug. This one is writing prose to a person, and
+   * 0.4 produced answers that read like a form letter, especially in Taglish
+   * where the natural register is not the most probable token. */
+  version: '1.1.0',
   maxTokens: 700,
-  temperature: 0.4,
+  temperature: 0.6,
   // Prose in, prose out. A JSON envelope around one paragraph buys nothing and
   // gives a small free model a second way to fail.
   json: false,
@@ -431,11 +500,17 @@ problem. Answer it properly.
 How to answer:
 - Answer directly. No preamble, no restating the question, no offer to help
   further at the end.
-- Short. Two to five sentences for most questions. Use a short list only when
-  the answer really is a list of steps.
+- Short. Two to five sentences for most questions. "How many cuts do I have"
+  is a sentence; five bullets about it is a worse answer, not a fuller one.
+- Use a list only when the answer really is a sequence of steps or a set of
+  separate options. Then, and only then, start each line with "- ".
 - Reply in the language of the question. A question that mixes English and
-  Filipino gets whichever is dominant. Match how they write.
-- Plain text. No markdown headings, no bold, no tables.
+  Filipino gets whichever is dominant — and if they write Taglish, write
+  Taglish back. A student who writes "pwede pa ba ako mag-cut" and gets formal
+  English has been answered by something that was not paying attention.
+- Plain text otherwise. No headings, no bold, no italics, no tables, no
+  numbered lists, no code fences. A leading "- " is the only markup you may
+  use.
 
 What you must not do:
 - Do not state anything specific about TUP as fact — no policies, deadlines,
@@ -458,11 +533,11 @@ documents, so do not state its policies. Say briefly and plainly what you cannot
 answer and who would actually know, and answer any part that is general rather
 than TUP-specific.
 
-question:
+${renderHistory(input.history)}question:
 """
 ${input.query}
 """`
-      : `question:
+      : `${renderHistory(input.history)}question:
 """
 ${input.query}
 """`,
