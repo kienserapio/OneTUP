@@ -1,6 +1,11 @@
 # OneTUP — Making the assistant worth opening
 
-**Status:** plan only. Nothing in this document is built.
+**Status:** **§4, §5, §6 and §8 Phase 5 built** (September 2026) — conversation
+memory, answer shape, commute answers, and tool use. **§3 is cancelled**: a
+second model provider was rejected and OpenRouter stays the only vendor
+([16-NEXT-EIGHT.md](16-NEXT-EIGHT.md) §2). Read doc 16 §§6–7 and §10 for what
+was built differently, including the composition gate that keeps tool use inside
+the free tier's daily quota.
 **Superseded in part:** §3 and Phase 2 of §8 — the second provider — are
 **cancelled**. OneTUP stays on OpenRouter alone; see
 [16-NEXT-EIGHT.md](16-NEXT-EIGHT.md) §2 for the decision and §3 for what

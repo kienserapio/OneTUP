@@ -17,7 +17,7 @@ OneTUP *should* be; this describes what it *is*.
 | | |
 |---|---|
 | Migrations applied | 38 (`001`–`038`) |
-| Tests | 552 passing, 26 files — 469 domain, 32 web, 9 scripts, 51 against the live database |
+| Tests | 552 passing, 26 files — 457 domain, 35 web, 9 scripts, 51 against the live database |
 | TypeScript | `tsc --noEmit` clean across the workspace |
 | Lint | `pnpm lint` clean — 0 errors (it had not run at all since the Next 16 upgrade) |
 | Production build | Clean, 74 route entries |
@@ -49,7 +49,7 @@ mark submitted, leave), and every screen at 414px and 1440px.
 
 ### Domain logic — `packages/core`
 
-Pure functions, no I/O, 375 tests. This is where every number comes from.
+Pure functions, no I/O, 457 tests. This is where every number comes from.
 
 | Module | Covers |
 |---|---|
@@ -59,8 +59,12 @@ Pure functions, no I/O, 375 tests. This is where every number comes from.
 | `deadlines/urgency` | Urgency bands, recomputed per render, never stored |
 | `commute/departure` | Bounded 3-pass wake/leave solver with a templated explanation |
 | `commute/fares` | Fares as rules, not stored figures |
-| `study/sm2` | Spaced repetition scheduling |
+| `study/sm2` | Spaced repetition. `scheduleReview` is the single answer to "when does this card come back" — SM-2 step then deadline compression, called by both the write path and the button preview |
+| `study/chunk` | Splitting a document into passages. For provenance, not context windows: a card points at the chunk it came from |
 | `text/simhash` | Near-duplicate announcement detection |
+| `text/grounding` | `unsupportedNumbers` — every figure in a composed assistant answer must appear in what it was composed from |
+| `suspensions/advisory` | Which of several notices about one typhoon reaches the screen. Narrowest scope wins |
+| `commute/answer` | Which routes an answer mentions, and when it owes the student a staleness warning |
 | `grades/parse-grades` | ERS grade rows into subjects, units and marks, per term |
 | `sections/parse` | Block-section codes. One section typed four ways canonicalises to one classroom |
 | `classroom/tracker` | The classroom projections. Per post, never across posts — the shapes here cannot express a per-member score |
@@ -74,13 +78,13 @@ import, re-sync), Deadlines (+ detail, new), Announcements (+ share intake),
 Classroom (+ create, join by invite, members, post detail with its submission
 log).
 Academics: Subjects (+ detail, GWA, grade import, term breakdown, catch-up),
-Faculty evaluations.
+Study (+ new pack, pack detail, review session), Faculty evaluations.
 More: Ask OneTUP, Campus, Settings.
 Public: landing, campus (map and 360° tour, one page), contributors, docs,
 report a problem, sign-in/up, reset, privacy, terms, offline.
 
-All eight app screens carry the same dashboard density: a figure strip up top,
-two columns above 1024px, one below.
+Every app screen carries the same dashboard density: a figure strip up top, two
+columns above 1024px, one below.
 
 Added since the first handover:
 
@@ -92,6 +96,17 @@ Added since the first handover:
 | Import | Identity verification (`lib/import/verify-identity.ts`) — a pasted schedule belonging to someone else is caught before it is written |
 | Landing | Rebuilt: one hero wordmark, a data bento, reveal primitives, the campus section merged into the tour page, nav and header collapsed into `site-nav` |
 | Public pages | `/contributors` and `/docs` |
+
+Added by the eight features of `16-NEXT-EIGHT.md`:
+
+| Area | What landed |
+|---|---|
+| AI | All five model ladders rebuilt against the live list. `pnpm check:models` fails CI on a withdrawn rung, which is what turns a silent tier-of-one into a red build |
+| Study | The whole feature. Packs, hand-written cards, a review session whose four buttons each state the interval they will set, and generation from pasted notes. Every generated card is marked and linked to its source chunk |
+| Today | Suspension advisories. Three actions, none of which the app decides for the student — see `036` and §8 |
+| Assistant | Conversation memory (the router reads the last three exchanges), answers that may use one list, per-route confidence floors, commute answers that know the departure hour, and tool use: two lookups composed, with receipts and a grounding check |
+| Commute | `geometry_source`, and `scripts/route-walk-legs.mjs` to fill in walk-leg paths from a public Valhalla instance |
+| Lint | `next lint` was removed in Next 16 and the script had been failing since the upgrade. Flat-config ESLint replaces it |
 
 ### Sync worker — `apps/worker`
 
@@ -116,7 +131,9 @@ pnpm build        # core, then web
 pnpm test         # domain tests
 pnpm db:push      # apply pending migrations
 pnpm db:check     # schema safeguards
-pnpm db:types     # regenerate database.types.ts
+pnpm db:types     # regenerate database.types.ts (needs Docker and Supabase CLI >= 2.116)
+pnpm check:models # diff the AI ladders against OpenRouter's live model list
+pnpm route:walk   # fill in walk-leg geometry; --probe and --dry-run first
 ```
 
 The worker runs separately (`apps/worker`, see its README). **ERS import
@@ -192,6 +209,54 @@ checks were all present, so it tried to create accounts against
 `ci.supabase.co`. The workflow now writes `SUPABASE_PLACEHOLDER=true` and the
 suite treats a marked environment as no environment.
 
+**A flush that drops a concurrent call loses the second of two writes.** The
+sync engine reads its mutation queue once per run, so anything enqueued after
+that read is invisible to it. A boolean guard that made a concurrent `flush()`
+return immediately therefore did not mean "already handled" — it meant "your
+write waits up to fifteen minutes". Recording one flashcard review is two
+queued writes back to back; only the history row reached the server, and the
+student saw it save because locally it had. `single-flight.ts` defers instead
+of dropping. Any new pair of back-to-back writes depends on this.
+
+**A paused Supabase project returns NXDOMAIN, not a timeout.** It also
+disappears from the management API's project list. Both together read exactly
+like a deleted project, and the tests that hit it failed with
+`AuthRetryableFetchError: fetch failed` thirty lines into a GoTrue stack trace.
+`supabase/tests/env.ts` now names the URL and the likely cause in one line.
+Before concluding a project is gone, open the dashboard and look.
+
+**`pnpm db:types` needs Supabase CLI 2.116 or newer.** 2.84 segfaults its
+pg-meta container (`exit 139`) with no useful message. The newer CLI also
+stopped emitting the `graphql_public` schema — nothing referenced it — and
+began typing RPC *arguments* as non-nullable, which broke `commit_schedule`:
+`021` declares `p_job_id uuid` and branches on `is not null`, because a paste
+import has no job. The generated types cannot express that; the database is
+right.
+
+**Storage buckets do not exist until a migration creates them.**
+`announcement-images` had been referenced by the share target since it shipped,
+and every upload was failing — silently, because that route treats an upload
+error as "no image" and carries on. `038` creates both buckets. Their access
+rule is a *path prefix*, not a column, so nothing about a bucket looks like RLS
+until you read the migration.
+
+**The free model ladder's first rung is often rate-limited.** Free capacity is
+shared, and a 429 from the first rung is routine — the ladder exists for it. Any
+throwaway script that calls OpenRouter directly must walk the ladder too, or a
+healthy app will look broken while you debug the script.
+
+**"JSON-capable" means `response_format`, not `structured_outputs`.** The
+provider asks for `{ type: 'json_object' }`. Only three free models advertise
+`structured_outputs` — the stricter `json_schema` mode nothing here uses — and
+reading that field instead makes a perfectly healthy ladder look one rung deep.
+
+**A zod `.default([])` does not fire on an explicit `null`.** A small free model
+that answers correctly and writes `need: null` took a route down until
+`.catch([])` was added beside it. The same applies to any field the prompt does
+not explicitly ask for: `commute_intent` required a `confidence` its own prompt
+never mentioned, so every real call failed validation and burned the gateway's
+one repair attempt before anyone noticed.
+
 **GitHub reads the whole `LICENSE` file.** One appended paragraph about
 university marks made the repository show "Other" instead of "MIT" — the one
 field a visitor checks before forking. `LICENSE` is the unmodified MIT text;
@@ -262,6 +327,10 @@ published privacy commitment.
 
 Ordered by how much it costs to leave undone.
 
+0. **Merge `feat/next-eight`.** Everything in this document beyond commit
+   `af9ee4c` lives on that branch — the classrooms feature and all eight
+   features of `16-NEXT-EIGHT.md`, thirteen commits. `main` does not have them.
+   A green build on an unmerged branch is not a shipped project.
 1. **TUPniverse permission — now overdue.** `github.com/smnthegr/TUPniverse`
    has no licence and the campus page embeds their tour. The repository is
    already public, so this is no longer a pre-launch item. `NOTICE.md` states
@@ -274,7 +343,7 @@ Ordered by how much it costs to leave undone.
    anyone who did not.
 3. **Repository secrets.** The `schema` CI job skips itself without them, so
    the safeguards from `04-DATA-MODEL.md §17` are currently **not** running on
-   any push. Add `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`,
+   any push — they pass locally (`pnpm db:check`, 4/4) and nowhere else. Add `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`,
    `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_CONNECTION_STRING` (and optionally
    `SUPABASE_POOLER_HOST`) under Settings → Secrets → Actions.
 4. **Branch ruleset on `main`.** See §10.
@@ -314,7 +383,9 @@ checked — but it should still be rotated.
 | Question | File |
 |---|---|
 | How a screen should look | `src/components/today/today-view.tsx` — the reference for density |
-| How data flows offline | `src/lib/offline/sync.ts` |
+| How data flows offline | `src/lib/offline/sync.ts`, and `single-flight.ts` for why a flush defers rather than drops |
+| Why the assistant may never state a number it made up | `packages/core/src/text/grounding.ts` and `src/lib/assistant/compose.ts` |
+| What a model is allowed to do, and where the prompts live | `src/lib/ai/capabilities.ts` — one file, every capability |
 | How ERS is scraped | `apps/worker/src/scrape.ts` |
 | Why the schema is shaped this way | `docs/04-DATA-MODEL.md`, `docs/02-ARD.md` |
 | What the numbers mean | `packages/core/src/**` and its tests |
