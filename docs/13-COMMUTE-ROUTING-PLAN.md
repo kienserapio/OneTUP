@@ -1,6 +1,10 @@
 # OneTUP — Real commute routes on the map
 
-**Status:** plan only. Nothing in this document is built.
+**Status:** **Phase 1 built** (September 2026) — migration `037` and
+`scripts/route-walk-legs.mjs`. Phases 2–4 are still plan only. See
+[16-NEXT-EIGHT.md](16-NEXT-EIGHT.md) §8, which records where the build departed
+from §9 below: the detour limit is 6, not 3, because the first pair tested
+crosses the Pasig River.
 **Date:** August 2026
 **Depends on:** [02-ARD.md](02-ARD.md) (ADR-010, ADR-011), [04-DATA-MODEL.md](04-DATA-MODEL.md), [11-HANDOVER.md](11-HANDOVER.md) §6
 

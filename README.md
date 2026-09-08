@@ -71,6 +71,7 @@ LRT-1 takes at 6 AM in the rain.
 | 📣 **Announcements** | Share a screenshot or a wall of text into it; it comes back as a dated, structured item. |
 | 🚌 **Commute** | Real routes and real fares, working backwards to when you should wake up and walk out. |
 | 👥 **Classroom** | One shared tracker for your block section. Anyone can post; it lands in everyone's deadlines. |
+| 🃏 **Study** | Flashcards with spaced repetition. Write them, or paste your notes and have them written. Every card says when you will next see it, before you answer. |
 | 🗺️ **Campus** | Room codes, buildings, gates, printing spots, the clinic — and a 360° walkthrough. No account needed. |
 | 🤖 **Assistant** | Phrases and explains. It never invents a number — see the constraint below. |
 
@@ -187,8 +188,10 @@ SUPABASE_POOLER_HOST=aws-0-ap-southeast-1.pooler.supabase.com
 | `pnpm db:push` | Applies pending migrations, each in one transaction |
 | `pnpm db:status` | Applied vs pending |
 | `pnpm db:check` | The schema safeguards from the data model doc §17 |
-| `pnpm db:types` | Regenerates `packages/core/src/database.types.ts` (needs Docker) |
+| `pnpm db:types` | Regenerates `packages/core/src/database.types.ts` (needs Docker and Supabase CLI ≥ 2.116) |
 | `pnpm db:psql` | An interactive shell against the project |
+| `pnpm check:models` | Diffs the AI model ladders against OpenRouter's live list; fails on a withdrawn one |
+| `pnpm route:walk` | Fills in walk-leg geometry. `--probe` checks the pipeline without a database |
 
 ---
 
@@ -359,7 +362,7 @@ deeper from Today, because a bar with nine destinations is a menu.
 ## Testing
 
 ```sh
-pnpm test          # 435 tests, ~30s
+pnpm test          # 552 tests, ~20s
 pnpm test:watch
 ```
 
@@ -367,7 +370,9 @@ pnpm test:watch
   new calculation ships with tests for the boundary cases — the 1.00, the
   zero-unit subject, the term with a dropped course.
 - **The RLS suite** in `supabase/tests/` skips itself without credentials, so
-  the suite stays green on a fresh clone.
+  the suite stays green on a fresh clone. Credentials that are present but point
+  at nothing — a paused project, a stale ref — fail loudly instead, naming the
+  URL and the likely cause.
 - **Never commit a real student's data** — name, ID number, grades — as a
   fixture. Anonymise it first.
 
@@ -456,10 +461,21 @@ next person are all real contributions.
 
 V1 modules — schedule, attendance, grades, deadlines, announcements, commute —
 are implemented, and so are block-section classrooms with their shared tracker
-(`docs/12`). Faculty evaluation (M8) and study packs (M9) are specified in the
-docs and not yet built; `docs/13`–`15` are planned and not started. See
-[09-IMPLEMENTATION-PLAN.md](docs/09-IMPLEMENTATION-PLAN.md) for the sequencing
-and the exit criteria each phase has to meet.
+(`docs/12`) and study packs with spaced repetition (M9).
+
+The eight features of [16-NEXT-EIGHT.md](docs/16-NEXT-EIGHT.md) are built:
+model-ladder repair, study packs, suspension advisories, assistant memory,
+answer shape, walk-leg geometry, commute answers, and assistant tool use. That
+document is now the record of the build rather than a plan for it, and marks
+the six places where the code departed from what was planned, with reasons.
+
+Not built: faculty evaluation submission (M8 — the form exists, there is no open
+evaluation period in ERS to test against), PDF text extraction for study pack
+generation, push notification dispatch, and the later phases of `docs/13` and
+`docs/15`. [11-HANDOVER.md](docs/11-HANDOVER.md) §6 is the current list.
+
+Not deployed. See [09-IMPLEMENTATION-PLAN.md](docs/09-IMPLEMENTATION-PLAN.md)
+for the sequencing and the exit criteria each phase has to meet.
 
 ---
 

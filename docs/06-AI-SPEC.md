@@ -146,6 +146,33 @@ all exhausted → AI_UNAVAILABLE
 
 Each capability specifies input schema, output schema, prompt, validation, and failure behaviour.
 
+**`apps/web/src/lib/ai/capabilities.ts` is the source of truth**, not this
+section. Every capability — its schemas, its prompt, its post-validation — lives
+in that one file, and a prompt copied into a document drifts from the code
+within a month. What follows is the *intent* of each capability and the
+reasoning behind it; check the file for what a model is actually sent.
+
+Seven of the twelve below are implemented. As of September 2026:
+
+| Capability | State |
+|---|---|
+| `announcement_extract`, `deadline_extract`, `evaluation_polish` | Built, unchanged |
+| `assistant_route` | Built, **1.2.0** — reads conversation history, and decides whether an answer needs more than one lookup (§4.3) |
+| `assistant_general` | Built, **1.1.0** — reads history, temperature 0.6, and may use one list construct (§4.12) |
+| `commute_intent` | Built, **1.1.0** — reads history, and `departure_time` is now consumed rather than ignored (§4.11) |
+| `assistant_compose` | **New, not specified below.** The tool-use step: read a lookup's result, decide whether it is the whole answer, and compose. See `16-NEXT-EIGHT.md` §10 |
+| `study_pack_generate` | **New, not specified below.** Replaces §4.6 `study_flashcards`: one chunk per call, so every card carries the chunk it came from |
+| `assistant_answer_grounded` (§4.4) | Built, and **unreachable** — it needs the knowledge base, which stays dormant (`16-NEXT-EIGHT.md` §2) |
+| `study_summary`, `study_questions`, `blurt_compare`, `feynman_probe` | Not built |
+
+**The rule that binds all of them, and `assistant_compose` most.** A model may
+phrase a number and may never produce one. That was free while the assistant
+returned one template's sentence verbatim; the moment it composes two results it
+can also add a third figure nothing computed. `unsupportedNumbers`
+(`packages/core/src/text/grounding.ts`) checks every composed answer against the
+material it was composed from, and one carrying an unsourced figure is discarded
+rather than repaired.
+
 ---
 
 ### 4.1 `announcement_extract`
@@ -410,6 +437,14 @@ Rules:
 ---
 
 ### 4.6 `study_flashcards`
+
+> **Superseded by `study_pack_generate`.** The shape below asks for cards from a
+> whole document and has the model attach a `chunk_id` to each. The built
+> version inverts that: one chunk per call, and the caller attaches the
+> `source_chunk_id`, because a model asked which paragraph a card came from will
+> answer plausibly rather than correctly. It also permits **zero** cards — a
+> passage that is a table of contents has nothing testable in it, and a model
+> asked for five will invent five.
 
 **Tier:** `long` · **Version:** 1.0.0 · **Max output:** 2000 tokens
 

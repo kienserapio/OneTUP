@@ -1,6 +1,10 @@
 # OneTUP — *Walang pasok*
 
-**Status:** plan only. Nothing in this document is built.
+**Status:** **Phase 1 built** (September 2026) — migration `036`,
+`advisoryForToday` in core, and `components/today/suspension-card.tsx`. Phase 2
+needs an external PAGASA poller and Phase 3 needs push; both are still plan
+only. §1 — an advisory never cancels a class by itself — is implemented exactly
+as written here.
 **Date:** August 2026
 **Depends on:** [04-DATA-MODEL.md](04-DATA-MODEL.md), migration `030`, [12-CLASSROOMS-PLAN.md](12-CLASSROOMS-PLAN.md)
 
