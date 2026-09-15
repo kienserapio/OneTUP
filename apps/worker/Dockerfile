@@ -8,7 +8,11 @@
 # The container receives credentials over TLS, holds them in memory for the
 # length of one scrape, and stores nothing.
 
-FROM mcr.microsoft.com/playwright:v1.62.1-noble
+# This tag must match the `playwright` version in apps/worker/package.json.
+# The image ships the browsers; the package drives them. A mismatch is not a
+# version warning, it is Chromium failing to launch at runtime — and nothing
+# in CI would catch it, because CI never builds this image.
+FROM mcr.microsoft.com/playwright:v1.63.0-noble
 
 ENV NODE_ENV=production \
     PORT=8787 \
