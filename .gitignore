@@ -37,3 +37,4 @@ CLAUDE.md
 # into a public repository, not even as a fixture.
 docs/rating-slip.pdf
 docs/*-slip.pdf
+.env*

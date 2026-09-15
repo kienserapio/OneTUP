@@ -383,19 +383,25 @@ and pull request.
 
 ## Deploying
 
-**Web app** — Vercel, from the repository root. [`vercel.json`](vercel.json)
-carries the whole configuration, so the only dashboard setting that matters is
-leaving the Root Directory at `/`.
+**Web app** — Vercel, with the project's Root Directory set to `apps/web`.
+Next.js is detected from there and the pnpm workspace resolves `@onetup/core`
+on its own; there is no `vercel.json` and nothing to configure beyond that one
+setting.
 
-Set the variables from [`.env.example`](.env.example) under the **same names**
-you would put in a local `.env` — not the derived `NEXT_PUBLIC_*` ones. The
-build runs `scripts/sync-env.mjs`, which reads the process environment when
-there is no `.env` file to read, and derives what the browser is allowed to
-see from what it is not. One list of names, one place that decides which half
-is public.
+Because the build starts inside `apps/web`, `scripts/sync-env.mjs` never runs,
+so Vercel holds the **derived** names — the ones that script would have
+written into `apps/web/.env.local`. `NEXT_PUBLIC_SUPABASE_URL`, not
+`SUPABASE_URL`. The split it enforces still has to hold: `NEXT_PUBLIC_*` reach
+the browser and nothing else may, so the service-role key, the OpenRouter key,
+the worker secret and the VAPID private key are set without that prefix.
 
-Two of them differ in production: `SITE_URL` is the deployed origin, and
+Run `pnpm run env:sync` and read `apps/web/.env.local` for the exact list. Two
+values differ in production: `NEXT_PUBLIC_SITE_URL` is the deployed origin, and
 `WORKER_URL` points at the worker below.
+
+On any host that is *not* Vercel, `scripts/sync-env.mjs` does the derivation
+for you — it reads the process environment when there is no `.env` file, so
+the undecorated names from [`.env.example`](.env.example) are enough.
 
 **Worker** — any container host; Railway is configured in
 [`railway.json`](railway.json). The build context is the repository root, not
