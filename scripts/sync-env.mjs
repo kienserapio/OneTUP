@@ -5,6 +5,11 @@
  * The root `.env` is the only place a secret is written by hand. This script
  * derives what each deployable actually needs, and deliberately refuses to put
  * a service-role key or the OpenRouter key anywhere the browser can reach.
+ *
+ * On a hosting platform there is no root `.env` to read — the environment
+ * itself is where the secrets arrive. When the file is absent the process
+ * environment stands in for it, so a Vercel build sets exactly the same
+ * variable names a developer puts in `.env` and nothing else has to change.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -33,17 +38,17 @@ function parseEnv(text) {
 }
 
 const envPath = resolve(root, '.env')
-if (!existsSync(envPath)) {
-  console.error('Missing .env at repo root. Copy .env.example and fill it in.')
-  process.exit(1)
-}
-
-const env = parseEnv(readFileSync(envPath, 'utf8'))
+const fromFile = existsSync(envPath)
+const env = fromFile ? parseEnv(readFileSync(envPath, 'utf8')) : process.env
+const source = fromFile ? '.env' : 'the environment'
 
 const required = ['SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY']
 const missing = required.filter((k) => !env[k])
 if (missing.length) {
-  console.error(`Missing required keys in .env: ${missing.join(', ')}`)
+  console.error(`Missing required keys in ${source}: ${missing.join(', ')}`)
+  if (!fromFile) {
+    console.error('No .env at the repo root either. Copy .env.example and fill it in.')
+  }
   process.exit(1)
 }
 
@@ -100,4 +105,4 @@ const worker = [
 
 writeFileSync(resolve(root, 'apps/worker/.env'), worker)
 
-console.log('env: wrote apps/web/.env.local and apps/worker/.env')
+console.log(`env: wrote apps/web/.env.local and apps/worker/.env from ${source}`)

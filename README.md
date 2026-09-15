@@ -383,20 +383,41 @@ and pull request.
 
 ## Deploying
 
-**Web app** — Vercel. Set the same variables `pnpm run env:sync` derives into
-`apps/web/.env.local`. `NEXT_PUBLIC_*` reach the browser; nothing else may.
+**Web app** — Vercel, from the repository root. [`vercel.json`](vercel.json)
+carries the whole configuration, so the only dashboard setting that matters is
+leaving the Root Directory at `/`.
 
-**Worker** — any container host:
+Set the variables from [`.env.example`](.env.example) under the **same names**
+you would put in a local `.env` — not the derived `NEXT_PUBLIC_*` ones. The
+build runs `scripts/sync-env.mjs`, which reads the process environment when
+there is no `.env` file to read, and derives what the browser is allowed to
+see from what it is not. One list of names, one place that decides which half
+is public.
+
+Two of them differ in production: `SITE_URL` is the deployed origin, and
+`WORKER_URL` points at the worker below.
+
+**Worker** — any container host; Railway is configured in
+[`railway.json`](railway.json). The build context is the repository root, not
+`apps/worker`, because the image needs `packages/core` too — leave Railway's
+root directory at `/`.
 
 ```sh
 docker build -f apps/worker/Dockerfile -t onetup-worker .
 ```
 
-It needs `WORKER_SECRET` and nothing else. Rotate that secret quarterly.
+It needs `WORKER_SECRET` and `ERS_BASE_URL`, and no database credential of any
+kind. Rotate the secret quarterly.
 
 **Notification dispatch** — `POST /api/notifications/dispatch` with
 `Authorization: Bearer $WORKER_SECRET`, on a schedule of a minute or two. This
 is what actually fires a wake alarm, because nobody is signed in at 4:55 AM.
+
+[`.github/workflows/notifications.yml`](.github/workflows/notifications.yml)
+does it every five minutes, given `SITE_URL` and `WORKER_SECRET` as repository
+secrets. It is a GitHub schedule rather than a Vercel cron because Vercel's
+Hobby plan allows one cron run a day, at an unspecified minute of the hour.
+Move it to a Vercel cron on Pro; the endpoint does not change.
 
 ---
 
