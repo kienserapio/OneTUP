@@ -28,7 +28,7 @@
     "@mapbox/polyline": "^1.2.1",
     "@turf/length": "^7.4.0",
     "@turf/simplify": "^7.4.0",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.5.1",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10"
