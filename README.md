@@ -408,6 +408,12 @@ the undecorated names from [`.env.example`](.env.example) are enough.
 `apps/worker`, because the image needs `packages/core` too — leave Railway's
 root directory at `/`.
 
+Railway deprecated config-as-code in favour of `.railway/railway.ts`, and
+`railway.json` stops working on 2026-12-01. The new format cannot express a
+custom Dockerfile path, so the migration is not a straight swap: set
+`RAILWAY_DOCKERFILE_PATH=apps/worker/Dockerfile` as a service variable, which
+is the supported mechanism and survives the deprecation.
+
 ```sh
 docker build -f apps/worker/Dockerfile -t onetup-worker .
 ```
@@ -498,11 +504,13 @@ the six places where the code departed from what was planned, with reasons.
 
 Not built: faculty evaluation submission (M8 — the form exists, there is no open
 evaluation period in ERS to test against), PDF text extraction for study pack
-generation, push notification dispatch, and the later phases of `docs/13` and
-`docs/15`. [11-HANDOVER.md](docs/11-HANDOVER.md) §6 is the current list.
+generation, and the later phases of `docs/13` and `docs/15`.
+[11-HANDOVER.md](docs/11-HANDOVER.md) §6 is the current list.
 
-Not deployed. See [09-IMPLEMENTATION-PLAN.md](docs/09-IMPLEMENTATION-PLAN.md)
-for the sequencing and the exit criteria each phase has to meet.
+The web app is deployed; the sync worker is not, which is why ERS import works
+on a laptop and not in production. See
+[09-IMPLEMENTATION-PLAN.md](docs/09-IMPLEMENTATION-PLAN.md) for the sequencing
+and the exit criteria each phase has to meet.
 
 ---
 

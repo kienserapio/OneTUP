@@ -3,7 +3,9 @@
 **Product:** OneTUP
 **Institution:** Technological University of the Philippines — Manila
 **Owner:** Kien Leriss Ramos Serapio
-**Status:** V1 built, running locally, open-sourced, not deployed — see [11-HANDOVER.md](11-HANDOVER.md)
+**Status:** V1 built and open-sourced. The web app is deployed; the copy serving
+students is a month behind `main` until the current branch lands, and the sync
+worker is not hosted at all — see [11-HANDOVER.md](11-HANDOVER.md)
 **Repository:** <https://github.com/kienserapio/OneTUP> — public, MIT
 **Version:** 1.0
 **Date:** August 2026
