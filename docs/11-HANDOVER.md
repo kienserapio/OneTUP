@@ -2,7 +2,8 @@
 
 **Status:** V1, classrooms, and all eight features of
 [16-NEXT-EIGHT.md](16-NEXT-EIGHT.md), built and running locally against live
-Supabase. Public on GitHub. Not deployed.
+Supabase. Public on GitHub. The web app is deployed, a month behind this branch;
+the sync worker is not.
 **Repository:** <https://github.com/kienserapio/OneTUP> — public, MIT
 **Date:** September 2026
 
@@ -22,9 +23,16 @@ OneTUP *should* be; this describes what it *is*.
 | Lint | `pnpm lint` clean — 0 errors (it had not run at all since the Next 16 upgrade) |
 | Production build | Clean, 74 route entries |
 | Schema safeguards | 4/4 passing (`pnpm db:check`) |
-| Model ladders | 21 rungs across five tiers, all live (`pnpm check:models`) |
+| Model ladders | 22 rungs across five tiers, all live (`pnpm check:models`) |
 | Repository | Public, MIT |
-| Deployed | No |
+| Deployed | Web app yes — Vercel project `onetup-app`, live at `onetup-app.vercel.app`. Worker no. |
+
+**The deployed web app is not this code.** Its last production build predates
+`ce10d5e`, so the site serving students today is roughly a month behind the
+branch and has none of classrooms, the next eight, or study pack generation —
+while running against a database that has every migration through `038`. Old
+code against a new schema is the worst of the two states, and closing that gap
+is the first thing on the list in §7.
 
 Verified by hand in a browser against the live project, not only compiled:
 sign-in, a study pack generated from pasted notes (five cards, each marked
@@ -301,10 +309,24 @@ published privacy commitment.
   records instead, which is what assistant tool use now does.
 - **Faculty evaluation submission.** The form is built; there is no open
   evaluation period in ERS to test against.
-- **Deployment.** No hosting, no domain, no CI deploy step.
-- **Push notifications**, classroom ones included. The whole stack exists —
-  service worker, subscriptions, dispatch route — and nothing calls dispatch on
-  a schedule. That is a cron entry, not a feature (12-CLASSROOMS-PLAN.md §13).
+- **A domain.** The app is hosted — see §1 — but only at its
+  `*.vercel.app` address. No custom domain, and no CI deploy step beyond
+  Vercel's own git integration.
+- **The worker is hosted nowhere.** `railway.json` configures it and the
+  Railway account exists; the account has no service for it, and no other
+  container host is configured. `WORKER_URL` is set on Vercel as a secret, so
+  its value could not be read back to see where it points — but nothing is
+  listening at the other end either way. ERS import and resync are the only
+  features that depend on the worker, and they are the only ones that cannot
+  work in production. This is the largest gap between local and deployed
+  behaviour.
+- **Push notifications in production — scheduled, never fired.** The gap was
+  always the scheduler, and `.github/workflows/notifications.yml` closes it:
+  every five minutes it posts to `/api/notifications/dispatch` with the worker
+  secret. It has run zero times. The workflow skips itself until `SITE_URL` and
+  `WORKER_SECRET` exist as repository secrets (§7.3), and it only reaches a
+  deployment that has the route — which production will not have until the
+  branch lands. Treat the first real delivery as unverified.
 - **Classroom term rollover.** A classroom can be archived; *Start next term's
   classroom* is not built (Phase 6).
 - **Suspension advisories, Phases 2 and 3.** Phase 1 is built. Phase 2 needs an
@@ -327,33 +349,45 @@ published privacy commitment.
 
 Ordered by how much it costs to leave undone.
 
-0. **Merge `feat/next-eight`.** Everything in this document beyond commit
-   `af9ee4c` lives on that branch — the classrooms feature and all eight
-   features of `16-NEXT-EIGHT.md`, thirteen commits. `main` does not have them.
-   A green build on an unmerged branch is not a shipped project.
-1. **TUPniverse permission — now overdue.** `github.com/smnthegr/TUPniverse`
-   has no licence and the campus page embeds their tour. The repository is
-   already public, so this is no longer a pre-launch item. `NOTICE.md` states
-   the panoramas are theirs, carry no licence, and are not covered by MIT;
-   attribution is in the UI. Get it in writing anyway.
-2. **Consent for the names on `/contributors`.** Five students' full names,
-   sections and `tup.edu.ph` addresses are now in a public repository and on a
-   public page. The addresses are written out rather than linked, which stops a
-   one-click mail client but not a scraper. Confirm all five agreed, and remove
-   anyone who did not.
+0. **Merge `feat/next-eight`, which is now what production is missing.** The
+   branch is pushed and green; `main` still ends at `af9ee4c`, and Vercel
+   builds production from `main`, so the merge *is* the deploy. Until it
+   happens students are on August code against a September schema. Fast-forward
+   is possible — `origin/main` is an ancestor of the branch, so nothing has to
+   be squashed.
+1. **Fix the required status check.** The `main` ruleset requires a context
+   called `Github Actions`. The job is called `check`. Nothing ever reports
+   under that name, so every pull request waits forever on a check that cannot
+   arrive; it has gone unnoticed only because repository admins bypass the
+   ruleset. One field, and contributors can merge at all.
+2. **Deploy the worker.** `railway.json` configures it and the account exists,
+   but no service has been created. ERS import and resync are the only features
+   that depend on it, and they are the only ones that cannot work in
+   production today.
 3. **Repository secrets.** The `schema` CI job skips itself without them, so
    the safeguards from `04-DATA-MODEL.md §17` are currently **not** running on
    any push — they pass locally (`pnpm db:check`, 4/4) and nowhere else. Add `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`,
    `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_CONNECTION_STRING` (and optionally
-   `SUPABASE_POOLER_HOST`) under Settings → Secrets → Actions.
-4. **Branch ruleset on `main`.** See §10.
+   `SUPABASE_POOLER_HOST`) under Settings → Secrets → Actions. The notification
+   scheduler needs two more of its own: `SITE_URL` and `WORKER_SECRET`.
+4. **TUPniverse permission — now overdue.** `github.com/smnthegr/TUPniverse`
+   has no licence and the campus page embeds their tour. The repository is
+   already public, so this is no longer a pre-launch item. `NOTICE.md` states
+   the panoramas are theirs, carry no licence, and are not covered by MIT;
+   attribution is in the UI. Get it in writing anyway.
 5. **Rotate the ERS development password** — see §8.
 6. **Supabase region.** If the project is still outside Singapore, the runbook
    is in `OPERATIONS.md`; it is cheap now and painful once real students have
    rows.
+7. **Delete the empty `onetup` Vercel project.** A second project was created
+   against this repository by mistake and connected to it. It has no
+   deployments. Two connected projects means two builds per push.
 
 Resolved since the first handover: the `workflow` OAuth scope — `ci.yml` pushes
-fine, and CI is green on `main`.
+fine, and CI is green on `main`. The branch ruleset exists (§10). Consent for
+the five names on `/contributors` has been obtained. The model ladders, which
+had decayed to six withdrawn rungs when MiniMax pulled two free models, are
+live again at 22.
 
 ---
 
@@ -426,9 +460,12 @@ request.
 
 ### Branch ruleset
 
-Not yet configured. Recommended, on the default branch, with **Repository
-admin** in the bypass list so a solo maintainer is not forced through a PR for
-a typo:
+Configured on the default branch since August, with **Repository admin** in the
+bypass list so a solo maintainer is not forced through a PR for a typo. It
+matches the shape below in every respect but one: the required status check is
+registered under the context `Github Actions`, which no job reports. See §7.1 —
+the effect is that the ruleset gates nobody who can bypass it and blocks
+everybody who cannot.
 
 - Restrict deletions, block force pushes, require linear history
 - Require a pull request: **0** approvals, dismiss stale approvals, require
@@ -440,6 +477,19 @@ and a required check that never reports blocks the merge permanently.
 
 ### Dependabot
 
-Opened five pull requests within a minute of the first push. Two are majors —
-`typescript` 5.9 → 7.0 and `@types/node` 24 → 26 — and need reading, not
-merging on green.
+Opened seven pull requests. Six are applied directly on `feat/next-eight` and
+will close themselves as superseded when it lands: the production group, `tsx`,
+`@types/node` 24 → 26, and the three action bumps.
+
+`@types/node` 26 was read rather than merged on green, and passes everything —
+but it types a Node the project does not run. `engines` says `>=22`, CI pins
+22, Vercel is on 24. Nothing in the tree calls a Node 26-only API today; if
+something ever does, the typechecker will agree with it and production will
+not.
+
+**`typescript` 5.9 → 7.0 (PR #4) must be closed, not merged.** TypeScript 7 is
+the native port and it typechecks, tests and builds this workspace cleanly.
+Lint stops working entirely: `typescript-eslint` refuses to load against the
+TS 7 API and `eslint .` exits 2 before reporting a single rule. Reopen it when
+typescript-eslint ships TS 7 support — the tracking issue is
+`typescript-eslint/typescript-eslint#10940`.
