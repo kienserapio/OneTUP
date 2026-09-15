@@ -2,7 +2,7 @@
   "name": "onetup",
   "version": "0.1.0",
   "private": true,
-  "description": "OneTUP \u2014 one app for your TUP student life",
+  "description": "OneTUP — one app for your TUP student life",
   "packageManager": "pnpm@11.11.0",
   "engines": {
     "node": ">=22"
@@ -28,7 +28,7 @@
     "@mapbox/polyline": "^1.2.1",
     "@turf/length": "^7.4.0",
     "@turf/simplify": "^7.4.0",
-    "@types/node": "^24.10.1",
+    "@types/node": "^26.2.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10"
