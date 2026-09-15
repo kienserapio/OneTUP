@@ -1,0 +1,54 @@
+name: Dispatch notifications
+
+# The notification stack has always been complete except for the thing that
+# starts it. `/api/notifications/dispatch` sends what has come due; nothing was
+# ever calling it. This is that caller.
+#
+# Why not Vercel Cron: on the Hobby plan a cron job may run at most once a day,
+# with per-hour precision. A wake alarm at 4:55 AM is the whole point of the
+# feature, so a daily job at some unspecified minute of some hour is not a
+# scheduler — it is a placebo. Move this to Vercel Cron the day the project is
+# on Pro; the endpoint needs no change.
+#
+# What this costs in accuracy: GitHub delays scheduled runs under load, and
+# five minutes is the floor. A notification is therefore due-or-later, never
+# early. The dispatch route already treats `fire_at` as "send at or after",
+# so a late run sends the backlog rather than dropping it.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: notifications
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    # A fork has no deployment and no secrets. GitHub already disables
+    # schedules on forks, but a manual run should say why it did nothing
+    # rather than fail and teach a contributor to ignore a red mark.
+    steps:
+      - name: Send what is due
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
+        run: |
+          if [ -z "$SITE_URL" ] || [ -z "$WORKER_SECRET" ]; then
+            echo "::notice::No SITE_URL or WORKER_SECRET on this repository — nothing to dispatch to."
+            exit 0
+          fi
+
+          # --fail-with-body so a 4xx prints what the route said before exiting
+          # non-zero. A silent 403 here means the secret drifted, and that is
+          # exactly the failure worth a red mark.
+          response=$(curl --silent --show-error --fail-with-body \
+            --max-time 60 \
+            --request POST "${SITE_URL%/}/api/notifications/dispatch" \
+            --header "authorization: Bearer $WORKER_SECRET")
+
+          echo "$response"
