@@ -31,6 +31,16 @@ const PUBLIC_PREFIXES = [
   // enforces its own rate limit and honeypot precisely because it is open.
   '/report',
   '/api/reports',
+  // Notification dispatch is called by a scheduler, never by a browser. The
+  // route authenticates itself against `WORKER_SECRET` and rejects anything
+  // else with a 403, so it is public to the proxy and private in fact.
+  //
+  // Without this line the proxy answered 401 before the route was ever
+  // reached, which made the whole push stack unreachable: the one moment it
+  // exists for is 4:55 AM, and nobody is signed in at 4:55 AM. Note the exact
+  // path — `/api/notifications/subscribe` must keep its session, because it
+  // ties a subscription to the student who made it.
+  '/api/notifications/dispatch',
   // Linked from the public footer, and was redirecting anonymous readers to
   // sign-in — documentation nobody can read without an account is not
   // documentation.
@@ -65,7 +75,7 @@ const PRIVATE_PREFIXES = [
   '/api',
 ]
 
-function isPublic(pathname: string): boolean {
+export function isPublic(pathname: string): boolean {
   if (pathname === '/') return true
   if (PUBLIC_PREFIXES.some((prefix) => prefix !== '/' && pathname.startsWith(prefix))) return true
   // Anything the app does not claim falls through to the router, which renders
