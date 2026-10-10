@@ -40,6 +40,7 @@ Free forever, for every TUP student, in every program.
 | 14 | [Assistant](14-ASSISTANT-PLAN.md) | An assistant that is not bland, one that remembers, and one that can answer a commute question — **built**, except the second provider, which was cancelled | Engineers |
 | 15 | [Class Suspensions](15-SUSPENSIONS-PLAN.md) | *Walang pasok* as an advisory a student acts on, never an automatic cancellation — **Phase 1 built** | Engineers, product |
 | 16 | [The Next Eight](16-NEXT-EIGHT.md) | Eight features, in order, with the detail for the two that had no plan of their own — **all built**, and the record of where the build departed from the plan | Everyone |
+| 17 | [UX & Heuristic Review](17-UX-REVIEW/00-INDEX.md) | The navigation model judged against a new student, nine confirmed defects, and twelve improvements ranked by impact — five parts | Everyone |
 
 ### Outside this folder
 
