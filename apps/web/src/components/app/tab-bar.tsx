@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { motion } from 'motion/react'
 import { spring, transition } from '@/design/motion'
 import { cx } from '@/lib/cx'
-import { MORE_NAV, PHONE_NAV, type NavItem } from './nav-items'
+import { badgeFor, MORE_NAV, PHONE_NAV, type NavCounts, type NavItem } from './nav-items'
 import { IconAsk, IconMore, IconSignOut } from '@/components/ui/icon'
 import { Sheet } from '@/components/ui/sheet'
 
@@ -26,8 +26,13 @@ import { Sheet } from '@/components/ui/sheet'
  * only in the desktop sidebar were unreachable here, which is the kind of gap
  * that makes an app feel like a worse version of itself on the device it was
  * built for.
+ *
+ * It carries the same badge counts as the sidebar. A deadline due in six hours
+ * is the one thing this bar exists to surface, and a destination inside the
+ * sheet rolls its count up onto More — otherwise a new announcement would make
+ * no mark anywhere on a phone.
  */
-export function TabBar() {
+export function TabBar({ counts }: { counts: NavCounts }) {
   const pathname = usePathname()
   const [more, setMore] = useState(false)
 
@@ -36,6 +41,10 @@ export function TabBar() {
 
   const [first, second, ask, fourth] = PHONE_NAV
   const inMore = MORE_NAV.some((group) => group.items.some((item) => item.match(pathname)))
+  const moreBadge = MORE_NAV.flatMap((group) => group.items).reduce(
+    (sum, item) => sum + badgeFor(item, counts),
+    0,
+  )
 
   return (
     <>
@@ -56,8 +65,8 @@ export function TabBar() {
             boxShadow: 'var(--shadow-float)',
           }}
         >
-          <TabItem item={first} active={first.match(pathname)} />
-          <TabItem item={second} active={second.match(pathname)} />
+          <TabItem item={first} active={first.match(pathname)} badge={badgeFor(first, counts)} />
+          <TabItem item={second} active={second.match(pathname)} badge={badgeFor(second, counts)} />
 
           {/* The centre well. The button overhangs the bar, so the slot beneath
               it is empty rather than crowded. */}
@@ -65,9 +74,9 @@ export function TabBar() {
             <AskButton active={ask.match(pathname)} />
           </div>
 
-          <TabItem item={fourth} active={fourth.match(pathname)} />
+          <TabItem item={fourth} active={fourth.match(pathname)} badge={badgeFor(fourth, counts)} />
 
-          <MoreTab active={inMore} open={more} onOpen={() => setMore(true)} />
+          <MoreTab active={inMore} open={more} badge={moreBadge} onOpen={() => setMore(true)} />
         </div>
       </nav>
 
@@ -79,7 +88,7 @@ export function TabBar() {
               <ul className="mt-[var(--space-2)] grid grid-cols-2 gap-[var(--space-2)]">
                 {group.items.map((item) => (
                   <li key={item.href}>
-                    <MoreLink item={item} active={item.match(pathname)} />
+                    <MoreLink item={item} active={item.match(pathname)} badge={badgeFor(item, counts)} />
                   </li>
                 ))}
               </ul>
@@ -100,7 +109,7 @@ export function TabBar() {
   )
 }
 
-function TabItem({ item, active }: { item: NavItem; active: boolean }) {
+function TabItem({ item, active, badge }: { item: NavItem; active: boolean; badge: number }) {
   const { Icon } = item
   return (
     <Link
@@ -120,11 +129,15 @@ function TabItem({ item, active }: { item: NavItem; active: boolean }) {
         transition={transition(spring.snap)}
         className="flex flex-col items-center gap-[3px]"
       >
-        <Icon size={25} />
+        <span className="relative">
+          <Icon size={25} />
+          <Badge count={badge} />
+        </span>
         <span className="type-caption-2 font-semibold tracking-[0.005em]">
           {item.short ?? item.label}
         </span>
       </motion.span>
+      <BadgeLabel count={badge} />
     </Link>
   )
 }
@@ -134,10 +147,12 @@ function TabItem({ item, active }: { item: NavItem; active: boolean }) {
 function MoreTab({
   active,
   open,
+  badge,
   onOpen,
 }: {
   active: boolean
   open: boolean
+  badge: number
   onOpen: () => void
 }) {
   return (
@@ -160,14 +175,18 @@ function MoreTab({
         transition={transition(spring.snap)}
         className="flex flex-col items-center gap-[3px]"
       >
-        <IconMore size={25} />
+        <span className="relative">
+          <IconMore size={25} />
+          <Badge count={badge} />
+        </span>
         <span className="type-caption-2 font-semibold tracking-[0.005em]">More</span>
       </motion.span>
+      <BadgeLabel count={badge} />
     </button>
   )
 }
 
-function MoreLink({ item, active }: { item: NavItem; active: boolean }) {
+function MoreLink({ item, active, badge }: { item: NavItem; active: boolean; badge: number }) {
   const { Icon } = item
   return (
     <Link
@@ -180,10 +199,47 @@ function MoreLink({ item, active }: { item: NavItem; active: boolean }) {
           : undefined
       }
     >
-      <Icon size={22} style={{ color: active ? 'var(--accent)' : 'var(--label-secondary)' }} />
+      <span className="flex items-center justify-between">
+        <Icon size={22} style={{ color: active ? 'var(--accent)' : 'var(--label-secondary)' }} />
+        {badge > 0 && (
+          <span
+            className="rounded-full px-1.5 py-px text-[0.6875rem] font-semibold tabular-nums"
+            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+          >
+            {badge}
+          </span>
+        )}
+      </span>
       <span className="type-subheadline font-semibold leading-tight">{item.label}</span>
+      <BadgeLabel count={badge} />
     </Link>
   )
+}
+
+/** The count, pinned to the icon's top-right corner. Capped so a busy week
+ * does not grow the badge wider than the icon it sits on. */
+function Badge({ count }: { count: number }) {
+  if (count <= 0) return null
+  return (
+    <span
+      aria-hidden
+      className="absolute -right-2 -top-1 flex h-[1.05rem] min-w-[1.05rem] items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-none tabular-nums"
+      style={{
+        background: 'var(--accent)',
+        color: 'var(--on-accent)',
+        boxShadow: '0 0 0 2px var(--bg)',
+      }}
+    >
+      {count > 9 ? '9+' : count}
+    </span>
+  )
+}
+
+/** The same count, said rather than shown — the visual badge is hidden from
+ * assistive tech because "Due 3" read aloud means nothing. */
+function BadgeLabel({ count }: { count: number }) {
+  if (count <= 0) return null
+  return <span className="sr-only">, {count} new</span>
 }
 
 function AskButton({ active }: { active: boolean }) {

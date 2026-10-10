@@ -118,7 +118,6 @@ export interface TodayOverview {
   overdue: number
   /** Announcements posted in the last three days, matching the sidebar badge. */
   recentAnnouncements: number
-  hasRoute: boolean
 }
 
 export interface TodayData {
@@ -395,7 +394,6 @@ export async function loadToday(now = new Date()): Promise<TodayData> {
         (announcement) =>
           Date.parse(announcement.created_at ?? '') >= now.getTime() - 3 * 86_400_000,
       ).length,
-      hasRoute: Boolean(preferences?.default_route_id),
     },
   }
 }

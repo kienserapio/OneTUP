@@ -69,6 +69,50 @@ export function Sheet({
     }
   }, [open, onClose, modal])
 
+  /* `aria-modal` promises that everything behind the sheet is inert, so a modal
+   * sheet has to keep that promise for the keyboard too: focus moves in on
+   * open, Tab cycles inside the panel, and on close focus goes back to the
+   * control that opened it rather than falling to <body>. Every sheet in the
+   * app gets this, including the More sheet that is a phone's navigation.
+   *
+   * Keyed on `open` alone. The Escape effect above re-runs whenever a parent
+   * passes a fresh `onClose`, and re-running this one would re-capture the
+   * trigger as something inside the panel. */
+  useEffect(() => {
+    if (!open) return
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    panelRef.current?.focus({ preventScroll: true })
+
+    const onKey = (event: KeyboardEvent) => {
+      const panel = panelRef.current
+      if (!modal || event.key !== 'Tab' || !panel) return
+      const focusable = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+        (element) => element.offsetParent !== null,
+      )
+      if (focusable.length === 0) {
+        event.preventDefault()
+        return
+      }
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const current = document.activeElement
+      if (event.shiftKey && (current === first || current === panel)) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && (current === last || !panel.contains(current))) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
+  }, [open])
+
   useEffect(() => {
     if (open && panelRef.current) setHeight(panelRef.current.offsetHeight)
   }, [open, children])
@@ -92,11 +136,12 @@ export function Sheet({
 
           <motion.div
             ref={panelRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal={modal}
             aria-label={title}
             className={cx(
-              'sheet fixed inset-x-0 bottom-0 z-50',
+              'sheet fixed inset-x-0 bottom-0 z-50 outline-none',
               surface === 'material' && 'material material-large',
               'mx-auto flex max-h-[88dvh] w-full max-w-[34rem] flex-col',
             )}
@@ -163,6 +208,9 @@ export function Sheet({
     </AnimatePresence>
   )
 }
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 function Grabber() {
   return (

@@ -534,23 +534,33 @@ function SetupStep({
   const [arriveEarly, setArriveEarly] = useState(15)
   const [target, setTarget] = useState('')
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function save() {
     setBusy(true)
+    setError(null)
     const supabase = supabaseBrowser()
     const { data } = await supabase.auth.getUser()
     const userId = data.user?.id
+    // A session can lapse while a student reads four steps of onboarding. This
+    // used to stop the spinner and do nothing, which reads as a dead button.
     if (!userId) {
+      setError('You were signed out while setting up. Sign in again to pick up where you left off.')
       setBusy(false)
       return
     }
 
-    await supabase.from('user_preferences').upsert({
+    const { error: saveError } = await supabase.from('user_preferences').upsert({
       user_id: userId,
       home_area_id: areaId || null,
       preparation_minutes: preparation,
       arrive_early_minutes: arriveEarly,
     })
+    if (saveError) {
+      setError('Those settings did not save. Check your connection and try again.')
+      setBusy(false)
+      return
+    }
 
     const targetValue = Number.parseFloat(target)
     if (Number.isFinite(targetValue) && targetValue >= 1 && targetValue <= 5) {
@@ -626,6 +636,8 @@ function SetupStep({
         hint="Optional. We'll warn you when a projection slips below it."
       />
 
+      {error && <FormError>{error}</FormError>}
+
       <Button variant="accent" block onClick={() => void save()} disabled={busy}>
         {busy ? 'Saving…' : 'Continue'}
       </Button>
@@ -645,6 +657,7 @@ function InstallStep({ onDone }: { onDone: () => Promise<void> }) {
   const [platform, setPlatform] = useState<'ios' | 'android' | 'desktop'>('desktop')
   const [installed, setInstalled] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const ua = navigator.userAgent
@@ -692,16 +705,22 @@ function InstallStep({ onDone }: { onDone: () => Promise<void> }) {
         </>
       )}
 
+      {error && <FormError>{error}</FormError>}
+
       <Button
         variant="accent"
         block
         disabled={busy}
         onClick={() => {
           setBusy(true)
-          void onDone()
+          setError(null)
+          onDone().catch((cause: unknown) => {
+            setError(cause instanceof Error ? cause.message : 'That did not save. Try again.')
+            setBusy(false)
+          })
         }}
       >
-        {busy ? 'Setting up…' : 'Done — take me in'}
+        {busy ? 'Setting up…' : error ? 'Try again' : 'Done — take me in'}
       </Button>
     </div>
   )
@@ -725,12 +744,23 @@ async function commitSchedule(
   }
 }
 
+/**
+ * The write that ends onboarding, and the one whose failure costs the most.
+ *
+ * If `onboarded_at` stays null the app layout sends the student back to
+ * `/welcome` at step 1, with a schedule already committed that they would then
+ * import a second time. So a failure throws, and the install step keeps them
+ * where they are with a retry, rather than pushing them into that redirect.
+ */
 async function finishOnboarding(): Promise<void> {
   const supabase = supabaseBrowser()
   const { data } = await supabase.auth.getUser()
-  if (!data.user) return
-  await supabase
+  if (!data.user) {
+    throw new Error('You were signed out while setting up. Sign in again to finish.')
+  }
+  const { error } = await supabase
     .from('profiles')
     .update({ onboarded_at: new Date().toISOString() })
     .eq('id', data.user.id)
+  if (error) throw new Error('That did not save. Check your connection and try again.')
 }

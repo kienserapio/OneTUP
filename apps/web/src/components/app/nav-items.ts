@@ -39,12 +39,20 @@ export interface NavItem {
   badge?: 'deadlines' | 'announcements'
 }
 
+/** The badge counts, read once by the app layout and handed to both navs. */
+export type NavCounts = Record<NonNullable<NavItem['badge']>, number>
+
+export const badgeFor = (item: NavItem, counts: NavCounts): number =>
+  item.badge ? counts[item.badge] : 0
+
 export interface NavGroup {
   label: string
   items: NavItem[]
 }
 
 const startsWith = (prefix: string) => (pathname: string) => pathname.startsWith(prefix)
+
+const SUBJECT_DESTINATIONS = ['/subjects/gwa', '/subjects/catch-up']
 
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -83,9 +91,17 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Academics',
     items: [
-      { href: '/subjects', label: 'Subjects', Icon: IconSubjects, match: startsWith('/subjects') },
-      { href: '/subjects/gwa', label: 'Grades & GWA', Icon: IconGrades, match: (p) => p === '/subjects/gwa' },
-      { href: '/subjects/catch-up', label: 'Attendance', Icon: IconAttendance, match: (p) => p === '/subjects/catch-up' },
+      /* Grades & GWA and Attendance live under `/subjects` in the URL but are
+       * destinations of their own, so a bare prefix here would light Subjects
+       * alongside them — two current pages, announced twice. */
+      {
+        href: '/subjects',
+        label: 'Subjects',
+        Icon: IconSubjects,
+        match: (p) => p.startsWith('/subjects') && !SUBJECT_DESTINATIONS.some((child) => p.startsWith(child)),
+      },
+      { href: '/subjects/gwa', label: 'Grades & GWA', Icon: IconGrades, match: startsWith('/subjects/gwa') },
+      { href: '/subjects/catch-up', label: 'Attendance', Icon: IconAttendance, match: startsWith('/subjects/catch-up') },
       { href: '/study', label: 'Study', Icon: IconCards, match: startsWith('/study') },
       { href: '/evaluations', label: 'Faculty eval', Icon: IconStudy, match: startsWith('/evaluations') },
     ],

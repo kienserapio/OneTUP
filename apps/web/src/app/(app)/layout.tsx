@@ -41,6 +41,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!profile?.onboarded_at) redirect('/welcome')
 
+  const counts = { deadlines: deadlines.count ?? 0, announcements: announcements.count ?? 0 }
+
   const yearSection = [
     profile.year_level ? `${profile.year_level}${ordinal(profile.year_level)} year` : null,
     profile.section_label,
@@ -55,7 +57,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           fullName={profile.full_name}
           programCode={profile.program_code}
           yearSection={yearSection || null}
-          counts={{ deadlines: deadlines.count ?? 0, announcements: announcements.count ?? 0 }}
+          counts={counts}
         />
 
         <div className="shell-main">
@@ -65,7 +67,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </main>
         </div>
       </div>
-      <TabBar />
+      <TabBar counts={counts} />
     </SyncBoundary>
   )
 }

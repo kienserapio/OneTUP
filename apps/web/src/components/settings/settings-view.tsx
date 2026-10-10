@@ -359,6 +359,20 @@ export function SettingsView({ profile }: { profile: SettingsProfile }) {
               </Card>
             </section>
 
+            {/* The guide and the bug form were linked only from the landing
+                footer, and the only people who can hit a bug are signed in. */}
+            <section>
+              <SectionHeader>Help</SectionHeader>
+              <ListGroup>
+                <ListRow title="How OneTUP works" subtitle="The guide, screen by screen" href="/docs" />
+                <ListRow
+                  title="Report a problem"
+                  subtitle="Something broken, wrong, or confusing"
+                  href="/report"
+                />
+              </ListGroup>
+            </section>
+
             <section>
               <SectionHeader>Your data</SectionHeader>
               <ListGroup>

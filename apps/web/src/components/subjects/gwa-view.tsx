@@ -62,7 +62,7 @@ export function GwaView() {
   if (!data.hasAnyGrade) {
     return (
       <>
-        <NavBar title="GWA" back={{ href: '/subjects', label: 'Subjects' }} />
+        <NavBar title="GWA" />
         <div className="app-container">
           <Card>
             <EmptyState
@@ -89,7 +89,7 @@ export function GwaView() {
       <NavBar
         title="GWA"
         subtitle={data.termLabel ?? undefined}
-        back={{ href: '/subjects', label: 'Subjects' }}
+       
         trailing={
           /* Past semesters are all on one ERS page, so a student's whole
              history is one import away from the figure they are looking at. */
@@ -347,7 +347,7 @@ function formatList(items: string[]): string {
 function GwaSkeleton() {
   return (
     <>
-      <NavBar title="GWA" back={{ href: '/subjects', label: 'Subjects' }} />
+      <NavBar title="GWA" />
       <div className="app-container" aria-busy="true" aria-label="Loading GWA">
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="stack">

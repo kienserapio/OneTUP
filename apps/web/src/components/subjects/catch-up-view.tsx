@@ -60,7 +60,7 @@ export function CatchUpView() {
             ? `The past ${CATCH_UP_WEEKS} weeks`
             : `${gaps.length} class${gaps.length === 1 ? '' : 'es'} from the past ${CATCH_UP_WEEKS} weeks`
         }
-        back={{ href: '/subjects', label: 'Subjects' }}
+       
         trailing={
           gaps.length > 0 ? (
             <ButtonLink href="/subjects" size="sm" variant="plain">
@@ -183,7 +183,7 @@ function relativeDate(date: string, today: string): string {
 function CatchUpSkeleton() {
   return (
     <>
-      <NavBar title="Catch up" back={{ href: '/subjects', label: 'Subjects' }} />
+      <NavBar title="Catch up" />
       <div className="app-container stack" aria-busy="true" aria-label="Loading catch-up">
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="skeleton h-32 rounded-[var(--radius-md)]" />

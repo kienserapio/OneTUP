@@ -84,7 +84,30 @@ export function TodayView({ firstName }: { firstName: string | null }) {
         />
       )}
 
-      <UpNextCard data={data} />
+      {/* Gated on whether a schedule exists at all, not on whether one exists
+          today. The old test was `data.blocks.length === 0`, and `blocks` is
+          only ever this weekday's classes — so every Sunday, and every free
+          weekday, a student with a fully imported timetable was told they had
+          no schedule and offered a button to import the one they already had.
+
+          Without one, the import takes Up Next's place rather than waiting at
+          the bottom: a student who skipped it in onboarding otherwise read an
+          empty card and six tiles of dashes before reaching the one button
+          that makes the app work. */}
+      {data.overview.hasSchedule ? (
+        <UpNextCard data={data} />
+      ) : (
+        <Card>
+          <EmptyState
+            title="No schedule yet. Import it from ERS, or paste it in — either works."
+            action={
+              <ButtonLink href="/schedule/import" variant="accent">
+                Bring in your schedule
+              </ButtonLink>
+            }
+          />
+        </Card>
+      )}
 
       <QuickActions />
 
@@ -241,25 +264,9 @@ export function TodayView({ firstName }: { firstName: string | null }) {
         </section>
       )}
 
-      <Overview overview={data.overview} />
-
-      {/* Gated on whether a schedule exists at all, not on whether one exists
-          today. The old test was `data.blocks.length === 0`, and `blocks` is
-          only ever this weekday's classes — so every Sunday, and every free
-          weekday, a student with a fully imported timetable was told they had
-          no schedule and offered a button to import the one they already had. */}
-      {!data.overview.hasSchedule && (
-        <Card>
-          <EmptyState
-            title="No schedule yet. Import it from ERS, or paste it in — either works."
-            action={
-              <ButtonLink href="/schedule/import" variant="accent">
-                Bring in your schedule
-              </ButtonLink>
-            }
-          />
-        </Card>
-      )}
+      {/* Every number here is derived from the schedule, so without one the
+          grid is a page of dashes — a report that nothing works, not a state. */}
+      {data.overview.hasSchedule && <Overview overview={data.overview} />}
     </div>
   )
 }
@@ -335,9 +342,12 @@ function Overview({ overview }: { overview: TodayData['overview'] }) {
           : `${overview.gradedCourses} subject${overview.gradedCourses === 1 ? '' : 's'} graded`,
       Icon: IconGrades,
     },
+    /* "Cuts", not "Attendance": the quick action above already uses that word
+     * for the catch-up screen, and the number here counts subjects near their
+     * absence limit — which is what a TUP student calls cuts. */
     {
       href: '/subjects',
-      label: 'Attendance',
+      label: 'Cuts',
       value: String(overview.cutWarnings),
       hint:
         overview.cutWarnings === 0
@@ -372,13 +382,6 @@ function Overview({ overview }: { overview: TodayData['overview'] }) {
       value: String(overview.subjects),
       hint: `${overview.units} unit${overview.units === 1 ? '' : 's'} this term`,
       Icon: IconSubjects,
-    },
-    {
-      href: '/commute',
-      label: 'Commute',
-      value: overview.hasRoute ? 'Set' : '—',
-      hint: overview.hasRoute ? 'Route saved' : 'Pick your usual route',
-      Icon: IconCommute,
     },
   ]
 

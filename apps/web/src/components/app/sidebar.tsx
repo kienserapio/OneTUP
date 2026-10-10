@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { NAV_GROUPS } from './nav-items'
+import { badgeFor, NAV_GROUPS, type NavCounts } from './nav-items'
 import { cx } from '@/lib/cx'
 import { displayName, initialsOf } from '@/lib/name'
 import { Mark } from '@/components/ui/mark'
@@ -19,7 +19,7 @@ export interface SidebarProps {
   fullName: string | null
   programCode: string | null
   yearSection: string | null
-  counts: { deadlines: number; announcements: number }
+  counts: NavCounts
 }
 
 export function Sidebar({ fullName, programCode, yearSection, counts }: SidebarProps) {
@@ -46,7 +46,7 @@ export function Sidebar({ fullName, programCode, yearSection, counts }: SidebarP
             <ul>
               {group.items.map((item) => {
                 const active = item.match(pathname)
-                const badge = item.badge ? counts[item.badge] : 0
+                const badge = badgeFor(item, counts)
 
                 return (
                   <li key={item.href}>
