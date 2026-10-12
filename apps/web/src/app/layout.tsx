@@ -3,6 +3,7 @@ import '@fontsource-variable/inter'
 import './globals.css'
 import { Providers } from './providers'
 import { geist } from '@/design/app-font'
+import { KeyboardAware } from '@/components/app/keyboard-aware'
 
 export const metadata: Metadata = {
   title: {
@@ -35,6 +36,9 @@ export const viewport: Viewport = {
   // likely to need it are the ones least likely to complain about it.
   maximumScale: 5,
   viewportFit: 'cover',
+  // Android resizes the page for the keyboard instead of covering it, so a
+  // sticky composer rides above the keyboard rather than hiding behind it.
+  interactiveWidget: 'resizes-content',
   // One theme. The browser chrome matches the page rather than the device.
   themeColor: '#f5f4f2',
 }
@@ -55,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip to content
         </a>
+        <KeyboardAware />
         <Providers>{children}</Providers>
       </body>
     </html>

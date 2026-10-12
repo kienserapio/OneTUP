@@ -277,7 +277,7 @@ export function AskView({ firstName }: { firstName?: string | null }) {
 
           {/* Clears the floating bar, which only exists below the shell breakpoint. */}
           <div
-            className="mobile-only"
+            className="mobile-only kb-spacer"
             aria-hidden
             style={{
               height:

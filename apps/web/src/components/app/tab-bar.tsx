@@ -51,7 +51,7 @@ export function TabBar({ counts }: { counts: NavCounts }) {
     <>
       <motion.nav
         aria-label="Main"
-        className="mobile-only pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center"
+        className="tab-bar-nav mobile-only pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center"
         style={{
           paddingBottom: 'calc(env(safe-area-inset-bottom) + var(--tab-bar-inset))',
         }}

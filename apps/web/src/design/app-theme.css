@@ -1209,3 +1209,39 @@ body.app-ui {
   .app-ui .ask-shimmer { animation: none !important; }
   .app-ui .ask-word { animation: none; opacity: 1; }
 }
+
+/* --- Keyboard ------------------------------------------------------------
+ * `KeyboardAware` sets `data-keyboard='open'` on <html> while a text field is
+ * focused and `--kb-inset` to the height the keyboard covers. The floating tab
+ * bar steps aside, the spacer that cleared it collapses, and a bottom sheet
+ * lifts above the keyboard and shrinks to what is left. */
+html[data-keyboard='open'] .tab-bar-nav {
+  transform: translateY(160%) !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-ui .kb-spacer {
+  transition: height 0.2s var(--ease-standard);
+}
+
+html[data-keyboard='open'] .app-ui .kb-spacer {
+  height: 0 !important;
+}
+
+.app-ui .sheet {
+  bottom: var(--kb-inset, 0px);
+  max-height: min(88dvh, calc(100dvh - var(--kb-inset, 0px) - 1rem));
+  transition: bottom 0.22s var(--ease-standard);
+}
+
+/* Room under a focused field so it can scroll clear of the keyboard. */
+html[data-keyboard='open'] body {
+  padding-bottom: 0;
+}
+
+/* The Ask page's glow reached past the screen edge and made the page swipe
+ * sideways; clip it. */
+.app-ui .ask-stage {
+  overflow-x: clip;
+}
