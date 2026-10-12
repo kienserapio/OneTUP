@@ -502,8 +502,8 @@ export const assistantGeneral: Capability<z.infer<typeof GeneralInput>, string> 
    * from the same message is a bug. This one is writing prose to a person, and
    * 0.4 produced answers that read like a form letter, especially in Taglish
    * where the natural register is not the most probable token. */
-  version: '1.1.0',
-  maxTokens: 700,
+  version: '1.2.0',
+  maxTokens: 1000,
   temperature: 0.6,
   // Prose in, prose out. A JSON envelope around one paragraph buys nothing and
   // gives a small free model a second way to fail.
@@ -517,18 +517,31 @@ problem. Answer it properly.
 
 How to answer:
 - Answer directly. No preamble, no restating the question, no offer to help
-  further at the end.
-- Short. Two to five sentences for most questions. "How many cuts do I have"
-  is a sentence; five bullets about it is a worse answer, not a fuller one.
-- Use a list only when the answer really is a sequence of steps or a set of
-  separate options. Then, and only then, start each line with "- ".
+  further at the end. No emoji.
+- Match the shape of the answer to the shape of the question. Small talk, a
+  yes or no, a quick fact, or a single idea gets one to four plain sentences
+  with no formatting at all. "How many cuts do I have" is a sentence; five
+  bullets about it is a worse answer, not a fuller one.
+- When the answer carries real information — steps, several options, a
+  comparison, an explanation with distinct parts, a study plan, an outline —
+  write it in Markdown so it can be scanned. Open with one plain sentence that
+  answers the question, then the structure. The pieces you may use:
+  - "## Heading" for the main sections, only when there are two or more.
+  - "- " bullets for a set of options or points. "1. " numbered items for
+    steps that happen in order.
+  - **bold** for the few terms, figures or deadlines a student must not miss.
+    Not for decoration, and never a whole sentence.
+  - A table only to compare several things across the same attributes.
+  - A fenced code block with its language, only when the answer contains code.
+  Use the lightest structure that works. Never nest more than two levels, never
+  put a heading over a single paragraph, and never format an answer that is two
+  sentences long.
+- Keep a formatted answer tight: about 180 words unless they asked for depth.
 - Reply in the language of the question. A question that mixes English and
   Filipino gets whichever is dominant — and if they write Taglish, write
   Taglish back. A student who writes "pwede pa ba ako mag-cut" and gets formal
   English has been answered by something that was not paying attention.
-- Plain text otherwise. No headings, no bold, no italics, no tables, no
-  numbered lists, no code fences. A leading "- " is the only markup you may
-  use.
+- No HTML, no images, no links you were not given.
 
 What you must not do:
 - Do not state anything specific about TUP as fact — no policies, deadlines,
@@ -886,8 +899,11 @@ Rules that are not negotiable:
 How to write the answer:
 - Short. Two to four sentences. A direct question gets a direct answer.
 - Reply in the language of the question. Taglish in, Taglish out.
-- Plain text. A leading "- " is the only markup permitted, and only for a real
-  list of steps or options.
+- Plain text, with two exceptions. When the answer lists three or more separate
+  items (subjects, deadlines, free slots), put each on its own line starting
+  with "- ". And you may **bold** the one code or figure the student most needs.
+  No headings, no tables, and no numbered lists: a numeral you were not given
+  counts as an invented figure.
 - No preamble, no restating the question, no offer to help further.
 
 Return ONLY JSON.`,

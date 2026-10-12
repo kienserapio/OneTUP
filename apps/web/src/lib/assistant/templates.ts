@@ -151,9 +151,10 @@ const absencesRemaining: Template = {
 
     const tightest = [...summaries].sort((a, b) => a.summary.remaining - b.summary.remaining)[0]
     return {
-      answer: summaries
-        .map((entry) => `${entry.code}: ${entry.summary.remaining} left`)
-        .join(' · '),
+      answer: `Absences left per subject, tightest first:\n${[...summaries]
+        .sort((a, b) => a.summary.remaining - b.summary.remaining)
+        .map((entry) => `- **${entry.code}** — ${entry.summary.remaining} left`)
+        .join('\n')}`,
       values: {
         per_course: summaries.map((entry) => ({
           course: entry.code,
@@ -218,10 +219,15 @@ const freeBlocksTemplate: Template = {
       }
     }
 
+    const spans = gaps.map(
+      (gap) => `${formatTime12(gap.startTime)}–${formatTime12(gap.endTime)}`,
+    )
+
     return {
-      answer: `On ${formatWeekday(day)} you're free ${gaps
-        .map((gap) => `${formatTime12(gap.startTime)}–${formatTime12(gap.endTime)}`)
-        .join(', ')}.`,
+      answer:
+        spans.length === 1
+          ? `On ${formatWeekday(day)} you're free ${spans[0]}.`
+          : `On ${formatWeekday(day)} you're free:\n${spans.map((span) => `- ${span}`).join('\n')}`,
       values: { day, gaps },
     }
   },
@@ -260,12 +266,15 @@ const deadlinesDue: Template = {
     }
 
     return {
-      answer: deadlines
-        .map(
-          (deadline) =>
-            `${deadline.title}${deadline.course ? ` (${deadline.course})` : ''} — ${formatDue(deadline.dueAt)}`,
-        )
-        .join('\n'),
+      answer:
+        deadlines.length === 1
+          ? `${deadlines[0].title}${deadlines[0].course ? ` (${deadlines[0].course})` : ''} is due ${formatDue(deadlines[0].dueAt)}.`
+          : `Open and due within ${horizonDays} days (overdue ones first):\n${deadlines
+              .map(
+                (deadline) =>
+                  `- **${deadline.title}**${deadline.course ? ` (${deadline.course})` : ''} — ${formatDue(deadline.dueAt)}${new Date(deadline.dueAt) < now ? ' (overdue)' : ''}`,
+              )
+              .join('\n')}`,
       values: { horizon_days: horizonDays, deadlines },
     }
   },

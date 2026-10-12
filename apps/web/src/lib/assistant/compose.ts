@@ -156,7 +156,7 @@ export async function composeAnswer(request: ComposeRequest): Promise<ComposedAn
      * sentences are a worse answer than one composed sentence and a much better
      * answer than an invented one. */
     return {
-      answer: receipts.map((receipt) => receipt.answer).join(' '),
+      answer: receipts.map((receipt) => receipt.answer).join('\n\n'),
       receipts,
       composed: receipts.length > 1,
       fellBack: 'ungrounded',
