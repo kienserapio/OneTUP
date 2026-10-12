@@ -5,7 +5,8 @@ import { motion } from 'motion/react'
 import type { CampusPlace } from '@onetup/core'
 import { spring, transition } from '@/design/motion'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/surfaces'
+import { RowPill } from '@/components/ui/row'
+import { IconSearch, IconWalk } from '@/components/ui/icon'
 
 /**
  * Room lookup.
@@ -199,7 +200,11 @@ export function RoomSearch({
   return (
     <section aria-labelledby={`${inputId}-label`}>
       <form onSubmit={search} className="flex flex-col gap-[var(--space-2)]">
-        <label id={`${inputId}-label`} htmlFor={inputId} className="type-section-header">
+        <label
+          id={`${inputId}-label`}
+          htmlFor={inputId}
+          className="pl-1 text-[0.75rem] font-bold uppercase tracking-wider text-[var(--label-tertiary)]"
+        >
           Room number
         </label>
         <div className="flex gap-[var(--space-2)]">
@@ -217,6 +222,7 @@ export function RoomSearch({
           <Button
             type="submit"
             variant="accent"
+            leading={<IconSearch size={18} />}
             disabled={query.trim().length === 0 || state.kind === 'searching'}
           >
             {state.kind === 'searching' ? 'Looking' : 'Find'}
@@ -230,24 +236,28 @@ export function RoomSearch({
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={transition(spring.snap)}
-            className="card squircle mt-[var(--space-3)] p-[var(--space-4)]"
+            className="row-card mt-[var(--space-3)] rounded-[var(--radius-lg)] p-[var(--space-4)]"
+            style={{
+              background: 'var(--bg)',
+              boxShadow: '0 1px 2px rgb(24 24 27 / 0.04), 0 6px 18px -12px rgb(24 24 27 / 0.12)',
+            }}
           >
-            <p className="type-section-header" style={{ color: 'var(--label)' }}>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wider text-[var(--accent)]">
               Room {state.answer.room}
             </p>
-            <p className="type-title-3 mt-[var(--space-1)]">
+            <p className="mt-[var(--space-1)] text-[1.25rem] font-bold leading-tight tracking-[-0.02em]">
               {state.answer.building.name}
               {state.answer.building.code ? ` · ${state.answer.building.code}` : ''}
             </p>
 
             <dl className="mt-[var(--space-3)] flex flex-col gap-[var(--space-2)]">
-              <div className="flex gap-[var(--space-2)]">
-                <dt className="type-footnote w-[7.5rem] shrink-0">Floor</dt>
-                <dd className="type-footnote type-data">{state.answer.floor ?? 'Not recorded'}</dd>
+              <div className="campus-stat">
+                <dt>Floor</dt>
+                <dd className="tabular-nums">{state.answer.floor ?? 'Not recorded'}</dd>
               </div>
-              <div className="flex gap-[var(--space-2)]">
-                <dt className="type-footnote w-[7.5rem] shrink-0">Nearest gate</dt>
-                <dd className="type-footnote">
+              <div className="campus-stat">
+                <dt>Nearest gate</dt>
+                <dd>
                   {state.answer.nearest_gate
                     ? `${state.answer.nearest_gate.name} · about ${state.answer.nearest_gate.walk_minutes} min walk`
                     : 'No gate recorded yet'}
@@ -256,15 +266,16 @@ export function RoomSearch({
             </dl>
 
             <p className="mt-[var(--space-3)]">
-              <Badge tone={state.answer.confidence === 'exact' ? 'verified' : 'stale'}>
+              <RowPill tone={state.answer.confidence === 'exact' ? 'green' : undefined}>
                 {CONFIDENCE_NOTE[state.answer.confidence]}
-              </Badge>
+              </RowPill>
             </p>
 
             {onOpenScene && state.place?.tour_scene_url && (
               <p className="mt-[var(--space-3)]">
                 <Button
                   variant="accent"
+                  leading={<IconWalk size={18} />}
                   onClick={() => {
                     if (state.place) onOpenScene(state.place)
                   }}
@@ -278,10 +289,12 @@ export function RoomSearch({
 
         {state.kind === 'missing' && (
           <div
-            className="mt-[var(--space-3)] rounded-[var(--radius-md)] p-[var(--space-4)]"
-            style={{ background: 'var(--fill-quaternary)' }}
+            className="mt-[var(--space-3)] rounded-[var(--radius-lg)] p-[var(--space-4)]"
+            style={{ background: 'var(--bg)' }}
           >
-            <p className="type-subheadline">{state.message}</p>
+            <p className="text-[0.9375rem] font-medium" style={{ color: 'var(--label-secondary)' }}>
+              {state.message}
+            </p>
           </div>
         )}
       </div>

@@ -6,7 +6,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { clearLocalData } from '@/lib/offline/db'
 import { Button } from '@/components/ui/button'
+import { IconKey, IconSend } from '@/components/ui/icon'
 import {
+  AuthNotice,
   AuthFormShell,
   Field,
   FormNote,
@@ -106,11 +108,18 @@ function ResetPassword() {
           hint={<PasswordHint password={password} />}
           required
         />
-        <p className="type-footnote text-[var(--label-secondary)]">
+        <p className="text-[0.8125rem] font-medium leading-snug text-[var(--label-tertiary)]">
           If you had OneTUP remember your ERS password on this device, you&rsquo;ll need to enter
           it again next time you sync — it was locked with your old password.
         </p>
-        <Button type="submit" variant="accent" block disabled={busy}>
+        <Button
+          type="submit"
+          variant="accent"
+          size="lg"
+          block
+          disabled={busy}
+          leading={<IconKey size={20} />}
+        >
           {busy ? 'Saving…' : 'Save and continue'}
         </Button>
       </AuthFormShell>
@@ -119,17 +128,18 @@ function ResetPassword() {
 
   if (sent) {
     return (
-      <div className="stack">
-        <h1 className="type-title-1">Check your email</h1>
+      <AuthNotice
+        title="Check your email"
+        footer={
+          <Link href="/sign-in" className="auth-link text-[0.9375rem]">
+            Back to sign in
+          </Link>
+        }
+      >
         <FormNote>
           If there&rsquo;s an account for {email}, a reset link is on its way. It works for an hour.
         </FormNote>
-        <p className="type-subheadline text-center">
-          <Link href="/sign-in" className="text-[var(--accent)]">
-            Back to sign in
-          </Link>
-        </p>
-      </div>
+      </AuthNotice>
     )
   }
 
@@ -140,8 +150,8 @@ function ResetPassword() {
       error={error}
       onSubmit={requestLink}
       footer={
-        <p className="type-subheadline text-center">
-          <Link href="/sign-in" className="text-[var(--accent)]">
+        <p className="text-[0.9375rem]">
+          <Link href="/sign-in" className="auth-link">
             Back to sign in
           </Link>
         </p>
@@ -157,7 +167,14 @@ function ResetPassword() {
         onChange={setEmail}
         required
       />
-      <Button type="submit" variant="accent" block disabled={busy}>
+      <Button
+        type="submit"
+        variant="accent"
+        size="lg"
+        block
+        disabled={busy}
+        leading={<IconSend size={20} />}
+      >
         {busy ? 'Sending…' : 'Send the link'}
       </Button>
     </AuthFormShell>

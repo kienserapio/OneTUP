@@ -129,7 +129,7 @@ export default function ContributorsPage() {
     <>
       <SiteNav />
 
-      <main id="main" style={{ background: 'var(--bg)' }}>
+      <main id="main" style={{ background: 'var(--canvas)' }}>
         {/* --- Nameplate ------------------------------------------------- */}
         <section className="mx-auto max-w-[62rem] px-6 pb-[calc(var(--space-16)+var(--space-8))] pt-[calc(var(--space-16)+3rem)] sm:pb-[calc(var(--space-16)*2)]">
           <Reveal>
@@ -157,12 +157,8 @@ export default function ContributorsPage() {
         <section className="mx-auto max-w-[62rem] px-6">
           <Reveal>
             <div
-              className="squircle relative overflow-hidden rounded-[var(--radius-xl)] border p-[var(--space-8)] sm:p-[var(--space-10)]"
-              style={{
-                borderColor: 'var(--separator)',
-                background:
-                  'linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, var(--surface-sunken)) 0%, var(--surface-sunken) 55%)',
-              }}
+              className="card-glass squircle p-[var(--space-8)] sm:p-[var(--space-10)]"
+              style={{ borderRadius: 'var(--radius-xl)' }}
             >
               {/* A quiet piece of decoration: the mark, blown up and clipped by
                   the card, so the panel has depth without a stock photograph. */}

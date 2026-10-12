@@ -1,0 +1,132 @@
+/* --- Campus ----------------------------------------------------------------
+ * The 360° tour fills the screen and everything else floats over a photograph
+ * of unknown brightness. So the controls are solid white pills (never frosted
+ * glass), the panels are white glass cards, and lists are floating rows on a
+ * canvas-grey well. Crimson only for the open tool and the selected place. */
+
+.app-ui .campus-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: var(--target-min);
+  padding: 0 1rem;
+  border-radius: 9999px;
+  background: var(--bg);
+  color: var(--label);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    0 0 0 1px rgb(24 24 27 / 0.04),
+    0 4px 14px -4px rgb(24 24 27 / 0.22);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.app-ui .campus-pill > svg {
+  flex: 0 0 auto;
+  color: var(--label-secondary);
+}
+
+.app-ui .campus-pill:active {
+  transform: scale(0.95);
+}
+
+/* The open tool: the same crimson pill as everywhere else. */
+.app-ui .campus-pill[data-active='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.24),
+    inset 0 -2px 0 0 rgb(0 0 0 / 0.1),
+    0 1px 2px rgb(0 0 0 / 0.12),
+    0 8px 20px -8px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.app-ui .campus-pill[data-active='true'] > svg {
+  color: currentColor;
+}
+
+/* The line of credit and where-you-are, over the photograph. */
+.app-ui .campus-note {
+  border-radius: 16px;
+  background: rgb(255 255 255 / 0.92);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: 0 4px 14px -6px rgb(24 24 27 / 0.2);
+}
+
+/* A panel: a white glass card whose body is a grey well, so the white rows
+ * inside it float. */
+.app-ui .campus-panel-body {
+  background: var(--canvas);
+}
+
+.app-ui .campus-panel-head {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 100%);
+}
+
+/* The jump-to popup. */
+.app-ui .campus-popup {
+  border-radius: 22px;
+}
+
+.app-ui .campus-option {
+  margin: 0 0.5rem;
+  border-radius: 14px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.app-ui .campus-group-label {
+  background: linear-gradient(180deg, var(--bg) 70%, transparent);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--label-tertiary);
+}
+
+/* Place rows: the description wraps (the shared row clips to one line). */
+.app-ui .campus-place-desc {
+  display: block;
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--label-secondary);
+}
+
+.app-ui .row.campus-row-selected {
+  background: var(--accent-subtle);
+}
+
+.app-ui .row.campus-row-selected .row-title {
+  color: var(--accent);
+}
+
+.app-ui .campus-row-icon {
+  color: var(--label-tertiary);
+}
+
+.app-ui .campus-row-selected .campus-row-icon {
+  color: var(--accent);
+}
+
+.app-ui .campus-stat {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.app-ui .campus-stat dt {
+  flex: 0 0 7.5rem;
+  color: var(--label-tertiary);
+  font-weight: 600;
+}

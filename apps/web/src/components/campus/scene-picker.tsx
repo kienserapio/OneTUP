@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring, transition } from '@/design/motion'
 import { cx } from '@/lib/cx'
-import { IconCheck, IconChevronRight } from '@/components/ui/icon'
+import { IconCheck, IconChevronDown, IconMap } from '@/components/ui/icon'
 import { CATEGORY_LABEL } from './place-list'
 
 /**
@@ -176,7 +176,7 @@ export function ScenePicker({
         type="button"
         /* 56vw, not 72: the row also carries the way back out, and at 390px the
          * old ceiling pushed this pill off the right edge of the screen. */
-        className="glass max-w-[min(18rem,56vw)]"
+        className="campus-pill max-w-[min(18rem,56vw)]"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
@@ -188,22 +188,22 @@ export function ScenePicker({
           }
         }}
       >
-        <span className="type-subheadline shrink-0 font-semibold">Jump to</span>
+        <IconMap size={18} />
+        <span className="shrink-0">Jump to</span>
         {current && (
           <span
-            className="type-footnote hidden truncate font-normal sm:inline"
-            style={{ color: 'var(--label-secondary)' }}
+            className="hidden truncate text-[0.8125rem] font-medium sm:inline"
+            style={{ color: 'var(--label-tertiary)' }}
           >
             {current.name}
           </span>
         )}
-        <IconChevronRight
+        <IconChevronDown
           size={16}
           className="shrink-0"
           style={{
-            transform: open ? 'rotate(-90deg)' : 'rotate(90deg)',
+            transform: open ? 'rotate(180deg)' : 'none',
             transition: 'transform var(--duration-fast) var(--ease-standard)',
-            color: 'var(--label-secondary)',
           }}
         />
       </button>
@@ -211,22 +211,18 @@ export function ScenePicker({
       <AnimatePresence>
         {open && (
           <motion.div
-            className="card squircle absolute right-0 z-30 overflow-hidden"
+            className="card-glass campus-popup right-0 z-30"
             style={{
+              position: 'absolute',
               top: 'calc(100% + var(--space-2))',
               width: 'min(22rem, calc(100vw - var(--space-6)))',
-              boxShadow: 'var(--shadow-float)',
-              background: 'var(--bg-grouped-secondary)',
             }}
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={transition(spring.snap)}
           >
-            <div
-              className="p-[var(--space-2)]"
-              style={{ borderBottom: '1px solid var(--separator)' }}
-            >
+            <div className="p-[var(--space-2)]">
               <input
                 ref={inputRef}
                 type="text"
@@ -253,7 +249,7 @@ export function ScenePicker({
                 id={listId}
                 role="listbox"
                 aria-label="Places in the tour"
-                className="overflow-y-auto overscroll-contain"
+                className="overflow-y-auto overscroll-contain pb-[var(--space-2)]"
                 style={{ maxHeight: 'min(46dvh, 20rem)' }}
               >
                 {groups.map(([category, items]) => {
@@ -262,12 +258,7 @@ export function ScenePicker({
                     <div key={category} role="group" aria-labelledby={headingId}>
                       <p
                         id={headingId}
-                        className="type-caption-1 sticky top-0 px-[var(--space-4)] py-[var(--space-1)] font-semibold uppercase"
-                        style={{
-                          background: 'var(--bg-grouped-secondary)',
-                          color: 'var(--label-secondary)',
-                          letterSpacing: '0.06em',
-                        }}
+                        className="campus-group-label sticky top-0 px-[var(--space-4)] pb-[var(--space-1)] pt-[var(--space-2)]"
                       >
                         {CATEGORY_LABEL[category] ?? category}
                       </p>
@@ -283,15 +274,15 @@ export function ScenePicker({
                             aria-selected={isSelected}
                             onClick={() => select(option)}
                             onPointerMove={() => setActiveIndex(index)}
-                            className="flex cursor-pointer items-center gap-[var(--space-2)] px-[var(--space-4)]"
+                            className="campus-option flex cursor-pointer items-center gap-[var(--space-2)] px-[var(--space-3)]"
                             style={{
                               minHeight: 'var(--target-min)',
-                              background: isActive ? 'var(--fill-quaternary)' : undefined,
+                              background: isActive ? 'var(--canvas)' : undefined,
                               color: isSelected ? 'var(--accent)' : 'var(--label)',
                             }}
                           >
-                            <span className="type-body min-w-0 flex-1 truncate">{option.name}</span>
-                            {isSelected && <IconCheck size={17} className="shrink-0" />}
+                            <span className="min-w-0 flex-1 truncate">{option.name}</span>
+                            {isSelected && <IconCheck size={18} className="shrink-0" />}
                           </div>
                         )
                       })}
@@ -300,7 +291,7 @@ export function ScenePicker({
                 })}
               </div>
             ) : (
-              <p className="type-subheadline p-[var(--space-4)]" style={{ color: 'var(--label-secondary)' }}>
+              <p className="p-[var(--space-4)] text-[0.9375rem] font-medium" style={{ color: 'var(--label-secondary)' }}>
                 Nothing in the tour matches that. Only places somebody has linked to a 360°
                 scene show up here.
               </p>

@@ -4,7 +4,9 @@ import { useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { IconProfile } from '@/components/ui/icon'
 import {
+  AuthNotice,
   AuthFormShell,
   Field,
   FormNote,
@@ -73,23 +75,18 @@ export default function SignUpPage() {
 
   if (sent) {
     return (
-      <div className="stack">
-        <h1 className="type-title-1">Check your email</h1>
+      <AuthNotice title="Check your email">
         <FormNote>
           We sent a link to {email}. Open it and you&rsquo;re in. The link works for an hour.
         </FormNote>
-        <p className="type-subheadline text-[var(--label-secondary)]">
+        <p className="text-center text-[0.9375rem] font-medium text-[var(--label-secondary)]">
           Nothing arrived? Look in spam, or{' '}
-          <button
-            type="button"
-            className="font-medium text-[var(--accent)]"
-            onClick={() => setSent(false)}
-          >
+          <button type="button" className="auth-link" onClick={() => setSent(false)}>
             try a different address
           </button>
           .
         </p>
-      </div>
+      </AuthNotice>
     )
   }
 
@@ -100,9 +97,9 @@ export default function SignUpPage() {
       error={error}
       onSubmit={submit}
       footer={
-        <p className="type-subheadline text-center text-[var(--label-secondary)]">
+        <p className="text-[0.9375rem] font-medium text-[var(--label-secondary)]">
           Already have one?{' '}
-          <Link href="/sign-in" className="font-medium text-[var(--accent)]">
+          <Link href="/sign-in" className="auth-link">
             Sign in
           </Link>
         </p>
@@ -145,11 +142,18 @@ export default function SignUpPage() {
         required
       />
 
-      <p className="type-footnote text-[var(--label-secondary)]">
+      <p className="text-[0.8125rem] font-medium leading-snug text-[var(--label-tertiary)]">
         This is a OneTUP password. It is not your ERS password, and we never ask you to reuse it.
       </p>
 
-      <Button type="submit" variant="accent" block disabled={busy}>
+      <Button
+        type="submit"
+        variant="accent"
+        size="lg"
+        block
+        disabled={busy}
+        leading={<IconProfile size={20} />}
+      >
         {busy ? 'Creating your account…' : 'Create account'}
       </Button>
     </AuthFormShell>

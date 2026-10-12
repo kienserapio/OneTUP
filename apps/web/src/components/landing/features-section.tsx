@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { spring, transition } from '@/design/motion'
 import { ButtonLink } from '@/components/ui/button'
+import { IconArrow } from '@/components/ui/icon'
 import { Mark } from '@/components/ui/mark'
 import { Reveal } from './reveal'
 import {
@@ -126,15 +127,18 @@ export function FeaturesSection() {
       // not add a horizontal scrollbar, and `overflow: hidden` here would break
       // the sticky index column.
       className="relative z-10 scroll-mt-24 overflow-x-clip px-5 py-20 md:px-10 md:py-40 lg:px-16"
-      style={{ background: 'var(--bg)' }}
+      style={{ background: 'var(--canvas)' }}
     >
       <div className="mx-auto max-w-[90rem] lg:grid lg:grid-cols-[400px_1fr] lg:gap-24 xl:grid-cols-[460px_1fr] xl:gap-48">
-        <div className="lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:justify-between lg:py-32">
+        <div className="lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:justify-between lg:py-24">
           <Reveal>
-            <h2 className="text-3xl leading-[1.15] tracking-tight sm:text-4xl md:text-5xl">
+            <h2 className="text-3xl font-bold leading-[1.1] tracking-[-0.03em] sm:text-4xl md:text-5xl">
               Six things you check every day
             </h2>
-            <p className="type-body mt-5 max-w-[38ch]" style={{ color: 'var(--label-secondary)' }}>
+            <p
+              className="mt-5 max-w-[38ch] text-[1.0625rem] font-medium leading-relaxed"
+              style={{ color: 'var(--label-secondary)' }}
+            >
               Import your schedule once. Everything else builds on it.
             </p>
           </Reveal>
@@ -149,10 +153,10 @@ export function FeaturesSection() {
                     type="button"
                     onClick={() => goTo(index)}
                     aria-current={active === index ? 'true' : undefined}
-                    className="type-subheadline relative isolate flex min-h-[var(--target-min)] w-full items-center rounded-[var(--radius-sm)] px-3 text-left transition-colors"
+                    className="relative isolate flex min-h-[var(--target-min)] w-full items-center rounded-full px-4 text-left text-[0.9375rem] transition-colors"
                     style={{
-                      color: active === index ? 'var(--crimson-700)' : 'var(--label-secondary)',
-                      fontWeight: active === index ? 600 : 400,
+                      color: active === index ? 'var(--accent)' : 'var(--label-tertiary)',
+                      fontWeight: 600,
                     }}
                   >
                     {active === index && (
@@ -160,7 +164,7 @@ export function FeaturesSection() {
                         aria-hidden
                         layoutId="feature-index-marker"
                         transition={transition(spring.snap)}
-                        className="absolute inset-0 -z-10 rounded-[var(--radius-sm)]"
+                        className="absolute inset-0 -z-10 rounded-full"
                         style={{ background: 'var(--accent-subtle)' }}
                       />
                     )}
@@ -172,10 +176,13 @@ export function FeaturesSection() {
           </nav>
 
           <div className="mt-12 lg:mt-0">
-            <ButtonLink href="/today" variant="accent" size="lg">
+            <ButtonLink href="/today" variant="accent" size="lg" trailing={<IconArrow size={20} />}>
               Open OneTUP
             </ButtonLink>
-            <p className="type-footnote mt-3" style={{ color: 'var(--label-secondary)' }}>
+            <p
+              className="mt-3 text-[0.8125rem] font-medium"
+              style={{ color: 'var(--label-secondary)' }}
+            >
               Free forever. Works offline.
             </p>
           </div>
@@ -190,7 +197,7 @@ export function FeaturesSection() {
               ref={(element: HTMLElement | null) => {
                 cardRefs.current[index] = element
               }}
-              className="card squircle scroll-mt-24 p-5 md:p-8"
+              className="card-glass squircle lp-card scroll-mt-24"
               initial={{ opacity: 0, y: reduced ? 0 : 36 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.15 }}
@@ -200,14 +207,16 @@ export function FeaturesSection() {
                   ? undefined
                   : { y: -6, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } }
               }
-              style={{ boxShadow: 'var(--shadow-card)' }}
             >
               <Mark size={28} />
-              <h3 className="mt-5 text-xl leading-[1.2] tracking-tight sm:text-2xl">
+              <h3 className="mt-5 text-xl font-bold leading-[1.2] tracking-[-0.025em] sm:text-2xl">
                 {feature.title}
               </h3>
               <div className="mt-6">{feature.visual}</div>
-              <p className="type-body mt-6 max-w-[60ch]" style={{ color: 'var(--label-secondary)' }}>
+              <p
+                className="mt-6 max-w-[60ch] text-[1rem] font-medium leading-relaxed"
+                style={{ color: 'var(--label-secondary)' }}
+              >
                 {feature.description}
               </p>
             </motion.article>

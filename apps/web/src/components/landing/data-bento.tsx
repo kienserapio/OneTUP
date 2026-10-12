@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { spring, transition } from '@/design/motion'
 import { cx } from '@/lib/cx'
 import { IconCheck, IconExport, IconLock, IconShield, IconSparkleSmall } from '@/components/ui/icon'
+import { Watermark } from '@/components/ui/watermark'
 
 /**
  * What OneTUP does with your data, as a bento.
@@ -51,6 +52,7 @@ function useCycle(steps: number, intervalMs: number) {
 
 function Cell({
   icon,
+  watermark,
   title,
   subtitle,
   visual,
@@ -58,6 +60,8 @@ function Cell({
   index,
 }: {
   icon: ReactNode
+  /** The same glyph, large and faint behind the cell. */
+  watermark: Parameters<typeof Watermark>[0]['Icon']
   title: string
   subtitle: string
   visual: ReactNode
@@ -68,27 +72,30 @@ function Cell({
 
   return (
     <motion.article
-      className={cx(
-        'squircle relative flex flex-col overflow-hidden rounded-[var(--radius-xl)] p-6 md:p-7',
-        className,
-      )}
-      style={{ background: 'var(--surface-sunken)' }}
+      className={cx('card-glass squircle flex flex-col p-6 md:p-7', className)}
+      style={{ borderRadius: 'var(--radius-xl)' }}
       initial={{ opacity: 0, y: reduced ? 0 : 32 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: reduced ? 0.24 : 0.7, delay: reduced ? 0 : index * 0.07, ease: EASE }}
       whileHover={reduced ? undefined : { y: -5, transition: { duration: 0.25, ease: EASE } }}
     >
+      <Watermark Icon={watermark} size={104} />
+
+      {/* A bare crimson glyph: an icon never sits on a tile. */}
       <span
         aria-hidden
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)]"
-        style={{ background: 'var(--accent-subtle)', color: 'var(--accent)' }}
+        data-tone="crimson"
+        className="glyph flex h-10 shrink-0 items-center"
       >
         {icon}
       </span>
 
-      <h3 className="type-title-3 mt-5">{title}</h3>
-      <p className="type-subheadline mt-2" style={{ color: 'var(--label-secondary)' }}>
+      <h3 className="mt-4 text-[1.25rem] font-bold leading-tight tracking-[-0.025em]">{title}</h3>
+      <p
+        className="mt-2 text-[0.9375rem] font-medium leading-snug"
+        style={{ color: 'var(--label-secondary)' }}
+      >
         {subtitle}
       </p>
 
@@ -99,13 +106,14 @@ function Cell({
   )
 }
 
-/** The shared inner surface every visual sits on. White on the sunken cell, so
- * the mechanism reads as a piece of the app rather than as an illustration. */
+/** The shared inner surface every visual sits on: canvas grey on the white
+ * cell, so the mechanism reads as a piece of the app rather than as an
+ * illustration. */
 function Panel({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={cx('squircle rounded-[var(--radius-md)] p-3', className)}
-      style={{ background: 'var(--bg)', border: '1px solid var(--separator-soft)' }}
+      className={cx('squircle rounded-[18px] px-3.5 py-3', className)}
+      style={{ background: 'var(--canvas)' }}
     >
       {children}
     </div>
@@ -320,21 +328,24 @@ export function DataBento() {
       <Cell
         index={0}
         className="md:col-span-2"
-        icon={<IconLock size={20} />}
+        icon={<IconLock size={22} />}
+        watermark={IconLock}
         title="Never saves your password"
         subtitle="Not your ERS login, not your Facebook."
         visual={<PasswordVisual />}
       />
       <Cell
         index={1}
-        icon={<IconShield size={20} />}
+        icon={<IconShield size={22} />}
+        watermark={IconShield}
         title="Grades and cuts stay yours"
         subtitle="No rankings, no reports, nothing visible to faculty or admin."
         visual={<PrivateVisual />}
       />
       <Cell
         index={2}
-        icon={<IconSparkleSmall size={20} />}
+        icon={<IconSparkleSmall size={22} />}
+        watermark={IconSparkleSmall}
         title="AI is labelled where it’s used"
         subtitle="It drafts from your notes. It never invents a grade or a jeepney route."
         visual={<LabelledVisual />}
@@ -342,7 +353,8 @@ export function DataBento() {
       <Cell
         index={3}
         className="md:col-span-2"
-        icon={<IconExport size={20} />}
+        icon={<IconExport size={22} />}
+        watermark={IconExport}
         title="You can take it all with you"
         subtitle="Export everything, any time. Delete your account and it’s actually deleted."
         visual={<PortableVisual />}

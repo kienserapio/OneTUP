@@ -6,6 +6,8 @@ import type { CampusPlace } from '@onetup/core'
 import { spring, transition } from '@/design/motion'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { Button, ButtonLink } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
+import { IconKey, IconSend } from '@/components/ui/icon'
 
 /**
  * "That's wrong" — the correction path.
@@ -54,7 +56,7 @@ export function CorrectionForm({
 
   if (places.length === 0) {
     return (
-      <p className="type-subheadline" style={{ color: 'var(--label-secondary)' }}>
+      <p className="text-[0.9375rem] font-medium" style={{ color: 'var(--label-secondary)' }}>
         There is nothing loaded to correct yet. Campus data comes from the database and that
         request has not come back.
       </p>
@@ -108,8 +110,8 @@ export function CorrectionForm({
         transition={transition(spring.snap)}
         className="flex flex-col items-start gap-[var(--space-3)]"
       >
-        <p className="type-headline">Sent. Thank you.</p>
-        <p className="type-subheadline" style={{ color: 'var(--label-secondary)' }}>
+        <p className="text-[1.0625rem] font-bold tracking-[-0.02em]">Sent. Thank you.</p>
+        <p className="text-[0.9375rem] font-medium" style={{ color: 'var(--label-secondary)' }}>
           A moderator checks corrections before they change what anyone else sees, so this will
           not appear straight away.
         </p>
@@ -123,43 +125,33 @@ export function CorrectionForm({
   return (
     <form onSubmit={submit} className="flex flex-col gap-[var(--space-3)]">
       <div className="flex flex-col gap-[var(--space-1)]">
-        <label htmlFor={`${id}-place`} className="type-section-header">
+        <label htmlFor={`${id}-place`} className="pl-1 text-[0.75rem] font-bold uppercase tracking-wider text-[var(--label-tertiary)]">
           Which place
         </label>
-        <select
+        <Select
           id={`${id}-place`}
-          className="field"
           value={placeId}
-          onChange={(event) => setPlaceId(event.target.value)}
-        >
-          {places.map((place) => (
-            <option key={place.id} value={place.id}>
-              {place.name}
-            </option>
-          ))}
-        </select>
+          onChange={setPlaceId}
+          options={places.map((place) => ({ value: place.id, label: place.name }))}
+          label="Which place"
+        />
       </div>
 
       <div className="flex flex-col gap-[var(--space-1)]">
-        <label htmlFor={`${id}-field`} className="type-section-header">
+        <label htmlFor={`${id}-field`} className="pl-1 text-[0.75rem] font-bold uppercase tracking-wider text-[var(--label-tertiary)]">
           What is wrong
         </label>
-        <select
+        <Select
           id={`${id}-field`}
-          className="field"
           value={field}
-          onChange={(event) => setField(event.target.value)}
-        >
-          {FIELDS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={setField}
+          options={FIELDS.map((option) => ({ value: option.value, label: option.label }))}
+          label="What is wrong"
+        />
       </div>
 
       <div className="flex flex-col gap-[var(--space-1)]">
-        <label htmlFor={`${id}-proposed`} className="type-section-header">
+        <label htmlFor={`${id}-proposed`} className="pl-1 text-[0.75rem] font-bold uppercase tracking-wider text-[var(--label-tertiary)]">
           What it should say
         </label>
         <input
@@ -175,7 +167,7 @@ export function CorrectionForm({
       </div>
 
       <div className="flex flex-col gap-[var(--space-1)]">
-        <label htmlFor={`${id}-note`} className="type-section-header">
+        <label htmlFor={`${id}-note`} className="pl-1 text-[0.75rem] font-bold uppercase tracking-wider text-[var(--label-tertiary)]">
           Anything else <span style={{ color: 'var(--label-tertiary)' }}>· optional</span>
         </label>
         <textarea
@@ -190,7 +182,7 @@ export function CorrectionForm({
       </div>
 
       {state.kind === 'failed' && (
-        <p className="type-footnote" style={{ color: 'var(--danger)' }} role="alert">
+        <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--accent)' }} role="alert">
           {state.message}
         </p>
       )}
@@ -199,11 +191,12 @@ export function CorrectionForm({
         <Button
           type="submit"
           variant="accent"
+          leading={<IconSend size={18} />}
           disabled={state.kind === 'saving' || proposed.trim().length === 0}
         >
           {state.kind === 'saving' ? 'Sending' : 'Send the correction'}
         </Button>
-        <p className="type-caption-1" style={{ color: 'var(--label-secondary)' }}>
+        <p className="text-[0.75rem] font-medium" style={{ color: 'var(--label-tertiary)' }}>
           Moderated before it changes anything.
         </p>
       </div>
@@ -215,11 +208,11 @@ export function CorrectionForm({
 export function CorrectionSignedOut() {
   return (
     <div className="flex flex-col items-start gap-[var(--space-3)]">
-      <p className="type-subheadline" style={{ color: 'var(--label-secondary)' }}>
+      <p className="text-[0.9375rem] font-medium" style={{ color: 'var(--label-secondary)' }}>
         Corrections are attached to an account so a moderator can ask a follow-up question.
         Everything else on this screen stays open to everyone.
       </p>
-      <ButtonLink href="/sign-in" variant="accent">
+      <ButtonLink href="/sign-in" variant="accent" leading={<IconKey size={18} />}>
         Sign in to send one
       </ButtonLink>
     </div>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import Link from 'next/link'
+import { ButtonLink } from '@/components/ui/button'
+import { IconArrow } from '@/components/ui/icon'
 import { SiteNav } from './site-nav'
 import { SiteFooter } from './site-footer'
 
@@ -27,33 +28,32 @@ export function LegalPage({
     <>
       <SiteNav />
 
-      <main id="main" style={{ background: 'var(--bg-grouped)' }}>
+      <main id="main" style={{ background: 'var(--canvas)' }}>
         <div
           className="mx-auto w-full px-[var(--space-5)] pb-[var(--space-16)] pt-[7rem]"
           style={{ maxWidth: '42rem' }}
         >
-          <h1 className="type-large-title">{title}</h1>
-          <p className="type-body mt-[var(--space-4)]">{standfirst}</p>
+          <h1 className="text-[2.25rem] font-bold leading-[1.1] tracking-[-0.03em]">{title}</h1>
+          <p
+            className="mt-[var(--space-4)] text-[1.0625rem] font-medium leading-relaxed"
+            style={{ color: 'var(--label-secondary)' }}
+          >
+            {standfirst}
+          </p>
 
           <div className="mt-[var(--space-10)] flex flex-col gap-[var(--space-10)]">{children}</div>
 
-          <p className="type-subheadline mt-[var(--space-12)]">
+          <div className="mt-[var(--space-12)]">
             {current === 'privacy' ? (
-              <Link
-                href="/terms"
-                className="underline decoration-[var(--separator)] underline-offset-4"
-              >
+              <ButtonLink href="/terms" size="sm" trailing={<IconArrow size={16} />}>
                 Terms of use
-              </Link>
+              </ButtonLink>
             ) : (
-              <Link
-                href="/privacy"
-                className="underline decoration-[var(--separator)] underline-offset-4"
-              >
+              <ButtonLink href="/privacy" size="sm" trailing={<IconArrow size={16} />}>
                 Privacy
-              </Link>
+              </ButtonLink>
             )}
-          </p>
+          </div>
         </div>
       </main>
 
@@ -65,25 +65,34 @@ export function LegalPage({
 export function LegalSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
-      <h2 className="type-title-2">{title}</h2>
+      <h2 className="text-[1.5rem] font-bold tracking-[-0.025em]">{title}</h2>
       <div className="mt-[var(--space-4)] flex flex-col gap-[var(--space-4)]">{children}</div>
     </section>
   )
 }
 
 export function P({ children }: { children: ReactNode }) {
-  return <p className="type-body">{children}</p>
+  return (
+    <p className="text-[1rem] font-medium leading-[1.7]" style={{ color: 'var(--label-secondary)' }}>
+      {children}
+    </p>
+  )
 }
 
-/** Numbered or plain, but always with the point first and the qualification
- * second — the opposite order is how a policy hides things. */
+/** Each point is its own floating card, with the point first and the
+ * qualification second — the opposite order is how a policy hides things. */
 export function Points({ items }: { items: { title: string; body: string }[] }) {
   return (
-    <ul className="flex list-none flex-col gap-[var(--space-5)]">
+    <ul className="flex list-none flex-col gap-[var(--space-3)]">
       {items.map((item) => (
-        <li key={item.title}>
-          <h3 className="type-headline">{item.title}</h3>
-          <p className="type-callout mt-[var(--space-1)]">{item.body}</p>
+        <li key={item.title} className="card-glass lp-point">
+          <h3 className="text-[1.0625rem] font-bold">{item.title}</h3>
+          <p
+            className="mt-[var(--space-1)] text-[0.9375rem] font-medium leading-relaxed"
+            style={{ color: 'var(--label-secondary)' }}
+          >
+            {item.body}
+          </p>
         </li>
       ))}
     </ul>
@@ -92,11 +101,8 @@ export function Points({ items }: { items: { title: string; body: string }[] }) 
 
 export function Aside({ children }: { children: ReactNode }) {
   return (
-    <div
-      className="rounded-[var(--radius-md)] p-[var(--space-4)]"
-      style={{ background: 'var(--fill-quaternary)' }}
-    >
-      <p className="type-callout">{children}</p>
+    <div className="lp-aside">
+      <p className="text-[0.9375rem] font-semibold leading-relaxed">{children}</p>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { ButtonLink } from '@/components/ui/button'
-import { IconMap } from '@/components/ui/icon'
+import { IconMap, IconToday } from '@/components/ui/icon'
+import { Watermark } from '@/components/ui/watermark'
 import { RepoLink } from './site-footer'
 import { DataBento } from './data-bento'
 import { Reveal, Stagger, StaggerItem } from './reveal'
@@ -11,9 +12,9 @@ import { Reveal, Stagger, StaggerItem } from './reveal'
  * deciding whether to hand an ERS password to something a stranger built has one
  * question, and answering it after the button would be answering it too late.
  *
- * The closing card carries no border. It is the last surface on the page and it
- * is already separated by its own tone; outlining it as well turns the end of
- * the argument into a box someone drew around it.
+ * The closing card is the app's glass card: white and lit, with a big faint
+ * glyph behind it, on the same light canvas as everything else. No border — it
+ * is separated by its own rim and shadow.
  */
 export function ClosingSection() {
   return (
@@ -21,17 +22,12 @@ export function ClosingSection() {
       <section
         id="trust"
         className="scroll-mt-24 px-5 py-20 md:px-10 md:py-32"
-        style={{ background: 'var(--bg)' }}
+        style={{ background: 'var(--canvas)' }}
       >
         <div className="mx-auto max-w-6xl">
           <Reveal>
-            <p
-              className="type-caption-2 font-semibold uppercase tracking-widest"
-              style={{ color: 'var(--label)' }}
-            >
-              Your data
-            </p>
-            <h2 className="mt-3 max-w-[20ch] text-3xl leading-[1.15] tracking-tight sm:text-4xl">
+            <p className="lp-eyebrow">Your data</p>
+            <h2 className="mt-3 max-w-[20ch] text-[2rem] leading-[1.1] sm:text-[2.5rem]">
               What OneTUP does and doesn&rsquo;t do
             </h2>
           </Reveal>
@@ -40,14 +36,16 @@ export function ClosingSection() {
         </div>
       </section>
 
-      <section className="px-5 pb-20 md:px-10 md:pb-32" style={{ background: 'var(--bg)' }}>
-        <Reveal
-          className="squircle mx-auto max-w-6xl rounded-[25px] px-6 py-16 text-center md:px-16 md:py-24"
-          style={{ background: 'var(--surface-sunken)' }}
-        >
+      <section className="px-5 pb-20 md:px-10 md:pb-32" style={{ background: 'var(--canvas)' }}>
+        <Reveal className="mx-auto max-w-6xl">
+          <div
+            className="card-glass px-6 py-16 text-center md:px-16 md:py-24"
+            style={{ borderRadius: '36px' }}
+          >
+          <Watermark Icon={IconToday} size={300} />
           <Stagger gap={0.08}>
             <StaggerItem>
-              <h2 className="text-3xl leading-[1.15] tracking-tight sm:text-4xl md:text-5xl">
+              <h2 className="text-[2rem] leading-[1.1] sm:text-[2.5rem] md:text-[3.25rem]">
                 Ready to stop guessing?
               </h2>
             </StaggerItem>
@@ -63,7 +61,14 @@ export function ClosingSection() {
             </StaggerItem>
 
             <StaggerItem className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <ButtonLink href="/today" variant="accent" size="lg" block className="sm:!w-auto">
+              <ButtonLink
+                href="/today"
+                variant="accent"
+                size="lg"
+                block
+                className="sm:!w-auto"
+                leading={<IconToday size={20} className="shrink-0" />}
+              >
                 Open OneTUP
               </ButtonLink>
               <ButtonLink
@@ -78,7 +83,7 @@ export function ClosingSection() {
             </StaggerItem>
 
             <StaggerItem className="mt-14">
-              <h3 className="type-headline">Built in the open</h3>
+              <h3 className="text-[1.0625rem] font-bold">Built in the open</h3>
               <p
                 className="type-footnote mx-auto mt-2 max-w-[52ch]"
                 style={{ color: 'var(--label-secondary)' }}
@@ -87,7 +92,7 @@ export function ClosingSection() {
               </p>
               {/* Plain text where no repository is configured. Never a link that
                   goes nowhere. */}
-              <p className="type-subheadline mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+              <p className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[0.9375rem]">
                 <RepoLink>View the source</RepoLink>
                 <span aria-hidden style={{ color: 'var(--label-quaternary)' }}>
                   ·
@@ -100,6 +105,7 @@ export function ClosingSection() {
               </p>
             </StaggerItem>
           </Stagger>
+          </div>
         </Reveal>
       </section>
     </>

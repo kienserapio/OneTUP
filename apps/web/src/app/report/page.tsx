@@ -31,7 +31,7 @@ export default async function ReportPage() {
     <>
       <SiteNav />
 
-      <main id="main" style={{ background: 'var(--bg)' }}>
+      <main id="main" style={{ background: 'var(--canvas)' }}>
         <section className="mx-auto max-w-[46rem] px-6 pb-[var(--space-16)] pt-[calc(var(--space-16)+3rem)]">
           <p
             className="type-caption-1 font-semibold uppercase tracking-[0.18em]"

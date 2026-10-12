@@ -6,7 +6,7 @@ import { motion, useReducedMotion } from 'motion/react'
  * The two pieces of the contributors page that move.
  *
  * `Initials` is the avatar. There are no photographs of anyone on this site and
- * there is not going to be — a monogram on a tinted disc identifies a person in
+ * there is not going to be — a monogram on a crimson or gray disc identifies a person in
  * a list just as well, costs no request, and cannot become a picture of a
  * student that outlives their consent to it.
  *
@@ -16,12 +16,14 @@ import { motion, useReducedMotion } from 'motion/react'
  * is nothing at all.
  */
 
-/* Hue is derived from the name, so a person's disc is stable across renders and
- * two people are unlikely to collide. Kept dark enough for white to clear AA. */
-function hueOf(name: string): number {
+/* Crimson or gray, picked from the name so a person's disc is stable across
+ * renders. The palette is two colours on purpose; both clear AA under white. */
+function discOf(name: string): string {
   let hash = 0
   for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) % 360
-  return hash
+  return hash % 2 === 0
+    ? 'linear-gradient(145deg, #c9344b, var(--accent) 55%, #7a1222)'
+    : 'linear-gradient(145deg, #7b7b86, #52525b 55%, #3a3a42)'
 }
 
 function initialsOf(name: string): string {
@@ -33,7 +35,6 @@ function initialsOf(name: string): string {
 
 export function Initials({ name, large }: { name: string; large?: boolean }) {
   const reduced = useReducedMotion()
-  const hue = hueOf(name)
 
   return (
     <motion.div
@@ -44,8 +45,9 @@ export function Initials({ name, large }: { name: string; large?: boolean }) {
         large ? 'h-16 w-16 text-xl' : 'h-11 w-11 text-sm'
       }`}
       style={{
-        background: `linear-gradient(140deg, hsl(${hue} 62% 52%), hsl(${(hue + 28) % 360} 58% 38%))`,
-        boxShadow: '0 1px 2px rgb(0 0 0 / 0.12), inset 0 1px 0 rgb(255 255 255 / 0.24)',
+        background: discOf(name),
+        boxShadow:
+          '0 1px 2px rgb(0 0 0 / 0.12), inset 0 1.5px 0 rgb(255 255 255 / 0.3), inset 0 -4px 8px -4px rgb(0 0 0 / 0.25)',
       }}
     >
       {initialsOf(name)}
@@ -75,13 +77,13 @@ export function ContributorSlots() {
         >
           <div
             className="grid h-14 w-14 place-items-center rounded-full border-2 border-dashed"
-            style={{ borderColor: 'var(--separator)' }}
+            style={{ borderColor: 'var(--separator-opaque)' }}
           >
             <span className="text-xl leading-none" style={{ color: 'var(--label-tertiary)' }}>
               +
             </span>
           </div>
-          <span className="type-caption-2" style={{ color: 'var(--label-tertiary)' }}>
+          <span className="text-[0.75rem] font-semibold" style={{ color: 'var(--label-tertiary)' }}>
             You?
           </span>
         </motion.li>

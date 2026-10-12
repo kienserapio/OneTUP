@@ -1,0 +1,127 @@
+/* --- Landing shell ---------------------------------------------------------
+ * The public pages' frame: the floating nav, the About / closing sections, the
+ * footer and the legal pages. The hero is deliberately left out. All of it uses
+ * the one design system — white glass on the light canvas, crimson for what
+ * matters, gray for the rest — so nothing here invents a colour. */
+
+/* The nav: one white pill with a lit rim, floating over the hero. */
+.app-ui .lp-nav {
+  background: var(--bg);
+  border: none;
+  border-radius: 9999px;
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    0 0 0 1px rgb(24 24 27 / 0.04),
+    0 2px 4px rgb(24 24 27 / 0.04),
+    0 16px 36px -14px rgb(24 24 27 / 0.28);
+}
+
+.app-ui .lp-nav-link {
+  color: var(--label-secondary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.app-ui .lp-nav-link:hover,
+.app-ui .lp-nav-link[aria-current='page'] {
+  color: var(--accent);
+}
+
+/* The menu that opens from the pill on a phone: a white sheet of floating rows. */
+.app-ui .lp-menu {
+  background: var(--bg);
+  border: none;
+  border-radius: 28px;
+  padding: 0.5rem;
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    0 0 0 1px rgb(24 24 27 / 0.04),
+    0 24px 48px -16px rgb(24 24 27 / 0.3);
+}
+
+.app-ui .lp-menu-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3rem;
+  padding: 0 1rem;
+  border-radius: 18px;
+  background: var(--canvas);
+  color: var(--label);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition:
+    transform var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+
+.app-ui .lp-menu-link:active {
+  transform: scale(0.98);
+}
+
+.app-ui .lp-menu-link[aria-current='page'] {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+/* Small caps label above a section's heading. */
+.app-ui .lp-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* A link in the footer or a row of links: gray, crimson on hover. */
+.app-ui .lp-link {
+  color: var(--label-secondary);
+  font-weight: 600;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.app-ui .lp-link:hover {
+  color: var(--accent);
+}
+
+.app-ui .lp-link-muted {
+  color: var(--label-tertiary);
+  font-weight: 600;
+}
+
+.app-ui .lp-footer-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--label-tertiary);
+}
+
+/* The legal pages: sections as plain headings, points as floating cards. */
+.app-ui .lp-point {
+  padding: 1.125rem 1.25rem;
+  border-radius: var(--radius-lg);
+}
+
+.app-ui .lp-aside {
+  position: relative;
+  padding: 1rem 1.25rem 1rem 1.5rem;
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    0 0 0 1px rgb(24 24 27 / 0.04),
+    0 8px 20px -12px rgb(24 24 27 / 0.14);
+}
+
+.app-ui .lp-aside::before {
+  content: '';
+  position: absolute;
+  inset: 0.875rem auto 0.875rem 0.625rem;
+  width: 3px;
+  border-radius: 9999px;
+  background: var(--accent);
+}

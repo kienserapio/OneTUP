@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { AuthFormShell, Field, useFormState } from '@/components/auth/auth-form'
+import { IconArrow } from '@/components/ui/icon'
 
 export default function SignInPage() {
   return (
@@ -51,9 +52,9 @@ function SignInForm() {
       error={error}
       onSubmit={submit}
       footer={
-        <p className="type-subheadline text-center text-[var(--label-secondary)]">
+        <p className="text-[0.9375rem] font-medium text-[var(--label-secondary)]">
           New here?{' '}
-          <Link href="/sign-up" className="font-medium text-[var(--accent)]">
+          <Link href="/sign-up" className="auth-link">
             Make an account
           </Link>
         </p>
@@ -80,12 +81,19 @@ function SignInForm() {
         required
       />
 
-      <Button type="submit" variant="accent" block disabled={busy}>
+      <Button
+        type="submit"
+        variant="accent"
+        size="lg"
+        block
+        disabled={busy}
+        trailing={<IconArrow size={20} />}
+      >
         {busy ? 'Signing in…' : 'Sign in'}
       </Button>
 
-      <p className="type-subheadline text-center">
-        <Link href="/reset-password" className="text-[var(--accent)]">
+      <p className="text-center text-[0.9375rem]">
+        <Link href="/reset-password" className="auth-link">
           Forgot your password?
         </Link>
       </p>

@@ -5,9 +5,19 @@ import Link from 'next/link'
 import { AnimatePresence, motion } from 'motion/react'
 import type { CampusPlace } from '@onetup/core'
 import { spring, transition } from '@/design/motion'
-import { cx } from '@/lib/cx'
-import { Badge, Card, EmptyState, ListGroup } from '@/components/ui/surfaces'
-import { IconCampus, IconClose, IconWarning } from '@/components/ui/icon'
+import { RowList, RowPill } from '@/components/ui/row'
+import { EmptyState } from '@/components/ui/surfaces'
+import { Watermark } from '@/components/ui/watermark'
+import {
+  IconCampus,
+  IconChevronLeft,
+  IconClipboard,
+  IconClose,
+  IconMap,
+  IconPhone,
+  IconSearch,
+  IconWarning,
+} from '@/components/ui/icon'
 import { RoomSearch } from './room-search'
 import { CATEGORY_LABEL, PlaceList } from './place-list'
 import { ScenePicker, type SceneOption } from './scene-picker'
@@ -53,6 +63,13 @@ const TOOL_LABEL: Record<PanelKey, string> = {
   places: 'Places',
   help: 'Emergency',
   fix: 'Fix a detail',
+}
+
+const TOOL_ICON: Record<PanelKey, typeof IconSearch> = {
+  room: IconSearch,
+  places: IconMap,
+  help: IconPhone,
+  fix: IconClipboard,
 }
 
 const CATEGORY_ORDER = [
@@ -224,8 +241,12 @@ export function CampusView({
         <div className="safe-top flex shrink-0 items-start gap-[var(--space-2)] p-[var(--space-3)]">
           {/* The way back out. Signed in, that is the app; signed out, the page
               that explains what this is. */}
-          <Link href={signedIn ? '/today' : '/'} className="glass pointer-events-auto shrink-0">
-            <span className="type-subheadline font-semibold">OneTUP</span>
+          <Link
+            href={signedIn ? '/today' : '/'}
+            className="campus-pill pointer-events-auto shrink-0 !pl-3"
+          >
+            <IconChevronLeft size={18} />
+            OneTUP
           </Link>
 
           <span className="flex-1" />
@@ -247,26 +268,27 @@ export function CampusView({
         <AnimatePresence>
           {intro && (
             <motion.aside
-              className="card squircle pointer-events-auto mx-[var(--space-3)] w-[min(26rem,calc(100%-var(--space-6)))] shrink-0 p-[var(--space-4)]"
-              style={{ background: 'var(--bg)', boxShadow: 'var(--shadow-float)' }}
+              className="card-glass squircle pointer-events-auto mx-[var(--space-3)] w-[min(26rem,calc(100%-var(--space-6)))] shrink-0 p-[var(--space-4)]"
+              style={{ boxShadow: undefined }}
               initial={{ opacity: 0, y: -12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={transition(spring.sheet)}
             >
+              <Watermark Icon={IconCampus} size={150} />
               <div className="flex items-start gap-[var(--space-3)]">
                 <div className="min-w-0 flex-1">
                   <p
-                    className="type-caption-2 font-semibold uppercase tracking-widest"
-                    style={{ color: 'var(--label)' }}
+                    className="text-[0.6875rem] font-bold uppercase tracking-widest"
+                    style={{ color: 'var(--accent)' }}
                   >
                     Open to everyone
                   </p>
-                  <h1 className="type-title-3 mt-[var(--space-1)]">
+                  <h1 className="mt-[var(--space-1)] text-[1.25rem] font-bold leading-tight tracking-[-0.02em]">
                     The campus map needs no account
                   </h1>
                   <p
-                    className="type-footnote mt-[var(--space-2)]"
+                    className="mt-[var(--space-2)] text-[0.875rem] font-medium leading-relaxed"
                     style={{ color: 'var(--label-secondary)' }}
                   >
                     Room numbers and which building they&rsquo;re in. Gates, printing spots,
@@ -283,10 +305,10 @@ export function CampusView({
                   style={{
                     width: 'var(--target-min)',
                     height: 'var(--target-min)',
-                    color: 'var(--label-secondary)',
+                    color: 'var(--label-tertiary)',
                   }}
                 >
-                  <IconClose size={18} />
+                  <IconClose size={22} />
                 </button>
               </div>
             </motion.aside>
@@ -320,18 +342,17 @@ export function CampusView({
                 onKeyDown={(event) => {
                   if (event.key === 'Escape') closePanel(panel)
                 }}
-                className="card squircle pointer-events-auto w-full max-w-[34rem] overflow-hidden"
-                style={{ boxShadow: 'var(--shadow-float)' }}
+                className="card-glass squircle pointer-events-auto w-full max-w-[34rem] overflow-hidden"
+                style={{ borderRadius: 'var(--radius-xl)' }}
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 14 }}
                 transition={transition(spring.sheet)}
               >
-                <header
-                  className="flex items-center justify-between gap-[var(--space-3)] px-[var(--space-4)] py-[var(--space-3)]"
-                  style={{ borderBottom: '1px solid var(--separator)' }}
-                >
-                  <h2 className="type-headline">{PANEL_TITLE[panel]}</h2>
+                <header className="campus-panel-head flex items-center justify-between gap-[var(--space-3)] px-[var(--space-4)] py-[var(--space-2)]">
+                  <h2 className="text-[1.0625rem] font-bold tracking-[-0.02em]">
+                    {PANEL_TITLE[panel]}
+                  </h2>
                   <button
                     type="button"
                     onClick={() => closePanel(panel)}
@@ -340,15 +361,15 @@ export function CampusView({
                     style={{
                       width: 'var(--target-min)',
                       height: 'var(--target-min)',
-                      color: 'var(--label-secondary)',
+                      color: 'var(--label-tertiary)',
                     }}
                   >
-                    <IconClose size={19} />
+                    <IconClose size={22} />
                   </button>
                 </header>
 
                 <div
-                  className="overflow-y-auto overscroll-contain p-[var(--space-4)]"
+                  className="campus-panel-body overflow-y-auto overscroll-contain p-[var(--space-4)]"
                   // Shrinks with the viewport rather than clipping off the top
                   // of the screen on a short one — a phone held sideways.
                   style={{ maxHeight: 'clamp(7rem, calc(100dvh - 16rem), 26rem)' }}
@@ -391,13 +412,12 @@ export function CampusView({
 
           {loadFailed && (
             <div
-              className="card squircle pointer-events-auto flex w-full max-w-[34rem] items-start gap-[var(--space-3)] p-[var(--space-4)]"
-              style={{ boxShadow: 'var(--shadow-card)' }}
+              className="card-glass squircle pointer-events-auto flex w-full max-w-[34rem] items-start gap-[var(--space-3)] p-[var(--space-4)]"
             >
-              <span className="shrink-0" style={{ color: 'var(--warning)' }}>
+              <span className="shrink-0" style={{ color: 'var(--accent)' }}>
                 <IconWarning size={22} />
               </span>
-              <p className="type-subheadline">
+              <p className="text-[0.9375rem] font-semibold leading-snug">
                 Campus data could not be loaded, so the place list, the contacts and the jump-to
                 list are empty. The tour itself is unaffected. Reloading is worth a try.
               </p>
@@ -408,15 +428,11 @@ export function CampusView({
               tour's own caption row and became unreadable. The scrim is
               because the backdrop is a photograph of any brightness. */}
           <p
-            className="type-caption-1 squircle w-full max-w-[34rem] text-balance px-[var(--space-3)] py-[var(--space-2)]"
-            style={{
-              color: 'var(--label-secondary)',
-              background: 'color-mix(in srgb, var(--bg) 86%, transparent)',
-              backdropFilter: 'blur(12px)',
-            }}
+            className="campus-note w-full max-w-[34rem] text-balance px-[var(--space-3)] py-[var(--space-2)] text-[0.75rem] font-medium"
+            style={{ color: 'var(--label-secondary)' }}
           >
             {current ? (
-              <span style={{ color: 'var(--label)', fontWeight: 600 }}>Showing {current.name}. </span>
+              <span style={{ color: 'var(--label)', fontWeight: 700 }}>Showing {current.name}. </span>
             ) : wandered ? (
               <span>You&rsquo;re walking the tour — its own header names the scene. </span>
             ) : null}
@@ -475,12 +491,13 @@ export function CampusView({
 function TourNotConnected() {
   return (
     <div className="grid size-full place-items-center p-[var(--space-4)]">
-      <Card className="w-full max-w-[30rem]">
+      <div className="card-glass w-full max-w-[30rem]">
+        <Watermark Icon={IconCampus} size={120} />
         <EmptyState
           icon={<IconCampus size={30} />}
           title="The 3D campus isn't connected yet. Room lookup, the place list and the emergency numbers all still work below."
         />
-      </Card>
+      </div>
     </div>
   )
 }
@@ -496,6 +513,7 @@ function ToolPill({
   onClick: () => void
   children: React.ReactNode
 }) {
+  const Icon = TOOL_ICON[panelKey]
   return (
     <button
       id={toolId(panelKey)}
@@ -503,9 +521,10 @@ function ToolPill({
       onClick={onClick}
       aria-expanded={active}
       aria-controls={active ? PANEL_ID : undefined}
-      className={cx('glass shrink-0 whitespace-nowrap', active && 'glass-accent')}
-      style={{ paddingInline: 'var(--space-4)', fontSize: '0.9375rem' }}
+      className="campus-pill shrink-0"
+      data-active={active}
     >
+      <Icon size={18} />
       {children}
     </button>
   )
@@ -564,7 +583,7 @@ function PlacesPanel({
       {places.length > 0 ? (
         <PlaceList places={places} selectedId={selectedId} onSelect={onSelect} />
       ) : (
-        <p className="type-subheadline" style={{ color: 'var(--label-secondary)' }}>
+        <p className="text-[0.9375rem] font-medium" style={{ color: 'var(--label-secondary)' }}>
           Nothing recorded in that category yet. Everything here was added by a student, so this
           fills in as people add to it.
         </p>
@@ -589,15 +608,15 @@ function FilterChip({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className="type-subheadline flex min-h-[var(--target-min)] shrink-0 items-center gap-[var(--space-2)] whitespace-nowrap rounded-[var(--radius-pill)] px-[var(--space-4)] font-medium"
+      className="flex min-h-[2.5rem] shrink-0 items-center gap-[var(--space-2)] whitespace-nowrap rounded-[var(--radius-pill)] px-[var(--space-4)] text-[0.875rem] font-semibold transition-colors"
       style={
         selected
-          ? { background: 'var(--label)', color: 'var(--bg-grouped-secondary)' }
-          : { background: 'var(--fill-quaternary)', color: 'var(--label)' }
+          ? { background: 'var(--accent)', color: 'var(--on-accent)' }
+          : { background: 'var(--bg)', color: 'var(--label-secondary)', boxShadow: 'var(--shadow-chip)' }
       }
     >
       {label}
-      <span className="type-data type-caption-1" style={{ opacity: 0.7 }}>
+      <span className="text-[0.75rem] tabular-nums" style={{ opacity: 0.7 }}>
         {count}
       </span>
     </button>
@@ -617,7 +636,7 @@ function HelpPanel({
 }) {
   if (emergency.length === 0 && services.length === 0) {
     return (
-      <p className="type-subheadline" style={{ color: 'var(--label-secondary)' }}>
+      <p className="text-[0.9375rem] font-medium" style={{ color: 'var(--label-secondary)' }}>
         No contacts have been recorded yet. In a real emergency the nearest gate guard is faster
         than any list on a phone.
       </p>
@@ -628,26 +647,28 @@ function HelpPanel({
     <div className="flex flex-col gap-[var(--space-4)]">
       {emergency.length > 0 && (
         <section aria-label="Emergency">
-          <ListGroup>
+          <RowList label="Emergency contacts">
             {emergency.map((place) => (
               <ContactRow key={place.id} place={place} urgent />
             ))}
-          </ListGroup>
+          </RowList>
         </section>
       )}
 
       {services.length > 0 && (
         <section aria-label="Services">
-          <h3 className="type-section-header pb-[var(--space-2)]">Offices and services</h3>
-          <ListGroup>
+          <h3 className="pb-[var(--space-2)] pl-1 text-[0.75rem] font-bold uppercase tracking-wider text-[var(--label-tertiary)]">
+            Offices and services
+          </h3>
+          <RowList label="Offices and services">
             {services.map((place) => (
               <ContactRow key={place.id} place={place} />
             ))}
-          </ListGroup>
+          </RowList>
         </section>
       )}
 
-      <p className="type-caption-1" style={{ color: 'var(--label-secondary)' }}>
+      <p className="text-[0.75rem] font-medium" style={{ color: 'var(--label-tertiary)' }}>
         Numbers here are only as current as the last student who checked them. In a real
         emergency, the nearest gate guard is faster than any of this.
       </p>
@@ -657,41 +678,48 @@ function HelpPanel({
 
 function ContactRow({ place, urgent = false }: { place: CampusPlace; urgent?: boolean }) {
   const body = (
-    <span className="min-w-0 flex-1">
-      <span className="type-headline block">{place.name}</span>
-      {place.description && <span className="type-footnote block">{place.description}</span>}
-      <span className="type-footnote mt-[2px] block">
-        {place.contact_phone ? (
-          <span className="type-data" style={{ color: urgent ? 'var(--danger)' : undefined }}>
-            {place.contact_phone}
-          </span>
-        ) : (
-          'No number recorded yet'
-        )}
+    <>
+      <span className="row-leading">
+        <IconPhone size={22} style={{ color: urgent ? 'var(--accent)' : 'var(--label-tertiary)' }} />
       </span>
-      {!place.contact_phone && (
-        <span className="mt-[var(--space-2)] block">
-          <Badge tone="stale">Unconfirmed</Badge>
+      <span className="min-w-0 flex-1">
+        <span className="row-title !whitespace-normal">{place.name}</span>
+        {place.description && (
+          <span className="row-detail !whitespace-normal">{place.description}</span>
+        )}
+        <span className="row-meta">
+          {place.contact_phone ? (
+            <RowPill tone={urgent ? 'crimson' : undefined}>{place.contact_phone}</RowPill>
+          ) : (
+            <>
+              <RowPill>No number recorded yet</RowPill>
+              <RowPill>Unconfirmed</RowPill>
+            </>
+          )}
         </span>
-      )}
-    </span>
+      </span>
+    </>
   )
 
   if (place.contact_phone) {
     return (
-      <a
-        href={`tel:${place.contact_phone.replace(/\s+/g, '')}`}
-        className="list-row"
-        style={{ alignItems: 'flex-start' }}
-      >
-        {body}
-      </a>
+      <li className="list-none">
+        <a
+          href={`tel:${place.contact_phone.replace(/\s+/g, '')}`}
+          className="row row-interactive"
+          style={{ alignItems: 'flex-start' }}
+        >
+          {body}
+        </a>
+      </li>
     )
   }
 
   return (
-    <div className="list-row" style={{ alignItems: 'flex-start' }}>
-      {body}
-    </div>
+    <li className="list-none">
+      <div className="row" style={{ alignItems: 'flex-start' }}>
+        {body}
+      </div>
+    </li>
   )
 }

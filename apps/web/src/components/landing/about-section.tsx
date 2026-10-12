@@ -1,5 +1,6 @@
 import { ButtonLink } from '@/components/ui/button'
-import { IconMap } from '@/components/ui/icon'
+import { IconClassroom, IconMap, IconStudy, IconToday } from '@/components/ui/icon'
+import { Watermark } from '@/components/ui/watermark'
 import { Mark } from '@/components/ui/mark'
 import { Reveal, Stagger, StaggerItem } from './reveal'
 
@@ -18,12 +19,15 @@ export function AboutSection() {
   return (
     <section
       id="about"
-      className="relative z-10 scroll-mt-24 rounded-t-[25px] px-6 py-20 md:py-32"
-      style={{ background: 'var(--bg)' }}
+      className="relative z-10 scroll-mt-24 rounded-t-[25px] px-5 pb-14 pt-20 md:px-10 md:pb-20 md:pt-32"
+      style={{ background: 'var(--canvas)' }}
     >
-      <Stagger className="mx-auto max-w-lg text-center" gap={0.09}>
+      <Reveal className="mx-auto max-w-3xl">
+        <div className="card-glass px-6 py-12 text-center sm:px-12 sm:py-16" style={{ borderRadius: '32px' }}>
+          <Watermark Icon={IconClassroom} size={220} />
+          <Stagger className="mx-auto max-w-lg" gap={0.09}>
         <StaggerItem>
-          <h2 className="text-2xl leading-[1.2] tracking-tight sm:text-3xl">
+          <h2 className="text-[1.75rem] leading-[1.15] sm:text-[2.25rem]">
             You already have a system. It&rsquo;s six group chats and a Notes app.
           </h2>
         </StaggerItem>
@@ -44,7 +48,14 @@ export function AboutSection() {
         </StaggerItem>
 
         <StaggerItem className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <ButtonLink href="/today" variant="accent" size="lg" block className="sm:!w-auto">
+          <ButtonLink
+            href="/today"
+            variant="accent"
+            size="lg"
+            block
+            className="sm:!w-auto"
+            leading={<IconToday size={20} className="shrink-0" />}
+          >
             Open OneTUP
           </ButtonLink>
           <ButtonLink
@@ -57,46 +68,34 @@ export function AboutSection() {
             View Campus Map
           </ButtonLink>
         </StaggerItem>
-      </Stagger>
-
-      <Reveal className="mx-auto mt-20 flex max-w-6xl items-center gap-3" amount={0.6}>
-        <span aria-hidden className="contents">
-          <span
-            className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ background: 'var(--separator)' }}
-          />
-          <span className="h-px flex-1" style={{ background: 'var(--separator)' }} />
-          <span
-            className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ background: 'var(--separator)' }}
-          />
-        </span>
+          </Stagger>
+        </div>
       </Reveal>
 
-      <Stagger
-        className="mx-auto mt-20 flex max-w-6xl flex-col gap-10 md:flex-row md:gap-16"
-        gap={0.12}
-      >
-        <StaggerItem className="flex items-start gap-4 md:w-[200px] md:shrink-0">
-          <Mark size={40} className="shrink-0" />
-          <span
-            className="text-xs font-semibold uppercase leading-[1.5] tracking-widest"
-            style={{ color: 'var(--label)' }}
-          >
-            Built
-            <br />
-            by students
-          </span>
-        </StaggerItem>
-
-        <StaggerItem>
-          <p className="text-2xl leading-[1.3] tracking-tight sm:text-3xl md:text-4xl">
+      {/* The one crimson card on the page: who it is from. */}
+      <Reveal className="mx-auto mt-6 max-w-3xl md:mt-8" amount={0.3}>
+        <div
+          data-tone="crimson"
+          className="card-glass px-6 py-10 sm:px-12 sm:py-14"
+          style={{ borderRadius: '32px', color: 'var(--on-accent)' }}
+        >
+          <Watermark Icon={IconStudy} size={200} />
+          <div className="flex items-center gap-3">
+            <Mark size={36} color="var(--on-accent)" className="shrink-0" />
+            <span
+              className="text-xs font-bold uppercase leading-[1.5] tracking-[0.12em]"
+              style={{ color: 'rgb(255 255 255 / 0.8)' }}
+            >
+              Built by students
+            </span>
+          </div>
+          <p className="mt-6 text-[1.375rem] font-semibold leading-[1.35] tracking-[-0.02em] sm:text-[1.75rem]">
             Import your schedule once. Everything else builds on it. OneTUP is a student project.
             The client is open source, and the campus and curriculum data behind it is published as
             a free API that anyone can build on — thesis projects, org tools, hackathon entries.
           </p>
-        </StaggerItem>
-      </Stagger>
+        </div>
+      </Reveal>
     </section>
   )
 }

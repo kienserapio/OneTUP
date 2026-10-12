@@ -2,7 +2,16 @@
 
 import type { CampusPlace } from '@onetup/core'
 import { describeFreshness, formatPeso, freshnessOf } from '@onetup/core'
-import { Badge, ListGroup } from '@/components/ui/surfaces'
+import { RowList, RowPill } from '@/components/ui/row'
+import {
+  IconCampus,
+  IconCoin,
+  IconDocs,
+  IconInfo,
+  IconMap,
+  IconRoute,
+  IconSubjects,
+} from '@/components/ui/icon'
 
 /**
  * The list of places.
@@ -22,6 +31,18 @@ export const CATEGORY_LABEL: Record<string, string> = {
   study: 'Study spot',
   service: 'Service',
   landmark: 'Landmark',
+}
+
+/* A bare gray glyph per kind of place. Not a colour per category: the page keeps
+ * crimson for the place you are standing at. */
+const CATEGORY_ICON: Record<string, typeof IconMap> = {
+  building: IconCampus,
+  gate: IconRoute,
+  printing: IconDocs,
+  food: IconCoin,
+  study: IconSubjects,
+  service: IconInfo,
+  landmark: IconMap,
 }
 
 const DAY_LABEL: Record<string, string> = {
@@ -80,11 +101,8 @@ export function PlaceList({
   selectedId: string | null
   onSelect: (place: CampusPlace) => void
 }) {
-  // Rows are siblings rather than list items on purpose: the inset hairline
-  // between them is drawn by an adjacent-sibling rule, and wrapping each row in
-  // an <li> silently removes every separator.
   return (
-    <ListGroup>
+    <RowList label="Places">
       {places.map((place) => (
         <PlaceRow
           key={place.id}
@@ -93,7 +111,7 @@ export function PlaceList({
           onSelect={() => onSelect(place)}
         />
       ))}
-    </ListGroup>
+    </RowList>
   )
 }
 
@@ -123,84 +141,72 @@ function PlaceRow({
   // control. A button that does nothing when pressed is worse than plain text.
   const walkable = Boolean(place.tour_scene_url)
 
-  // `.list-row` is unlayered CSS and therefore outranks every Tailwind utility;
-  // alignment and the selected tint have to be set inline to land.
-  const rowStyle = {
-    alignItems: 'flex-start',
-    paddingBlock: 'var(--space-3)',
-    background: selected ? 'var(--accent-subtle)' : undefined,
-  } as const
+  const Icon = CATEGORY_ICON[place.category] ?? IconMap
+  const classes = selected ? 'row campus-row-selected' : 'row'
 
   const body = (
-    <span className="min-w-0 flex-1">
-        <span className="type-headline block">{place.name}</span>
+    <>
+      <span className="row-leading">
+        <Icon size={22} className="campus-row-icon" />
+      </span>
 
-        <span className="type-caption-1 mt-[2px] block" style={{ color: 'var(--label)' }}>
-          {meta.join(' · ')}
-        </span>
+      <span className="min-w-0 flex-1">
+        <span className="row-title !whitespace-normal">{place.name}</span>
+        <span className="row-detail !whitespace-normal">{meta.join(' · ')}</span>
 
-        {place.tour_scene_url && (
-          <span className="mt-[var(--space-2)] block">
-            <Badge tone="official">In the tour</Badge>
-          </span>
-        )}
+        {place.description && <span className="campus-place-desc">{place.description}</span>}
 
-        {place.description && (
-          <span className="type-subheadline mt-[var(--space-2)] block">{place.description}</span>
-        )}
+        <span className="row-meta">
+          {place.tour_scene_url && <RowPill tone="blue">In the tour</RowPill>}
 
-        {showTrading && (
-          <span className="mt-[var(--space-2)] flex flex-wrap items-center gap-[var(--space-2)]">
-            {price ? (
-              <span className="type-data type-footnote">{price}</span>
+          {showTrading &&
+            (price ? (
+              <RowPill>{price}</RowPill>
             ) : (
               // Nobody has told us, so nobody is told a number. An invented
               // price is worse than no price (PRD §8.5).
-              <Badge tone="stale">Price not confirmed yet</Badge>
-            )}
-            {hours.length > 0 ? (
-              hours.map((line) => (
-                <span key={line} className="type-footnote">
-                  {line}
-                </span>
-              ))
+              <RowPill>Price not confirmed yet</RowPill>
+            ))}
+          {showTrading &&
+            (hours.length > 0 ? (
+              hours.map((line) => <RowPill key={line}>{line}</RowPill>)
             ) : (
-              <Badge tone="stale">Hours not confirmed yet</Badge>
-            )}
-          </span>
-        )}
+              <RowPill>Hours not confirmed yet</RowPill>
+            ))}
 
-        {place.contact_phone && (
-          <span className="type-footnote type-data mt-[var(--space-2)] block">
-            {place.contact_phone}
-          </span>
-        )}
+          {place.contact_phone && <RowPill>{place.contact_phone}</RowPill>}
+        </span>
 
         {(price || hours.length > 0) && (
-          <span className="type-caption-1 mt-[var(--space-2)] block">
+          <span className="campus-place-desc !mt-1.5 !text-[0.75rem] !text-[var(--label-tertiary)]">
             {describeFreshness(freshnessOf(place.last_verified_at))}
           </span>
         )}
       </span>
+    </>
   )
 
   if (!walkable) {
     return (
-      <div className="list-row" style={rowStyle}>
-        {body}
-      </div>
+      <li className="list-none">
+        <div className={classes} style={{ alignItems: 'flex-start' }}>
+          {body}
+        </div>
+      </li>
     )
   }
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      className="list-row"
-      style={rowStyle}
-    >
-      {body}
-    </button>
+    <li className="list-none">
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        className={`${classes} row-interactive`}
+        style={{ alignItems: 'flex-start' }}
+      >
+        {body}
+      </button>
+    </li>
   )
 }

@@ -1,0 +1,91 @@
+/* --- Sign-in, sign-up, reset ---------------------------------------------
+ * The signed-out screens, drawn like the onboarding steps: a calm art panel,
+ * a bold tight heading, one white glass card. Everything colour-wise comes from
+ * the global design system; this file only adds the stage and the art. */
+.app-ui .auth-stage {
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+}
+
+/* The crimson bloom behind the card, so the page has a light source. */
+.app-ui .auth-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 30rem;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 60% at 50% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 72%),
+    radial-gradient(28% 40% at 82% 8%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%);
+}
+
+.app-ui .auth-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--label-secondary);
+  background: var(--bg);
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    0 0 0 1px rgb(24 24 27 / 0.04),
+    0 4px 12px -4px rgb(24 24 27 / 0.12);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.app-ui .auth-pill:active {
+  transform: scale(0.95);
+}
+
+/* The art panel: a pale crimson well with two dashed rings, the mark floating
+ * in the middle and bare glyphs drifting around it. */
+.app-ui .auth-art {
+  position: relative;
+  height: 8.5rem;
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--tone-crimson-tint);
+}
+
+.app-ui .auth-art-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 9999px;
+  border: 2px dashed color-mix(in srgb, var(--accent) 22%, transparent);
+  transform: translate(-50%, -50%);
+}
+
+.app-ui .auth-link {
+  font-weight: 600;
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+.app-ui .auth-link:hover {
+  text-decoration: underline;
+}
+
+.app-ui .auth-eye {
+  position: absolute;
+  right: 0.375rem;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  transform: translateY(-50%);
+  color: var(--label-tertiary);
+  border-radius: 9999px;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.app-ui .auth-eye[aria-pressed='true'] {
+  color: var(--accent);
+}
