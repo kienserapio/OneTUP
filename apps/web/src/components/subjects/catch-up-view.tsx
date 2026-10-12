@@ -8,7 +8,9 @@ import { syncNow } from '@/lib/offline/sync'
 import { Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
 import { ButtonLink } from '@/components/ui/button'
 import { NavBar } from '@/components/app/nav-bar'
-import { IconCheck } from '@/components/ui/icon'
+import { IconDone } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { AttendancePrompt } from '@/components/today/attendance-prompt'
 import { formatSessionDate } from '@/components/subjects/attendance-record-sheet'
 
@@ -60,7 +62,12 @@ export function CatchUpView() {
             ? `The past ${CATCH_UP_WEEKS} weeks`
             : `${gaps.length} class${gaps.length === 1 ? '' : 'es'} from the past ${CATCH_UP_WEEKS} weeks`
         }
-       
+        info={
+          <InfoTip title="Why this exists">
+            Reminders don&rsquo;t always arrive, especially on iPhone. Anything from the past{' '}
+            {CATCH_UP_WEEKS} weeks that slipped through is here, newest first.
+          </InfoTip>
+        }
         trailing={
           gaps.length > 0 ? (
             <ButtonLink href="/subjects" size="sm" variant="plain">
@@ -74,7 +81,7 @@ export function CatchUpView() {
         {gaps.length === 0 ? (
           <Card>
             <EmptyState
-              icon={<IconCheck size={28} />}
+              icon={<IconTile Icon={IconDone} tone="green" variant="solid" size={56} />}
               title="Nothing to catch up on. Every class in the past four weeks has an answer."
               action={
                 <ButtonLink href="/subjects" variant="plain">
@@ -85,26 +92,28 @@ export function CatchUpView() {
           </Card>
         ) : (
           <>
-            <p className="type-footnote px-1 text-[var(--label-secondary)]">
-              Reminders don&rsquo;t always arrive, especially on iPhone. Anything from the past
-              four weeks that slipped through is here, newest first.
-            </p>
-
             {weeks.map((week) => (
               <section key={week.start}>
-                <SectionHeader>
-                  {weekLabel(week.start, today)} &middot; {week.gaps.length} class
-                  {week.gaps.length === 1 ? '' : 'es'}
+                <SectionHeader
+                  action={
+                    <span className="text-[0.8125rem] font-semibold tabular-nums text-[var(--label-tertiary)]">
+                      {week.gaps.length}
+                      <span className="sr-only"> class{week.gaps.length === 1 ? '' : 'es'}</span>
+                    </span>
+                  }
+                >
+                  {weekLabel(week.start, today)}
                 </SectionHeader>
 
                 {week.days.map(([date, entries]) => (
-                  <div key={date} className="mb-4 space-y-2 last:mb-0">
-                    <p className="type-footnote px-1 text-[var(--label-secondary)]">
+                  <div key={date} className="mb-5 space-y-2.5 last:mb-0">
+                    <p className="flex items-center gap-2 px-1 text-[0.8125rem] font-semibold text-[var(--label-secondary)]">
+                      <span aria-hidden className="size-1.5 rounded-full bg-[var(--tone-crimson)]" />
                       {relativeDate(date, today)}
                     </p>
                     {/* Two-up above lg: these cards are short and a 68rem column
                         of single ones is scrolling for its own sake. */}
-                    <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="grid gap-2.5 lg:grid-cols-2 lg:gap-3">
                       {entries.map((gap) => (
                         <AttendancePrompt
                           key={`${gap.block.id}-${gap.date}`}
@@ -186,8 +195,8 @@ function CatchUpSkeleton() {
       <NavBar title="Catch up" />
       <div className="app-container stack" aria-busy="true" aria-label="Loading catch-up">
         <div className="grid gap-3 lg:grid-cols-2">
-          <div className="skeleton h-32 rounded-[var(--radius-md)]" />
-          <div className="skeleton h-32 rounded-[var(--radius-md)]" />
+          <div className="skeleton h-32 rounded-[var(--radius-lg)]" />
+          <div className="skeleton h-32 rounded-[var(--radius-lg)]" />
         </div>
       </div>
     </>

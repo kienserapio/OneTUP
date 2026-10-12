@@ -9,6 +9,10 @@ import { Card } from '@/components/ui/surfaces'
 import { Button } from '@/components/ui/button'
 import { NavBar } from '@/components/app/nav-bar'
 import { cx } from '@/lib/cx'
+import { IconCards, IconSparkleSmall, IconPlus } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
+import { Select } from '@/components/ui/select'
 
 /**
  * A new pack.
@@ -116,33 +120,44 @@ export function PackCreate() {
           </label>
 
           <label className="block">
-            <span className="type-section-header">For a subject?</span>
-            <select
-              value={enrollmentId}
-              onChange={(event) => setEnrollmentId(event.target.value)}
-              className="field mt-1.5 w-full"
-              aria-label="Subject"
-            >
-              <option value="">Not tied to one</option>
-              {(subjects ?? []).map((subject) => (
-                <option key={subject.enrollmentId} value={subject.enrollmentId}>
-                  {subject.code} — {subject.title}
-                </option>
-              ))}
-            </select>
-            <span className="type-footnote mt-1.5 block text-[var(--label-secondary)]">
-              Picking one lets the schedule pull cards in before that subject&rsquo;s next
-              deadline, so nothing is still queued for the day after the exam.
+            <span className="flex items-center gap-1.5">
+              <span className="type-section-header">For a subject?</span>
+              <InfoTip title="Why pick one">
+                The schedule pulls cards in before that subject&rsquo;s next deadline, so nothing
+                is still queued for the day after the exam.
+              </InfoTip>
             </span>
+            <Select
+              value={enrollmentId}
+              onChange={setEnrollmentId}
+              className="mt-1.5"
+              aria-label="Subject"
+              options={[
+                { value: '', label: 'Not tied to one' },
+                ...(subjects ?? []).map((subject) => ({
+                  value: subject.enrollmentId,
+                  label: subject.code,
+                  description: subject.title,
+                })),
+              ]}
+            />
           </label>
 
           <div>
             <span className="type-section-header">Where do the cards come from?</span>
             <div className="mt-1.5 grid grid-cols-2 gap-2">
-              <ModeButton active={mode === 'write'} onClick={() => setMode('write')}>
+              <ModeButton
+                active={mode === 'write'}
+                onClick={() => setMode('write')}
+                Icon={IconCards}
+              >
                 I&rsquo;ll write them
               </ModeButton>
-              <ModeButton active={mode === 'generate'} onClick={() => setMode('generate')}>
+              <ModeButton
+                active={mode === 'generate'}
+                onClick={() => setMode('generate')}
+                Icon={IconSparkleSmall}
+              >
                 From my notes
               </ModeButton>
             </div>
@@ -180,7 +195,13 @@ export function PackCreate() {
             </p>
           )}
 
-          <Button variant="accent" block disabled={busy || !ready} onClick={() => void submit()}>
+          <Button
+            variant="accent"
+            block
+            disabled={busy || !ready}
+            onClick={() => void submit()}
+            leading={mode === 'generate' ? <IconSparkleSmall size={18} /> : <IconPlus size={18} />}
+          >
             {busy
               ? mode === 'generate'
                 ? 'Writing cards…'
@@ -195,14 +216,17 @@ export function PackCreate() {
   )
 }
 
-/** A two-up segmented choice. Selected reads as filled, not merely outlined. */
+/** A two-up choice, icon over label. Selected reads as filled in the
+ * study tone — no outline either way. */
 function ModeButton({
   active,
   onClick,
+  Icon,
   children,
 }: {
   active: boolean
   onClick: () => void
+  Icon: typeof IconCards
   children: React.ReactNode
 }) {
   return (
@@ -211,23 +235,21 @@ function ModeButton({
       onClick={onClick}
       aria-pressed={active}
       className={cx(
-        'flex min-h-[var(--target-min)] items-center justify-center',
-        'rounded-[var(--radius-sm)] text-[0.9375rem] font-semibold',
+        'flex min-h-[5.5rem] flex-col items-center justify-center gap-2 p-3',
+        'rounded-[var(--radius-lg)] text-[0.9375rem] font-semibold transition-colors',
       )}
       style={
         active
-          ? {
-              color: 'var(--accent)',
-              background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
-            }
-          : {
-              color: 'var(--label-secondary)',
-              background: 'var(--fill-quaternary)',
-              border: '1px solid var(--separator)',
-            }
+          ? { color: 'var(--tone-crimson-ink)', background: 'var(--tone-crimson-tint)' }
+          : { color: 'var(--label-secondary)', background: 'var(--fill-quaternary)' }
       }
     >
+      <IconTile
+        Icon={Icon}
+        tone={active ? 'gray' : 'gray'}
+        variant={active ? 'solid' : 'soft'}
+        size={36}
+      />
       {children}
     </button>
   )

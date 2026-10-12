@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { cx } from '@/lib/cx'
 import { IconChevronRight } from './icon'
 
@@ -16,26 +16,37 @@ export function Card({
   className,
   children,
   padded = true,
+  style,
 }: {
   className?: string
   children: ReactNode
   padded?: boolean
+  style?: CSSProperties
 }) {
   return (
-    <section className={cx('card squircle', padded && 'p-4', className)}>{children}</section>
+    <section className={cx('card squircle', padded && 'p-4', className)} style={style}>
+      {children}
+    </section>
   )
 }
 
 export function SectionHeader({
   children,
   action,
+  info,
 }: {
   children: ReactNode
   action?: ReactNode
+  /** An <InfoTip>, drawn beside the heading rather than inside it so the
+   * heading's own text stays exactly what a screen reader announces. */
+  info?: ReactNode
 }) {
   return (
-    <div className="flex items-end justify-between gap-3 px-1 pb-2">
-      <h2 className="type-section-header">{children}</h2>
+    <div className="flex items-center justify-between gap-3 px-1 pb-2.5">
+      <span className="flex min-w-0 items-center gap-1.5">
+        <h2 className="type-section-header">{children}</h2>
+        {info}
+      </span>
       {action}
     </div>
   )

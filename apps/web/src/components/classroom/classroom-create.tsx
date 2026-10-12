@@ -16,7 +16,10 @@ import { NavBar } from '@/components/app/nav-bar'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/surfaces'
 import { Field, FormError } from '@/components/auth/auth-form'
-import { IconWarning } from '@/components/ui/icon'
+import { IconClassroom, IconWarning, IconJoin, IconPlus } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
+import { Select } from '@/components/ui/select'
 
 /**
  * Starting a classroom.
@@ -150,6 +153,13 @@ export function ClassroomCreate() {
         title="Start a classroom"
         subtitle="One per block section, per term"
         back={{ href: '/classroom', label: 'Classroom' }}
+        info={
+          <InfoTip title="Being the rep">
+            You approve who joins, and you can hand that over later. Nothing here is checked against
+            the registrar — what protects your class is that the invite link only goes where you
+            send it.
+          </InfoTip>
+        }
       />
 
       <div className="app-container stack pb-6">
@@ -166,7 +176,12 @@ export function ClassroomCreate() {
               section where half the class misses every announcement.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button variant="accent" disabled={busy} onClick={() => void askToJoin(offer.id)}>
+              <Button
+                variant="accent"
+                disabled={busy}
+                onClick={() => void askToJoin(offer.id)}
+                leading={<IconJoin size={18} />}
+              >
                 Ask to join {offer.section_code}
               </Button>
               <Button variant="plain" onClick={() => setOffer(null)}>
@@ -208,27 +223,31 @@ export function ClassroomCreate() {
                 <label htmlFor="campus" className="type-subheadline mb-1.5 block font-medium">
                   Campus
                 </label>
-                <select
+                <Select
                   id="campus"
                   value={campus}
-                  onChange={(event) => setCampus(event.target.value as Campus)}
-                  className="field"
-                >
-                  {CAMPUSES.map((letter) => (
-                    <option key={letter} value={letter}>
-                      {CAMPUS_LABEL[letter]}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setCampus(value as Campus)}
+                  label="Campus"
+                  options={CAMPUSES.map((letter) => ({
+                    value: letter,
+                    label: CAMPUS_LABEL[letter],
+                  }))}
+                />
               </div>
 
+              <div
+                className="flex items-center gap-3 rounded-[var(--radius-lg)] p-3"
+                style={{ background: 'var(--tone-green-tint)' }}
+              >
+                <IconTile Icon={IconClassroom} tone="green" variant="solid" size={40} />
+                <span className="min-w-0">
+                  <p className="type-footnote text-[var(--tone-green-ink)]">
+                    Your classroom will be called
+                  </p>
+                  <p className="type-data type-title-3 mt-0.5">{parsed?.canonical ?? '—'}</p>
+                </span>
+              </div>
               <div>
-                <p className="type-footnote text-[var(--label-secondary)]">
-                  Your classroom will be called
-                </p>
-                <p className="type-data type-title-3 mt-0.5">
-                  {parsed?.canonical ?? '—'}
-                </p>
                 {!parsed && (
                   <p className="type-footnote mt-1 text-[var(--label-secondary)]">
                     Fill in all four. A block is one letter or digit, and the year is 1 to 6.
@@ -239,7 +258,7 @@ export function ClassroomCreate() {
               {campusMismatch && (
                 <p
                   className="type-footnote inline-flex items-start gap-2"
-                  style={{ color: 'var(--warning)' }}
+                  style={{ color: 'var(--tone-crimson-ink)' }}
                 >
                   <IconWarning size={16} />
                   Your profile says {CAMPUS_LABEL[profileCampus!]}. If you have transferred, carry
@@ -252,15 +271,11 @@ export function ClassroomCreate() {
                 block
                 disabled={!parsed || busy}
                 onClick={() => void create()}
+                leading={<IconPlus size={18} />}
               >
                 {busy ? 'Starting…' : 'Start this classroom'}
               </Button>
 
-              <p className="type-caption-1 text-[var(--label-secondary)]">
-                You will be its rep: you approve who joins, and you can hand that over later.
-                Nothing here is checked against the registrar — what protects your class is that
-                the invite link only goes where you send it.
-              </p>
             </div>
           </Card>
         )}

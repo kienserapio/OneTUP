@@ -6,6 +6,8 @@ import { spring, transition } from '@/design/motion'
 import { IconButton } from '@/components/ui/button'
 import { Badge } from '@/components/ui/surfaces'
 import { IconAsk, IconClose } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { cx } from '@/lib/cx'
 
 /**
@@ -133,7 +135,7 @@ export function DirectionsChat({
               if (event.key === 'Escape') setOpen(false)
             }}
             className={cx(
-              'card squircle pointer-events-auto flex w-[min(21rem,calc(100vw-var(--space-6)))] flex-col overflow-hidden',
+              'card pointer-events-auto flex w-[min(21rem,calc(100vw-var(--space-6)))] flex-col overflow-hidden rounded-[var(--radius-xl)]',
               // On a phone it hangs off the button as a popover rather than
               // sitting in the layout, because in the layout it would push the
               // route sheet off the bottom of the screen. On a desktop there is
@@ -146,23 +148,24 @@ export function DirectionsChat({
             exit={{ opacity: 0, scale: reduced ? 1 : 0.96 }}
             transition={transition(spring.sheet)}
           >
-            <header
-              className="flex items-center justify-between gap-[var(--space-2)] px-[var(--space-4)] py-[var(--space-3)]"
-              style={{ borderBottom: '1px solid var(--separator)' }}
-            >
+            <header className="flex items-center gap-[var(--space-2)] px-[var(--space-4)] pb-[var(--space-2)] pt-[var(--space-3)]">
+              <IconTile Icon={IconAsk} tone="crimson" size={32} />
               {/* Inline weight: the type scale is unlayered CSS and outranks
                   Tailwind's utilities, so `font-semibold` would be ignored. */}
-              <h2 className="type-subheadline" style={{ fontWeight: 600 }}>
-                Ask for directions
+              <h2 className="type-subheadline flex-1" style={{ fontWeight: 600 }}>
+                Directions
               </h2>
+              <InfoTip title="Where answers come from">
+                Fares and times come from the same student-confirmed routes on this map.
+              </InfoTip>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Close"
-                className="grid size-8 shrink-0 place-items-center rounded-full"
-                style={{ color: 'var(--label-secondary)' }}
+                data-tone="gray"
+                className="glyph -mr-2 grid size-10 shrink-0 place-items-center rounded-full"
               >
-                <IconClose size={17} />
+                <IconClose size={22} />
               </button>
             </header>
 
@@ -173,20 +176,14 @@ export function DirectionsChat({
             >
               {turns.length === 0 && !pending ? (
                 <>
-                  <p className="type-footnote text-[var(--label-secondary)]">
-                    Fares and times come from the same student-confirmed routes on this map.
-                  </p>
                   <ul className="flex list-none flex-col gap-[var(--space-2)]">
                     {starters.map((starter) => (
                       <li key={starter}>
                         <button
                           type="button"
                           onClick={() => void send(starter)}
-                          className="type-footnote w-full rounded-[var(--radius-sm)] px-[var(--space-3)] py-[var(--space-2)] text-left"
-                          style={{
-                            background: 'var(--surface-sunken)',
-                            border: '1px solid var(--separator)',
-                          }}
+                          className="type-footnote w-full rounded-[var(--radius-md)] px-[var(--space-3)] py-[var(--space-2)] text-left font-medium transition-transform duration-150 active:scale-[0.98]"
+                          style={{ background: 'var(--surface-sunken)' }}
                         >
                           {starter}
                         </button>
@@ -211,7 +208,6 @@ export function DirectionsChat({
                 void send(draft)
               }}
               className="flex items-end gap-[var(--space-2)] px-[var(--space-3)] pb-[var(--space-3)] pt-[var(--space-2)]"
-              style={{ borderTop: '1px solid var(--separator)' }}
             >
               <label className="sr-only" htmlFor="directions-question">
                 Your question
@@ -264,7 +260,7 @@ function TurnRow({ turn }: { turn: Turn }) {
   if (turn.role === 'you') {
     return (
       <p
-        className="type-footnote self-end rounded-[var(--radius-sm)] px-[var(--space-3)] py-[var(--space-2)]"
+        className="type-footnote self-end rounded-[var(--radius-md)] rounded-br-[6px] px-[var(--space-3)] py-[var(--space-2)]"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)', maxWidth: '85%' }}
       >
         {turn.text}

@@ -23,12 +23,16 @@ import { readOne } from '@/lib/offline/db'
 import { syncNow } from '@/lib/offline/sync'
 import { cx } from '@/lib/cx'
 import { spring, transition } from '@/design/motion'
-import { Badge, Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
+import { Badge, Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
+import { Row, RowList } from '@/components/ui/row'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { NavBar } from '@/components/app/nav-bar'
 import { NotFoundView } from '@/components/app/not-found-view'
 import { AttendanceMeter, attendanceColor } from '@/components/subjects/attendance-meter'
 import { StatCard } from '@/components/subjects/stat-card'
+import { IconAttendance, IconGrades, IconSchedule, IconBack } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import {
   AttendanceRecordSheet,
   formatSessionDate,
@@ -77,7 +81,7 @@ export function SubjectDetail({ enrollmentId }: { enrollmentId: string }) {
               title="That subject isn't here"
               message="It is not in your enrolment for this term any more. Your other subjects are untouched."
               actions={
-                <ButtonLink href="/subjects" variant="accent">
+                <ButtonLink href="/subjects" variant="accent" leading={<IconBack size={18} />}>
                   Back to Subjects
                 </ButtonLink>
               }
@@ -116,6 +120,12 @@ export function SubjectDetail({ enrollmentId }: { enrollmentId: string }) {
           <StatCard
             className="col-span-2"
             label="Absences used"
+            icon={<IconTile Icon={IconAttendance} tone="gray" size={28} />}
+            visual={
+              /* With no limit the meter falls back to the same sentence as the
+                 note, so it would only say it twice. */
+              attendance.allowed > 0 ? <AttendanceMeter summary={attendance} /> : undefined
+            }
             value={
               <>
                 <span style={{ color: attendanceColor(attendance.state) }}>
@@ -132,6 +142,7 @@ export function SubjectDetail({ enrollmentId }: { enrollmentId: string }) {
 
           <StatCard
             label="Grade"
+            icon={<IconTile Icon={IconGrades} tone="gray" size={28} />}
             value={
               grade?.mark ? (
                 <Badge tone="neutral">{grade.mark}</Badge>
@@ -149,6 +160,7 @@ export function SubjectDetail({ enrollmentId }: { enrollmentId: string }) {
 
           <StatCard
             label="Meets"
+            icon={<IconTile Icon={IconSchedule} tone="blue" size={28} />}
             value={data.meetings.length}
             note={
               data.meetings.length === 0
@@ -161,16 +173,22 @@ export function SubjectDetail({ enrollmentId }: { enrollmentId: string }) {
         <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
           <div className="stack">
             <Card className="stack">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="type-section-header">Attendance</p>
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2.5">
+                  <IconTile Icon={IconAttendance} tone="gray" size={32} />
+                  <p className="type-section-header">Attendance</p>
+                  {attendance.excused > 0 && (
+                    <InfoTip title="Excused">
+                      Excused absences are recorded but never counted against your limit.
+                    </InfoTip>
+                  )}
+                </span>
                 <span className="type-footnote text-[var(--label-secondary)]">
                   {data.allowedAbsencesOverride === null
-                    ? `Your default of ${data.defaults.allowedAbsences}`
-                    : `${data.allowedAbsencesOverride} set for this subject`}
+                    ? `Default ${data.defaults.allowedAbsences}`
+                    : `${data.allowedAbsencesOverride} for this subject`}
                 </span>
               </div>
-
-              <AttendanceMeter summary={attendance} />
 
               {/* Cancelled only earns a column once there is one to show. A
                   permanent zero on a term with no suspensions is a column of
@@ -196,11 +214,6 @@ export function SubjectDetail({ enrollmentId }: { enrollmentId: string }) {
                 </p>
               )}
 
-              {attendance.excused > 0 && (
-                <p className="type-footnote text-[var(--label-secondary)]">
-                  Excused absences are recorded but never counted against your limit.
-                </p>
-              )}
             </Card>
 
             <section>
@@ -210,26 +223,34 @@ export function SubjectDetail({ enrollmentId }: { enrollmentId: string }) {
                   <EmptyState title="Nothing recorded yet. Answers from the Today prompt land here." />
                 </Card>
               ) : (
-                <ListGroup>
+                <RowList label="Attendance history">
                   {data.records.map((record) => (
-                    <ListRow
+                    <Row
                       key={record.id}
                       onClick={() => setEditingRecord(record)}
-                      title={
-                        <span className="type-data">{formatSessionDate(record.session_date)}</span>
+                      leading={
+                        <span
+                          aria-hidden
+                          className="block size-2.5 rounded-full"
+                          style={{ background: STATUS_COLOR[record.status] }}
+                        />
                       }
-                      subtitle={record.note ?? undefined}
+                      title={<span className="tabular-nums">{formatSessionDate(record.session_date)}</span>}
+                      detail={record.note ?? undefined}
                       trailing={
                         <span
-                          className="type-footnote font-medium"
-                          style={{ color: STATUS_COLOR[record.status] }}
+                          className="rounded-full px-2.5 py-1 text-[0.75rem] font-semibold"
+                          style={{
+                            color: STATUS_COLOR[record.status],
+                            background: `color-mix(in srgb, ${STATUS_COLOR[record.status]} 12%, transparent)`,
+                          }}
                         >
                           {STATUS_LABEL[record.status]}
                         </span>
                       }
                     />
                   ))}
-                </ListGroup>
+                </RowList>
               )}
             </section>
           </div>
@@ -237,7 +258,10 @@ export function SubjectDetail({ enrollmentId }: { enrollmentId: string }) {
           <div className="stack">
             <Card className="stack">
               <div className="flex items-center justify-between gap-3">
-                <p className="type-section-header">Grade</p>
+                <span className="flex items-center gap-2.5">
+                  <IconTile Icon={IconGrades} tone="gray" size={32} />
+                  <p className="type-section-header">Grade</p>
+                </span>
                 <Button size="sm" variant="plain" onClick={() => setGradeOpen(true)}>
                   {grade && (grade.value !== null || grade.mark !== null) ? 'Change' : 'Set grade'}
                 </Button>
@@ -354,13 +378,19 @@ const STATUS_COLOR: Record<AttendanceStatus, string> = {
   cancelled: 'var(--label-secondary)',
 }
 
+/** One count on a tinted tile of its own status colour — the number first,
+ * the word under it. */
 function Tally({ label, value, color }: { label: string; value: number; color?: string }) {
+  // No coloured wells: the count is plain ink, and a small dot carries the
+  // status colour so five tallies do not read as five competing badges.
+  const tint = color ?? 'var(--ok)'
   return (
-    <div>
-      <dt className="type-caption-2 text-[var(--label-secondary)]">{label}</dt>
-      <dd className="type-headline type-data" style={color ? { color } : undefined}>
-        {value}
-      </dd>
+    <div className="flex flex-col-reverse items-center py-1">
+      <dt className="flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--label-secondary)]">
+        <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: tint }} />
+        {label}
+      </dt>
+      <dd className="text-[1.375rem] font-bold tabular-nums">{value}</dd>
     </div>
   )
 }
@@ -377,13 +407,13 @@ function DetailSkeleton() {
       <NavBar title="Subject" back={{ href: '/subjects', label: 'Subjects' }} />
       <div className="app-container stack" aria-busy="true" aria-label="Loading subject">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <div className="skeleton col-span-2 h-28 rounded-[var(--radius-md)]" />
-          <div className="skeleton h-28 rounded-[var(--radius-md)]" />
-          <div className="skeleton h-28 rounded-[var(--radius-md)]" />
+          <div className="skeleton col-span-2 h-28 rounded-[var(--radius-lg)]" />
+          <div className="skeleton h-28 rounded-[var(--radius-lg)]" />
+          <div className="skeleton h-28 rounded-[var(--radius-lg)]" />
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="skeleton h-56 rounded-[var(--radius-md)]" />
-          <div className="skeleton h-40 rounded-[var(--radius-md)]" />
+          <div className="skeleton h-56 rounded-[var(--radius-lg)]" />
+          <div className="skeleton h-40 rounded-[var(--radius-lg)]" />
         </div>
       </div>
     </>

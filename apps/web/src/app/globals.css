@@ -2,6 +2,12 @@
 @import '../design/tokens.css';
 @import '../design/typography.css';
 @import '../design/materials.css';
+@import '../design/app-theme.css';
+@import '../design/app-controls.css';
+@import '../design/landing-shell.css';
+@import '../design/landing-features.css';
+@import '../design/auth-ui.css';
+@import '../design/campus-ui.css';
 
 /*
  * Tailwind's theme is fed from the design tokens rather than duplicating them,

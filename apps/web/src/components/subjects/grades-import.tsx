@@ -18,7 +18,15 @@ import { Badge, Card, EmptyState, SectionHeader } from '@/components/ui/surfaces
 import { Button } from '@/components/ui/button'
 import { Field, FormError } from '@/components/auth/auth-form'
 import { NavBar } from '@/components/app/nav-bar'
-import { IconCheck, IconClose, IconWarning } from '@/components/ui/icon'
+import {
+  IconCheck,
+  IconClose,
+  IconWarning,
+  IconImport,
+  IconRefresh,
+  IconSave,
+} from '@/components/ui/icon'
+import { Select } from '@/components/ui/select'
 import { MARKS } from '@/components/subjects/grade-sheet'
 import { commitImportedGrades, type GradeToCommit } from '@/components/subjects/grades-import-commit'
 
@@ -267,7 +275,13 @@ function ConnectStep({
             hint="ERS asks for this too, and it has to match your record exactly."
           />
 
-          <Button type="submit" variant="accent" block disabled={busy || !emailVerified}>
+          <Button
+            type="submit"
+            variant="accent"
+            block
+            disabled={busy || !emailVerified}
+            leading={<IconImport size={18} />}
+          >
             {busy ? 'Reading your grades…' : 'Import my grades'}
           </Button>
         </div>
@@ -498,7 +512,7 @@ export function GradesReview({
                 : 'We signed in and read the page, but nothing on it looked like a graded subject. Your grades may not be posted yet.'
             }
             action={
-              <Button variant="accent" onClick={onCancel}>
+              <Button variant="accent" onClick={onCancel} leading={<IconRefresh size={18} />}>
                 Try again
               </Button>
             }
@@ -540,7 +554,7 @@ export function GradesReview({
       {error && (
         <p
           role="alert"
-          className="type-subheadline rounded-[var(--radius-sm)] px-3.5 py-2.5"
+          className="type-subheadline rounded-[var(--radius-md)] px-3.5 py-2.5"
           style={{
             background: 'color-mix(in srgb, var(--danger) 12%, transparent)',
             color: 'var(--danger)',
@@ -597,7 +611,13 @@ export function GradesReview({
         <Button variant="plain" onClick={onCancel} disabled={busy}>
           {cancelLabel}
         </Button>
-        <Button variant="accent" onClick={() => void confirm()} disabled={busy} block>
+        <Button
+          variant="accent"
+          onClick={() => void confirm()}
+          disabled={busy}
+          block
+          leading={<IconSave size={18} />}
+        >
           {busy ? 'Saving…' : `Save ${keeping.length} grade${keeping.length === 1 ? '' : 's'}`}
         </Button>
       </div>
@@ -668,19 +688,16 @@ function TermGroup({
             >
               Save these into
             </label>
-            <select
+            <Select
               id={`${group.key}-term`}
               value={group.termCode}
-              onChange={(event) => onGroupChange({ termCode: event.target.value })}
-              className="field"
-            >
-              <option value="">Pick a semester…</option>
-              {terms.map((term) => (
-                <option key={term.code} value={term.code}>
-                  {term.label}
-                </option>
-              ))}
-            </select>
+              onChange={(termCode) => onGroupChange({ termCode })}
+              label="Save these into"
+              options={[
+                { value: '', label: 'Pick a semester…' },
+                ...terms.map((term) => ({ value: term.code, label: term.label })),
+              ]}
+            />
           </div>
 
           <p className="type-footnote flex-1 text-[var(--label-secondary)]">
@@ -720,8 +737,8 @@ function GradeRow({
 
   return (
     <div
-      className="flex flex-wrap items-center gap-2 border-t pt-2 first:border-t-0 first:pt-0"
-      style={{ borderColor: 'var(--separator)', opacity: row.dropped ? 0.45 : 1 }}
+      className="flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] bg-[var(--surface-sunken)] p-2"
+      style={{ opacity: row.dropped ? 0.45 : 1 }}
     >
       <label className="sr-only" htmlFor={`${row.key}-code`}>
         Course code
@@ -764,11 +781,10 @@ function GradeRow({
       <label className="sr-only" htmlFor={`${row.key}-grade`}>
         Grade
       </label>
-      <select
+      <Select
         id={`${row.key}-grade`}
         value={row.mark ?? (row.value === null ? '' : row.value.toFixed(2))}
-        onChange={(event) => {
-          const next = event.target.value
+        onChange={(next) => {
           const asMark = MARKS.find((option) => option.mark === next)
           onChange(
             asMark
@@ -777,20 +793,23 @@ function GradeRow({
           )
         }}
         disabled={row.dropped}
-        className="field type-data w-[6.5rem] flex-none"
-      >
-        <option value="">No grade</option>
-        {GRADE_SCALE.map((grade) => (
-          <option key={grade} value={grade.toFixed(2)}>
-            {grade.toFixed(2)}
-          </option>
-        ))}
-        {MARKS.map((option) => (
-          <option key={option.mark} value={option.mark}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        label={`Grade for ${row.code}`}
+        className="type-data !w-[7.5rem] flex-none"
+        options={[
+          { value: '', label: 'No grade' },
+          {
+            label: 'Grade',
+            options: GRADE_SCALE.map((grade) => ({
+              value: grade.toFixed(2),
+              label: grade.toFixed(2),
+            })),
+          },
+          {
+            label: 'Marks',
+            options: MARKS.map((option) => ({ value: option.mark, label: option.label })),
+          },
+        ]}
+      />
 
       {edited ? <Badge tone="neutral">Edited</Badge> : <Badge tone="official">From ERS</Badge>}
 
@@ -798,10 +817,10 @@ function GradeRow({
         type="button"
         onClick={() => onChange({ dropped: !row.dropped })}
         aria-label={row.dropped ? `Keep ${row.code}` : `Drop ${row.code}`}
-        className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--label-secondary)]"
-        style={{ background: 'var(--fill-tertiary)' }}
+        data-tone={row.dropped ? 'green' : 'gray'}
+        className="glyph grid size-10 shrink-0 place-items-center rounded-full"
       >
-        {row.dropped ? <IconCheck size={15} /> : <IconClose size={15} />}
+        {row.dropped ? <IconCheck size={22} /> : <IconClose size={20} />}
       </button>
     </div>
   )
@@ -951,7 +970,7 @@ function PageReport({ page }: { page: PageDiagnostic | null }) {
       )}
 
       {page.textSample && (
-        <p className="type-footnote mt-3 max-h-40 overflow-auto rounded-[var(--radius-sm)] bg-[var(--surface-sunken)] p-3 text-[var(--label-secondary)]">
+        <p className="type-footnote mt-3 max-h-40 overflow-auto rounded-[var(--radius-md)] bg-[var(--surface-sunken)] p-3 text-[var(--label-secondary)]">
           {page.textSample}
         </p>
       )}

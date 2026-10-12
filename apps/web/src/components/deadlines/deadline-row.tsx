@@ -1,12 +1,12 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import Link from 'next/link'
 import { motion, useMotionValue, useTransform } from 'motion/react'
 import { describeTimeLeft, urgencyOf, type Urgency } from '@onetup/core'
 import { rubberband, spring, transition } from '@/design/motion'
-import { IconCheck } from '@/components/ui/icon'
-import { Badge } from '@/components/ui/surfaces'
+import { IconCheck, IconChevronRight } from '@/components/ui/icon'
+import { RowPill } from '@/components/ui/row'
 import { cx } from '@/lib/cx'
 
 /**
@@ -35,8 +35,8 @@ import { cx } from '@/lib/cx'
 export const URGENCY_COLOR: Record<Urgency, string> = {
   overdue: 'var(--danger)',
   critical: 'var(--danger)',
-  urgent: 'var(--warning)',
-  soon: 'var(--caution)',
+  urgent: 'var(--danger)',
+  soon: 'var(--info)',
   upcoming: 'var(--info)',
   later: 'var(--label-tertiary)',
 }
@@ -76,15 +76,28 @@ export function DeadlineRow({
   selected,
 }: DeadlineRowProps) {
   const x = useMotionValue(0)
-  const [dragging, setDragging] = useState(false)
   const width = useRef(320)
 
   const urgency = urgencyOf({ dueAt, status }, now)
   const revealOpacity = useTransform(x, [0, COMMIT_DISTANCE], [0, 1])
 
+  const pillTone =
+    status === 'done'
+      ? undefined
+      : urgency === 'overdue' || urgency === 'critical'
+        ? 'crimson'
+        : urgency === 'urgent'
+          ? 'crimson'
+          : undefined
+
   return (
     <div
-      className="relative overflow-hidden"
+      /* The card's own shape clips the green reveal, so the swipe reads as the
+         card sliding off its own action rather than off the page. */
+      className="relative overflow-hidden rounded-[var(--radius-lg)]"
+      style={{
+        boxShadow: '0 1px 2px rgb(24 24 27 / 0.04), 0 6px 18px -12px rgb(24 24 27 / 0.12)',
+      }}
       ref={(node) => {
         if (node) width.current = node.offsetWidth
       }}
@@ -109,9 +122,8 @@ export function DeadlineRow({
         dragElastic={{ left: 0, right: 0.9 }}
         style={{
           x,
-          background: selected ? 'var(--accent-subtle)' : 'var(--bg-grouped-secondary)',
+          background: selected ? 'var(--accent-subtle)' : 'var(--bg)',
         }}
-        onDragStart={() => setDragging(true)}
         onDrag={(_, info) => {
           // Rubber-banding past the commit point: the row keeps moving, but
           // less, so the boundary reads as resistance rather than a wall.
@@ -120,7 +132,6 @@ export function DeadlineRow({
           }
         }}
         onDragEnd={(_, info) => {
-          setDragging(false)
           const flicked = info.velocity.x > 400
           const dragged = info.offset.x > COMMIT_DISTANCE
           if (flicked || dragged) onComplete(id)
@@ -128,16 +139,26 @@ export function DeadlineRow({
         transition={transition(spring.ui)}
         className="relative"
       >
-        <div className="list-row">
+        <div className="flex min-h-[68px] items-center gap-3.5 py-3 pl-3.5 pr-4">
           <button
             type="button"
             onClick={() => onComplete(id)}
             aria-pressed={status === 'done'}
             aria-label={status === 'done' ? `Reopen ${title}` : `Mark ${title} done`}
-            className="grid size-[26px] shrink-0 place-items-center rounded-full border-2"
-            style={{ borderColor: URGENCY_COLOR[urgency] }}
+            /* The dot is the checkbox and the urgency at once: a bare dot in
+               the urgency colour while open, a green check once done. Nothing
+               behind either — the 40px button is still the tap target. */
+            className="grid size-10 shrink-0 place-items-center rounded-full transition-transform duration-150 active:scale-90"
           >
-            {status === 'done' && <IconCheck size={15} style={{ color: URGENCY_COLOR[urgency] }} />}
+            {status === 'done' ? (
+              <IconCheck size={22} style={{ color: 'var(--ok)' }} />
+            ) : (
+              <span
+                aria-hidden
+                className="block size-3 rounded-full"
+                style={{ background: URGENCY_COLOR[urgency] }}
+              />
+            )}
           </button>
 
           <Link
@@ -152,42 +173,25 @@ export function DeadlineRow({
           >
             <span
               className={cx(
-                'type-body block truncate',
+                'block truncate text-[0.96875rem] font-semibold leading-snug tracking-[-0.01em]',
                 status === 'done' && 'line-through opacity-50',
               )}
             >
               {title}
             </span>
-            <span className="type-footnote flex items-center gap-1.5 truncate text-[var(--label-secondary)]">
-              {/* Neutral, never accented. A class post's urgency is computed by
-                  the same `urgencyOf` as everything else, because a student does
-                  not care who created a thing that is due in four hours — the
-                  badge says where it came from, not how much it matters. */}
-              {sectionCode && <Badge tone="neutral">{sectionCode}</Badge>}
-              {courseCode && <span className="type-data">{courseCode}</span>}
-              {courseCode && <span aria-hidden>·</span>}
-              <span
-                className="type-data"
-                style={{ color: urgency === 'overdue' ? 'var(--danger)' : undefined }}
-              >
-                {describeTimeLeft(dueAt, now)}
-              </span>
-              {fromAnnouncement && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span>from an announcement</span>
-                </>
-              )}
+            {/* Neutral, never accented, for where it came from. A class post's
+                urgency is computed by the same `urgencyOf` as everything else,
+                because a student does not care who created a thing that is due
+                in four hours — only the time pill takes a colour. */}
+            <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <RowPill tone={pillTone}>{describeTimeLeft(dueAt, now)}</RowPill>
+              {courseCode && <RowPill>{courseCode}</RowPill>}
+              {sectionCode && <RowPill>{sectionCode}</RowPill>}
+              {fromAnnouncement && <RowPill>From a post</RowPill>}
             </span>
           </Link>
 
-          {!dragging && (
-            <span
-              aria-hidden
-              className="size-2 shrink-0 rounded-full"
-              style={{ background: URGENCY_COLOR[urgency] }}
-            />
-          )}
+          <IconChevronRight size={18} className="shrink-0 text-[var(--label-quaternary)]" />
         </div>
       </motion.div>
     </div>

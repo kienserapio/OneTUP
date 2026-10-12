@@ -8,6 +8,8 @@ import { NavBar } from '@/components/app/nav-bar'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { Card } from '@/components/ui/surfaces'
 import { FormError } from '@/components/auth/auth-form'
+import { IconClassroom, IconForward, IconJoin } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
 import { campusName } from './classroom-view'
 
 /**
@@ -149,17 +151,20 @@ export function ClassroomJoin({ code }: ClassroomJoinProps) {
       <div className="stack">
         {error && <FormError>{error}</FormError>}
 
-        <Card>
-          <p className="type-title-2">{preview.section_code}</p>
-          <p className="type-footnote mt-0.5 text-[var(--label-secondary)]">
-            {[
-              campusName(preview.campus),
-              `${preview.member_count} member${preview.member_count === 1 ? '' : 's'}`,
-              preview.rep_name ? `Rep: ${preview.rep_name}` : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
+        <Card className="flex items-center gap-3.5">
+          <IconTile Icon={IconClassroom} tone="crimson" variant="solid" size={52} />
+          <span className="min-w-0">
+            <p className="type-title-2 truncate">{preview.section_code}</p>
+            <p className="type-footnote mt-0.5 text-[var(--label-secondary)]">
+              {[
+                campusName(preview.campus),
+                `${preview.member_count} member${preview.member_count === 1 ? '' : 's'}`,
+                preview.rep_name ? `Rep: ${preview.rep_name}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </span>
         </Card>
 
         {preview.archived ? (
@@ -171,7 +176,7 @@ export function ClassroomJoin({ code }: ClassroomJoinProps) {
           <Card>
             <p className="type-body">You are already in this classroom.</p>
             <div className="mt-4">
-              <ButtonLink href="/classroom" variant="accent">
+              <ButtonLink href="/classroom" variant="accent" trailing={<IconForward size={18} />}>
                 Open it
               </ButtonLink>
             </div>
@@ -211,6 +216,7 @@ export function ClassroomJoin({ code }: ClassroomJoinProps) {
                   variant="accent"
                   disabled={state === 'sending'}
                   onClick={() => void leaveThenRequest()}
+                  leading={<IconJoin size={18} />}
                 >
                   Leave {current.group.section_code} and ask to join
                 </Button>
@@ -219,6 +225,7 @@ export function ClassroomJoin({ code }: ClassroomJoinProps) {
                   variant="accent"
                   disabled={state === 'sending'}
                   onClick={() => void request()}
+                  leading={<IconJoin size={18} />}
                 >
                   {state === 'sending' ? 'Asking…' : 'Request to join'}
                 </Button>

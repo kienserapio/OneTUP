@@ -19,6 +19,10 @@ import { spring, transition } from '@/design/motion'
 import { Badge, Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { NavBar } from '@/components/app/nav-bar'
+import { IconGrades, IconTarget, IconImport, IconPlus } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
+import { GwaRing } from '@/components/subjects/gwa-ring'
 import { StatCard } from '@/components/subjects/stat-card'
 import { TermBreakdown } from '@/components/subjects/term-breakdown'
 import { ThresholdSheet } from '@/components/subjects/threshold-sheet'
@@ -27,10 +31,11 @@ import { WhatIfPlanner } from '@/components/subjects/what-if-planner'
 /**
  * GWA.
  *
- * Two figures, then everything that qualifies them: what they cover, what they
- * left out and why, and where the number has been. The qualifications are not
- * fine print — a GWA computed over thirteen units when a student is carrying
- * eighteen is alarming until it is explained.
+ * Two figures, each drawn as a ring, then everything that qualifies them: what
+ * they cover, what they left out and why, and where the number has been. The
+ * exclusions are not fine print — a GWA computed over thirteen units when a
+ * student is carrying eighteen is alarming until it is explained — so they stay
+ * on screen. How the scale reads is one tap away on the title.
  *
  * Above `lg` the planner sits beside the figures rather than below them,
  * because the whole point of a target is to read it against what you already
@@ -66,10 +71,15 @@ export function GwaView() {
         <div className="app-container">
           <Card>
             <EmptyState
+              icon={<IconTile Icon={IconGrades} tone="crimson" variant="solid" size={56} />}
               title="Add your grades to see where your GWA stands — or bring in every semester you have already taken, straight from ERS."
               action={
                 <div className="flex flex-wrap justify-center gap-2">
-                  <ButtonLink href="/subjects/gwa/import" variant="accent">
+                  <ButtonLink
+                    href="/subjects/gwa/import"
+                    variant="accent"
+                    leading={<IconImport size={18} />}
+                  >
                     Import from ERS
                   </ButtonLink>
                   <ButtonLink href="/subjects" variant="plain">
@@ -89,12 +99,17 @@ export function GwaView() {
       <NavBar
         title="GWA"
         subtitle={data.termLabel ?? undefined}
-       
+        info={
+          <InfoTip title="Reading the scale">
+            Lower is better on the TUP scale: 1.00 is the highest mark and 3.00 is the pass. Only
+            your own record is shown here — OneTUP never compares you with anyone.
+          </InfoTip>
+        }
         trailing={
           /* Past semesters are all on one ERS page, so a student's whole
              history is one import away from the figure they are looking at. */
           <ButtonLink href="/subjects/gwa/import" variant="plain" size="sm">
-            Import from ERS
+            Import
           </ButtonLink>
         }
       />
@@ -112,6 +127,8 @@ export function GwaView() {
                 label="This term"
                 value={formatGwa(data.term.gwa)}
                 emphasis
+                icon={<IconTile Icon={IconGrades} tone="gray" size={28} />}
+                visual={<GwaRing value={data.term.gwa} size={56} />}
                 note={`${data.term.gradedUnits} unit${
                   data.term.gradedUnits === 1 ? '' : 's'
                 } in ${data.term.gradedCourses} subject${
@@ -122,27 +139,33 @@ export function GwaView() {
                 label="All terms"
                 value={formatGwa(data.cumulative.gwa)}
                 emphasis
+                icon={<IconTile Icon={IconGrades} tone="gray" size={28} />}
+                visual={<GwaRing value={data.cumulative.gwa} size={56} />}
                 note={`${data.cumulative.gradedUnits} unit${
                   data.cumulative.gradedUnits === 1 ? '' : 's'
                 } graded so far`}
               />
             </motion.div>
 
-            <Card className="stack">
-              <ExclusionNote result={data.term} courses={data.termCourses} />
+            {(data.term.excludedCourses.length > 0 ||
+              (data.projected.includesProjection && data.projected.gwa !== null)) && (
+              <Card className="stack">
+                {data.projected.includesProjection && data.projected.gwa !== null && (
+                  <p className="type-subheadline flex items-center gap-3">
+                    <IconTile Icon={IconTarget} tone="gray" size={36} />
+                    <span>
+                      With the grades you expect, this term lands at{' '}
+                      <span className="type-data font-semibold">
+                        {formatGwa(data.projected.gwa)}
+                      </span>
+                      .
+                    </span>
+                  </p>
+                )}
 
-              {data.projected.includesProjection && data.projected.gwa !== null && (
-                <p className="type-subheadline">
-                  With the grades you expect, this term lands at{' '}
-                  <span className="type-data font-semibold">{formatGwa(data.projected.gwa)}</span>.
-                </p>
-              )}
-
-              <p className="type-footnote text-[var(--label-secondary)]">
-                Lower is better on the TUP scale: 1.00 is the highest mark and 3.00 is the pass.
-                Only your own record is shown here — OneTUP never compares you with anyone.
-              </p>
-            </Card>
+                <ExclusionNote result={data.term} courses={data.termCourses} />
+              </Card>
+            )}
 
             {data.trend.length > 1 && (
               <TermBreakdown terms={data.trend} onChanged={reload} />
@@ -165,11 +188,17 @@ export function GwaView() {
                     <button
                       type="button"
                       onClick={() => setAdding(true)}
-                      className="type-footnote min-h-[var(--target-min)] font-medium text-[var(--accent)]"
+                      className="type-footnote min-h-[var(--target-min)] font-semibold text-[var(--accent)]"
                     >
                       Add
                     </button>
                   ) : undefined
+                }
+                info={
+                  <InfoTip title="Thresholds">
+                    Set what you&rsquo;re trying to hold — Dean&rsquo;s List, a scholarship, a
+                    retention floor — and OneTUP tells you the moment a projection puts it at risk.
+                  </InfoTip>
                 }
               >
                 Thresholds
@@ -178,9 +207,14 @@ export function GwaView() {
               {data.thresholds.length === 0 ? (
                 <Card>
                   <EmptyState
-                    title="Set what you're trying to hold — Dean's List, a scholarship, a retention floor — and OneTUP will tell you the moment a projection puts it at risk."
+                    icon={<IconTile Icon={IconTarget} tone="gray" size={48} />}
+                    title="Set a GWA you want to hold, and get warned before it slips."
                     action={
-                      <Button variant="accent" onClick={() => setAdding(true)}>
+                      <Button
+                        variant="accent"
+                        onClick={() => setAdding(true)}
+                        leading={<IconPlus size={18} />}
+                      >
                         Add a threshold
                       </Button>
                     }
@@ -239,7 +273,10 @@ function ExclusionNote({
   const named = result.excludedCourses.map((excluded) => `${excluded.code} (${excluded.mark})`)
 
   return (
-    <p className="type-footnote text-[var(--label-secondary)]">
+    <p
+      className="type-footnote rounded-[var(--radius-md)] p-3"
+      style={{ background: 'var(--tone-crimson-tint)', color: 'var(--tone-crimson-ink)' }}
+    >
       {formatList(named)} {named.length === 1 ? 'has' : 'have'} no number to average, so{' '}
       {excludedUnits} unit{excludedUnits === 1 ? '' : 's'} {named.length === 1 ? 'is' : 'are'} left
       out. That is why this covers {result.gradedUnits}, not {result.gradedUnits + excludedUnits}.
@@ -283,9 +320,11 @@ function ThresholdRow({
       leading={
         <span
           aria-hidden
-          className="block size-2.5 rounded-full"
-          style={{ background: thresholdColor(state) }}
-        />
+          className="grid size-9 place-items-center"
+          style={{ color: thresholdColor(state) }}
+        >
+          <IconTarget size={19} />
+        </span>
       }
       title={
         <span className="flex items-baseline gap-2">
@@ -352,12 +391,12 @@ function GwaSkeleton() {
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="stack">
             <div className="grid grid-cols-2 gap-3">
-              <div className="skeleton h-32 rounded-[var(--radius-md)]" />
-              <div className="skeleton h-32 rounded-[var(--radius-md)]" />
+              <div className="skeleton h-32 rounded-[var(--radius-lg)]" />
+              <div className="skeleton h-32 rounded-[var(--radius-lg)]" />
             </div>
-            <div className="skeleton h-40 rounded-[var(--radius-md)]" />
+            <div className="skeleton h-40 rounded-[var(--radius-lg)]" />
           </div>
-          <div className="skeleton h-56 rounded-[var(--radius-md)]" />
+          <div className="skeleton h-56 rounded-[var(--radius-lg)]" />
         </div>
       </div>
     </>

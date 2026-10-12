@@ -154,7 +154,7 @@ export async function loadSubjects(now = new Date()): Promise<SubjectsData> {
     readAll<AttendanceRecord>('attendance_records'),
     readAll<Grade>('grades'),
     readAll<UserPreferences & { id: string }>('user_preferences'),
-    cachedTerms(),
+    knownTerms(),
   ])
 
   const defaults = defaultsFrom(prefsRows[0] ?? null)
@@ -550,6 +550,17 @@ const TERM_CACHE_KEY = 'terms'
  */
 export async function cachedTerms(): Promise<TermInfo[]> {
   return (await getMeta<TermInfo[]>(TERM_CACHE_KEY)) ?? []
+}
+
+/**
+ * The cached terms, fetched once if there are none yet. Without them the
+ * current term is guessed from whichever enrolment was written last — and a
+ * student who imports past grades after their schedule would land on an old
+ * term until something else happened to fill the cache.
+ */
+async function knownTerms(): Promise<TermInfo[]> {
+  const cached = await cachedTerms()
+  return cached.length > 0 ? cached : refreshTerms()
 }
 
 export async function refreshTerms(): Promise<TermInfo[]> {

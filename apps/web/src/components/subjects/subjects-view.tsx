@@ -16,10 +16,13 @@ import { spring, transition } from '@/design/motion'
 import { Badge, Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
 import { ButtonLink } from '@/components/ui/button'
 import { NavBar } from '@/components/app/nav-bar'
-import { IconClock } from '@/components/ui/icon'
+import { IconClock, IconGrades, IconSubjects, IconWarning, IconImport } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
+import { Row, RowPill } from '@/components/ui/row'
 import { AttendanceMeter, CutCount } from '@/components/subjects/attendance-meter'
+import { GwaRing } from '@/components/subjects/gwa-ring'
 import { StatCard } from '@/components/subjects/stat-card'
-import { cx } from '@/lib/cx'
 
 /**
  * Subjects.
@@ -71,9 +74,15 @@ export function SubjectsView() {
       <NavBar
         title="Subjects"
         subtitle={data.termLabel ?? undefined}
+        info={
+          <InfoTip title="Subjects">
+            Your GWA, your load, and how close each subject is to its absence limit. Tap a subject
+            for its attendance history and grade.
+          </InfoTip>
+        }
         trailing={
           <ButtonLink href="/subjects/gwa" size="sm" variant="plain">
-            GWA and targets
+            GWA
           </ButtonLink>
         }
       />
@@ -82,9 +91,14 @@ export function SubjectsView() {
         {data.subjects.length === 0 ? (
           <Card>
             <EmptyState
+              icon={<IconTile Icon={IconSubjects} tone="crimson" variant="solid" size={56} />}
               title="No subjects yet. Import your schedule and they'll show up here."
               action={
-                <ButtonLink href="/schedule/import" variant="accent">
+                <ButtonLink
+                  href="/schedule/import"
+                  variant="accent"
+                  leading={<IconImport size={18} />}
+                >
                   Bring in your schedule
                 </ButtonLink>
               }
@@ -103,6 +117,8 @@ export function SubjectsView() {
                 label="Cumulative GWA"
                 value={formatGwa(data.cumulative.gwa)}
                 emphasis
+                icon={<IconTile Icon={IconGrades} tone="gray" size={28} />}
+                visual={<GwaRing value={data.cumulative.gwa} />}
                 href="/subjects/gwa"
                 note={
                   data.cumulative.gwa === null
@@ -114,38 +130,48 @@ export function SubjectsView() {
               />
 
               <StatCard
-                label="Units this term"
+                label="Units"
+                icon={<IconTile Icon={IconSubjects} tone="gray" size={28} />}
                 value={data.termUnits}
                 note={`${data.subjects.length} subject${data.subjects.length === 1 ? '' : 's'}`}
               />
 
               <StatCard
                 label="At risk"
+                icon={
+                  <IconTile
+                    Icon={IconWarning}
+                    tone={atRisk.length > 0 ? 'crimson' : 'green'}
+                    size={28}
+                  />
+                }
                 value={atRisk.length}
                 tone={atRisk.length > 0 ? attendanceTone(worst) : undefined}
-                note={
-                  atRisk.length === 0
-                    ? 'Every subject is inside its limit'
-                    : `Near or at the absence limit`
-                }
+                note={atRisk.length === 0 ? 'All inside the limit' : 'Near the absence limit'}
               />
             </motion.div>
 
             {data.catchUpCount > 0 && (
-              <Card className="flex flex-wrap items-center gap-3">
-                <IconClock size={22} className="shrink-0 text-[var(--label-secondary)]" />
-                <p className="type-subheadline flex-1">
-                  {data.catchUpCount} class{data.catchUpCount === 1 ? '' : 'es'} from the past four
-                  weeks still need an answer.
-                </p>
-                <ButtonLink href="/subjects/catch-up" size="sm" variant="plain">
-                  Catch up
-                </ButtonLink>
-              </Card>
+              <Row
+                as="div"
+                href="/subjects/catch-up"
+                leading={<IconTile Icon={IconClock} tone="gray" size={40} />}
+                title={`${data.catchUpCount} to catch up`}
+                detail="From the past 4 weeks"
+                unread
+              />
             )}
 
             <section>
-              <SectionHeader>This term</SectionHeader>
+              <SectionHeader
+                action={
+                  <span className="text-[0.8125rem] font-semibold tabular-nums text-[var(--label-tertiary)]">
+                    {data.subjects.length}
+                  </span>
+                }
+              >
+                This term
+              </SectionHeader>
               <SubjectGrid subjects={data.subjects} />
             </section>
           </>
@@ -156,29 +182,21 @@ export function SubjectsView() {
 }
 
 /**
- * One list on a phone, a two-up grid above `lg`.
- *
- * Deliberately one DOM tree rather than a mobile copy and a desktop copy: the
- * separators, radius and border move to the breakpoint instead, so there is
- * only ever one focusable row per subject.
+ * Every subject its own floating card: a single column on a phone, two-up
+ * above `lg`. The gap does the separating; there are no hairlines.
  */
 function SubjectGrid({ subjects }: { subjects: SubjectSummary[] }) {
   return (
-    <ul
-      className={cx(
-        'squircle overflow-hidden rounded-[var(--radius-md)] border border-[var(--separator)]',
-        'divide-y divide-[var(--separator)]',
-        'lg:grid lg:grid-cols-2 lg:gap-3 lg:divide-y-0 lg:overflow-visible',
-        'lg:rounded-none lg:border-0',
-      )}
-    >
-      {subjects.map((subject) => (
-        <li
+    <ul className="grid grid-cols-1 gap-2.5 lg:grid-cols-2 lg:gap-3">
+      {subjects.map((subject, index) => (
+        <motion.li
           key={subject.enrollmentId}
-          className="squircle lg:rounded-[var(--radius-md)] lg:border lg:border-[var(--separator)]"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...transition(spring.ui), delay: Math.min(index, 8) * 0.03 }}
         >
           <SubjectRow subject={subject} />
-        </li>
+        </motion.li>
       ))}
     </ul>
   )
@@ -190,13 +208,16 @@ function SubjectRow({ subject }: { subject: SubjectSummary }) {
   return (
     <Link
       href={`/subjects/${subject.enrollmentId}` as never}
-      className="flex min-h-[var(--target-min)] flex-col gap-2.5 px-4 py-3.5 lg:h-full"
+      className="row row-interactive !flex-col !items-stretch !gap-3 !p-4 lg:h-full"
     >
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className="type-headline type-data shrink-0">{subject.code}</span>
-          <span className="type-subheadline truncate text-[var(--label-secondary)]">
-            {subject.title}
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-3">
+          <IconTile Icon={IconSubjects} tone="gray" size={40} />
+          <span className="min-w-0">
+            <span className="block truncate text-[0.9688rem] font-semibold">{subject.title}</span>
+            <span className="block text-[0.75rem] font-semibold tabular-nums tracking-[0.02em] text-[var(--label-tertiary)]">
+              {subject.code}
+            </span>
           </span>
         </span>
         <GradeCell subject={subject} />
@@ -204,8 +225,8 @@ function SubjectRow({ subject }: { subject: SubjectSummary }) {
 
       <AttendanceMeter summary={attendance} />
 
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <span className="type-footnote flex items-baseline gap-1.5 text-[var(--label-secondary)]">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        <span className="flex items-baseline gap-1.5 text-[0.8125rem] text-[var(--label-secondary)]">
           <CutCount summary={attendance} />
           <span>
             {attendance.allowed > 0
@@ -216,9 +237,9 @@ function SubjectRow({ subject }: { subject: SubjectSummary }) {
             <span className="type-caption-2 text-[var(--label-tertiary)]">· grade expected</span>
           )}
         </span>
-        <span className="type-footnote type-data text-[var(--label-secondary)]">
-          {subject.next ? describeNext(subject.next) : 'No class scheduled'}
-        </span>
+        <RowPill icon={<IconClock size={12} />}>
+          {subject.next ? describeNext(subject.next) : 'No class'}
+        </RowPill>
       </div>
     </Link>
   )
@@ -230,10 +251,17 @@ function GradeCell({ subject }: { subject: SubjectSummary }) {
   if (grade?.mark) return <Badge tone="neutral">{grade.mark}</Badge>
 
   if (grade?.value === null || grade?.value === undefined) {
-    return <span className="type-headline type-data text-[var(--label-tertiary)]">—</span>
+    return <span className="text-[1.25rem] font-bold text-[var(--label-tertiary)]">—</span>
   }
 
-  return <span className="type-headline type-data shrink-0">{grade.value.toFixed(2)}</span>
+  return (
+    <span
+      className="shrink-0 rounded-full px-3 py-1 text-[1rem] font-bold tabular-nums"
+      style={{ background: 'var(--tone-crimson-tint)', color: 'var(--tone-crimson-ink)' }}
+    >
+      {grade.value.toFixed(2)}
+    </span>
+  )
 }
 
 /** Warning and at-limit are the two states a student can still act on. */
@@ -256,11 +284,15 @@ function SubjectsSkeleton() {
       <NavBar title="Subjects" />
       <div className="app-container stack" aria-busy="true" aria-label="Loading subjects">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <div className="skeleton col-span-2 h-28 rounded-[var(--radius-md)]" />
-          <div className="skeleton h-28 rounded-[var(--radius-md)]" />
-          <div className="skeleton h-28 rounded-[var(--radius-md)]" />
+          <div className="skeleton col-span-2 h-32 rounded-[var(--radius-lg)]" />
+          <div className="skeleton h-28 rounded-[var(--radius-lg)]" />
+          <div className="skeleton h-28 rounded-[var(--radius-lg)]" />
         </div>
-        <div className="skeleton h-64 rounded-[var(--radius-md)]" />
+        <div className="flex flex-col gap-2.5">
+          {[0, 1, 2].map((index) => (
+            <div key={index} className="skeleton h-28 rounded-[var(--radius-lg)]" />
+          ))}
+        </div>
       </div>
     </>
   )

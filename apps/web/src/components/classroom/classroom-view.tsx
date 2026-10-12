@@ -13,8 +13,10 @@ import { useNow } from '@/lib/hooks/use-local'
 import { spring, transition } from '@/design/motion'
 import { NavBar } from '@/components/app/nav-bar'
 import { Button, ButtonLink } from '@/components/ui/button'
-import { Card, EmptyState, ListGroup, SectionHeader } from '@/components/ui/surfaces'
+import { Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
 import { IconClassroom, IconPlus } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { ClassPostRow } from './class-post-row'
 import { ClassPostComposer, useOnline } from './class-post-composer'
 
@@ -80,17 +82,20 @@ export function ClassroomView() {
       />
 
       <div className="app-container stack pb-6">
-        <Card>
-          <p className="type-title-2">{data.group.section_code}</p>
-          <p className="type-footnote mt-0.5 text-[var(--label-secondary)]">
-            {[data.termLabel, campusName(data.group.campus)].filter(Boolean).join(' · ')}
-          </p>
+        <Card className="flex items-center gap-3.5">
+          <IconTile Icon={IconClassroom} tone="crimson" variant="solid" size={52} />
+          <span className="min-w-0">
+            <p className="type-title-2 truncate">{data.group.section_code}</p>
+            <p className="type-footnote mt-0.5 truncate text-[var(--label-secondary)]">
+              {[data.termLabel, campusName(data.group.campus)].filter(Boolean).join(' · ')}
+            </p>
+          </span>
         </Card>
 
         {pinned.length > 0 && (
           <section>
             <SectionHeader>Pinned</SectionHeader>
-            <ListGroup>
+            <div className="row-list">
               {pinned.map((post) => (
                 <ClassPostRow
                   key={post.id}
@@ -99,7 +104,7 @@ export function ClassroomView() {
                   memberCount={data.memberCount}
                 />
               ))}
-            </ListGroup>
+            </div>
           </section>
         )}
 
@@ -123,12 +128,12 @@ export function ClassroomView() {
           {rest.length === 0 ? (
             <Card>
               <EmptyState
-                icon={<IconClassroom size={28} />}
+                icon={<IconTile Icon={IconClassroom} tone="gray" size={52} />}
                 title="Nothing posted yet. Anyone in this classroom can post."
               />
             </Card>
           ) : (
-            <ListGroup>
+            <div className="row-list">
               <AnimatePresence initial={false}>
                 {rest.map((post) => (
                   <motion.div
@@ -143,7 +148,7 @@ export function ClassroomView() {
                   </motion.div>
                 ))}
               </AnimatePresence>
-            </ListGroup>
+            </div>
           )}
         </section>
 
@@ -153,11 +158,11 @@ export function ClassroomView() {
         {hidden.length > 0 && (
           <section>
             <SectionHeader>Hidden</SectionHeader>
-            <ListGroup>
+            <div className="row-list">
               {hidden.map((post) => (
                 <ClassPostRow key={post.id} post={post} now={now} memberCount={data.memberCount} />
               ))}
-            </ListGroup>
+            </div>
           </section>
         )}
       </div>
@@ -181,15 +186,23 @@ export function campusName(campus: string | null): string | null {
 function NoClassroom() {
   return (
     <>
-      <NavBar title="Classroom" subtitle="One shared tracker for your block section" />
+      <NavBar
+        title="Classroom"
+        info={
+          <InfoTip title="Classroom">
+            One shared tracker for your block section: tasks, exams, room changes and who has
+            submitted what.
+          </InfoTip>
+        }
+      />
       <div className="app-container stack pb-6">
         <Card>
           <EmptyState
-            icon={<IconClassroom size={28} />}
+            icon={<IconTile Icon={IconClassroom} tone="crimson" variant="solid" size={64} />}
             title="You're not in a classroom yet. Join the one your section already uses, or start it."
             action={
               <div className="flex flex-wrap justify-center gap-2">
-                <ButtonLink href="/classroom/new" variant="accent">
+                <ButtonLink href="/classroom/new" variant="accent" leading={<IconPlus size={18} />}>
                   Start a classroom
                 </ButtonLink>
               </div>
@@ -197,12 +210,13 @@ function NoClassroom() {
           />
         </Card>
 
-        <Card>
-          <p className="type-subheadline font-medium">Joining one</p>
-          <p className="type-footnote mt-1 text-[var(--label-secondary)]">
-            A classroom is joined by invite link. Ask whoever set yours up for it — it looks like
-            /classroom/join/ followed by a code, and it usually lives in the section group chat.
-          </p>
+        <Card className="flex items-center gap-3">
+          <IconTile Icon={IconPlus} tone="gray" size={40} />
+          <p className="type-subheadline flex-1 font-medium">Joining one? Use the invite link.</p>
+          <InfoTip title="Invite links">
+            Ask whoever set yours up. It looks like /classroom/join/ followed by a code, and usually
+            lives in the section group chat.
+          </InfoTip>
         </Card>
       </div>
     </>

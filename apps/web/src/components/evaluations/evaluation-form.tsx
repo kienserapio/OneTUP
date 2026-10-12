@@ -8,7 +8,9 @@ import { NavBar } from '@/components/app/nav-bar'
 import { Button } from '@/components/ui/button'
 import { Card, EmptyState, GeneratedMark, SectionHeader } from '@/components/ui/surfaces'
 import { FormError } from '@/components/auth/auth-form'
-import { IconCheck } from '@/components/ui/icon'
+import { IconCheck, IconStudy, IconCopy } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { cx } from '@/lib/cx'
 
 /**
@@ -211,6 +213,12 @@ export function EvaluationForm({
         title={subject.facultyName}
         subtitle={subject.courseCode}
         back={{ href: '/evaluations', label: 'Evaluations' }}
+        info={
+          <InfoTip title="How this works">
+            You answer every question yourself — OneTUP never picks a rating. Press 1&ndash;5 to
+            answer and move on; arrow keys change the row. Everything saves as you go.
+          </InfoTip>
+        }
       />
 
       <div className="app-container pb-6">
@@ -222,10 +230,20 @@ export function EvaluationForm({
             style={{ top: 'calc(var(--topbar-height) + var(--space-4))' }}
           >
             <Card className="flex flex-col gap-3">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="type-subheadline font-medium">
-                  <span className="type-data">{answered}</span> of{' '}
-                  <span className="type-data">{questions.length}</span> answered
+              <div className="flex items-center justify-between gap-3">
+                <p className="flex items-center gap-3">
+                  <IconTile Icon={IconStudy} tone="gray" size={40} />
+                  <span>
+                    <span className="block text-[1.75rem] font-bold leading-none tabular-nums tracking-[-0.03em]">
+                      {answered}
+                      <span className="text-[1rem] font-semibold text-[var(--label-tertiary)]">
+                        /{questions.length}
+                      </span>
+                    </span>
+                    <span className="mt-1 block text-[0.8125rem] text-[var(--label-secondary)]">
+                      answered
+                    </span>
+                  </span>
                 </p>
                 {savedAt && (
                   <span
@@ -240,17 +258,17 @@ export function EvaluationForm({
               </div>
 
               <div
-                className="h-1.5 w-full overflow-hidden rounded-[var(--radius-pill)]"
+                className="h-2.5 w-full overflow-hidden rounded-[var(--radius-pill)]"
                 role="progressbar"
                 aria-valuemin={0}
                 aria-valuemax={questions.length}
                 aria-valuenow={answered}
                 aria-label="Questions answered"
-                style={{ background: 'var(--fill-tertiary)' }}
+                style={{ background: 'var(--tone-crimson-tint)' }}
               >
                 <motion.span
                   className="block h-full rounded-[var(--radius-pill)]"
-                  style={{ background: 'var(--accent)' }}
+                  style={{ background: 'var(--tone-crimson)' }}
                   initial={false}
                   animate={{
                     width: `${questions.length ? (answered / questions.length) * 100 : 0}%`,
@@ -258,14 +276,15 @@ export function EvaluationForm({
                   transition={transition(spring.ui)}
                 />
               </div>
-
-              <p className="type-footnote text-[var(--label-secondary)]">
-                Press 1&ndash;5 to answer and move on. Arrow keys change the row.
-              </p>
             </Card>
 
             <Card className="flex flex-col gap-2.5">
-              <p className="type-subheadline font-medium">Start everything at</p>
+              <p className="flex items-center gap-1.5 text-[0.875rem] font-semibold">
+                Start everything at
+                <InfoTip title="Baseline">
+                  This only fills the ones you have not answered yet.
+                </InfoTip>
+              </p>
               <div className="flex gap-1.5">
                 {SCALE.map((value) => (
                   <Button
@@ -277,9 +296,6 @@ export function EvaluationForm({
                   </Button>
                 ))}
               </div>
-              <p className="type-footnote text-[var(--label-secondary)]">
-                This only fills the ones you have not answered yet.
-              </p>
             </Card>
           </aside>
 
@@ -288,7 +304,7 @@ export function EvaluationForm({
 
             <section>
               <SectionHeader>Questions</SectionHeader>
-              <Card padded={false} className="overflow-hidden">
+              <div className="flex flex-col gap-2.5">
                 {questions.map((question, index) => {
                   const active = index === focused
                   return (
@@ -298,20 +314,30 @@ export function EvaluationForm({
                         rowRefs.current[index] = node
                       }}
                       onFocus={() => setFocused(index)}
-                      className="flex flex-col gap-2.5 px-4 py-3 transition-colors sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                      className="flex flex-col gap-3 rounded-[var(--radius-lg)] px-4 py-4 shadow-[0_1px_2px_rgb(24_24_27/0.04),0_6px_18px_-12px_rgb(24_24_27/0.12)] transition-colors sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                       style={{
-                        // A tinted row and an accent edge, rather than a ring —
-                        // a ring inside a bordered list reads as a second border.
-                        background: active ? 'var(--accent-subtle)' : undefined,
-                        borderTop: index === 0 ? undefined : '1px solid var(--separator)',
-                        boxShadow: active ? 'inset 3px 0 0 0 var(--accent)' : undefined,
+                        // Each question floats on its own; the current one
+                        // only has to change colour to stand out.
+                        background: active ? 'var(--tone-crimson-tint)' : 'var(--bg)',
                       }}
                     >
-                      <p className="type-subheadline min-w-0">
-                        <span className="type-data mr-1.5 text-[var(--label-tertiary)]">
+                      <p className="type-subheadline flex min-w-0 gap-2.5">
+                        <span
+                          className="grid size-6 shrink-0 place-items-center rounded-full text-[0.6875rem] font-bold tabular-nums"
+                          style={{
+                            background:
+                              answers[question.id] !== undefined
+                                ? 'var(--tone-crimson)'
+                                : 'var(--fill-tertiary)',
+                            color:
+                              answers[question.id] !== undefined
+                                ? 'var(--label)'
+                                : 'var(--label-secondary)',
+                          }}
+                        >
                           {index + 1}
                         </span>
-                        {question.text}
+                        <span>{question.text}</span>
                       </p>
 
                       <div
@@ -347,16 +373,21 @@ export function EvaluationForm({
                     </div>
                   )
                 })}
-              </Card>
+              </div>
             </section>
 
             <section>
               <SectionHeader>Comment</SectionHeader>
               <Card className="flex flex-col gap-3">
                 <div>
-                  <label htmlFor="bullets" className="type-subheadline mb-1.5 block font-medium">
-                    Your points
-                  </label>
+                  <span className="mb-1.5 flex items-center gap-1.5">
+                    <label htmlFor="bullets" className="text-[0.875rem] font-semibold">
+                      Your points
+                    </label>
+                    <InfoTip title="Your points">
+                      Rough notes are fine. These stay saved even if you replace them below.
+                    </InfoTip>
+                  </span>
                   <textarea
                     id="bullets"
                     rows={5}
@@ -365,9 +396,6 @@ export function EvaluationForm({
                     placeholder={'quizzes announced too late\nexplains examples well\nstarts on time'}
                     className="field resize-none"
                   />
-                  <p className="type-footnote mt-1.5 text-[var(--label-secondary)]">
-                    Rough notes are fine. These stay saved even if you replace them below.
-                  </p>
                 </div>
 
                 <Button block onClick={() => void polish()} disabled={polishing || !bullets.trim()}>
@@ -377,10 +405,13 @@ export function EvaluationForm({
                 {draft && (
                   <div>
                     <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                      <label htmlFor="final" className="type-subheadline font-medium">
+                      <label htmlFor="final" className="text-[0.875rem] font-semibold">
                         Draft
                       </label>
                       <GeneratedMark />
+                      <InfoTip title="Your draft">
+                        Edit it however you like. Nothing goes anywhere until you send it yourself.
+                      </InfoTip>
                     </div>
                     <textarea
                       id="final"
@@ -389,9 +420,6 @@ export function EvaluationForm({
                       onChange={(event) => setDraft(event.target.value)}
                       className="field resize-none"
                     />
-                    <p className="type-footnote mt-1.5 text-[var(--label-secondary)]">
-                      Edit it however you like. Nothing goes anywhere until you send it yourself.
-                    </p>
                   </div>
                 )}
               </Card>
@@ -402,6 +430,7 @@ export function EvaluationForm({
               block
               onClick={() => void exportResponses()}
               disabled={!complete}
+              leading={<IconCopy size={18} />}
             >
               {complete ? 'Copy for the official form' : `Answer all ${questions.length} first`}
             </Button>
@@ -418,7 +447,10 @@ export function NoInstrument() {
       <NavBar title="Faculty evaluation" />
       <div className="app-container pb-6">
         <Card>
-          <EmptyState title="The evaluation form for this term hasn't been set up yet. It'll appear here when the evaluation period opens." />
+          <EmptyState
+            icon={<IconTile Icon={IconStudy} tone="crimson" variant="solid" size={56} />}
+            title="The evaluation form for this term hasn't been set up yet. It'll appear here when the evaluation period opens."
+          />
         </Card>
       </div>
     </>

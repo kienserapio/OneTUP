@@ -19,10 +19,12 @@ import {
 import { useNow } from '@/lib/hooks/use-local'
 import { syncNow } from '@/lib/offline/sync'
 import { spring, transition } from '@/design/motion'
-import { Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
+import { Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
 import { ButtonLink, IconButton } from '@/components/ui/button'
 import { NavBar } from '@/components/app/nav-bar'
-import { IconClock, IconPlus, IconRefresh, IconSchedule } from '@/components/ui/icon'
+import { IconClock, IconPlus, IconRefresh, IconSchedule, IconImport } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { BlockSheet } from '@/components/schedule/block-sheet'
 import { StatStrip, type Stat } from '@/components/schedule/stat-strip'
 import {
@@ -40,6 +42,7 @@ import {
   type ScheduleSnapshot,
 } from '@/components/schedule/schedule-data'
 import { cx } from '@/lib/cx'
+import { Row } from '@/components/ui/row'
 
 /**
  * The week timetable, framed as a dashboard.
@@ -105,7 +108,6 @@ export function ScheduleView({ termLabel }: ScheduleViewProps) {
   const todayGaps = todayWeekday ? freeBlocks(blocks, todayWeekday, 30, bounds) : []
 
   const stats: Stat[] = [
-    ...(termLabel ? [{ label: 'Term', value: termLabel }] : []),
     {
       label: 'Subjects',
       value: subjects.length,
@@ -123,7 +125,13 @@ export function ScheduleView({ termLabel }: ScheduleViewProps) {
     <>
       <NavBar
         title="Schedule"
-        subtitle={`Week of ${formatDayDate(dates[days[0]])}`}
+        subtitle={[`Week of ${formatDayDate(dates[days[0]])}`, termLabel].filter(Boolean).join(' · ')}
+        info={
+          <InfoTip title="Your week">
+            Swipe across the days on a phone. Tap a day or a class to open that day; the red line is
+            now.
+          </InfoTip>
+        }
         trailing={
           <IconButton label="Add a block" onClick={() => setSheetOpen(true)}>
             <IconPlus size={20} />
@@ -135,10 +143,14 @@ export function ScheduleView({ termLabel }: ScheduleViewProps) {
         {blocks.length === 0 ? (
           <Card>
             <EmptyState
-              icon={<IconSchedule size={30} />}
+              icon={<IconTile Icon={IconSchedule} tone="blue" variant="solid" size={64} />}
               title="No schedule yet. Import it from ERS, or paste it in — either works."
               action={
-                <ButtonLink href="/schedule/import" variant="accent">
+                <ButtonLink
+                  href="/schedule/import"
+                  variant="accent"
+                  leading={<IconImport size={18} />}
+                >
                   Bring in your schedule
                 </ButtonLink>
               }
@@ -177,7 +189,7 @@ export function ScheduleView({ termLabel }: ScheduleViewProps) {
                       action={
                         <Link
                           href={`/schedule/day/${today}` as never}
-                          className="type-footnote text-[var(--accent)]"
+                          className="type-footnote font-semibold text-[var(--accent)]"
                         >
                           Open day
                         </Link>
@@ -192,25 +204,33 @@ export function ScheduleView({ termLabel }: ScheduleViewProps) {
                         </p>
                       </Card>
                     ) : (
-                      <ListGroup>
+                      <div className="row-list">
                         {todayBlocks.map((block) => (
-                          <ListRow
+                          <Row
+                            as="div"
                             key={block.id}
                             href={`/schedule/day/${today}`}
                             leading={
                               <span
                                 aria-hidden
-                                className="block size-2.5 rounded-full"
-                                style={{
-                                  background:
-                                    toMinutes(block.endTime) <= manilaMinutes(now)
-                                      ? 'var(--separator-opaque)'
-                                      : tintOf(block.colorKey),
-                                }}
-                              />
+                                className="grid w-12 shrink-0 place-items-center rounded-xl py-1.5 text-[0.75rem] font-semibold tabular-nums"
+                                style={
+                                  toMinutes(block.endTime) <= manilaMinutes(now)
+                                    ? {
+                                        background: 'var(--fill-quaternary)',
+                                        color: 'var(--label-tertiary)',
+                                      }
+                                    : {
+                                        background: tintFill(block.colorKey, 16),
+                                        color: tintOf(block.colorKey),
+                                      }
+                                }
+                              >
+                                {formatTime12(block.startTime).replace(/\s?[AP]M$/i, '')}
+                              </span>
                             }
                             title={<span className="type-data">{block.label}</span>}
-                            subtitle={
+                            detail={
                               <span className="type-data">
                                 {formatTime12(block.startTime)} – {formatTime12(block.endTime)}
                                 {block.room ? ` · ${block.room}` : ''}
@@ -218,7 +238,7 @@ export function ScheduleView({ termLabel }: ScheduleViewProps) {
                             }
                           />
                         ))}
-                      </ListGroup>
+                      </div>
                     )}
                   </section>
                 )}
@@ -226,20 +246,21 @@ export function ScheduleView({ termLabel }: ScheduleViewProps) {
                 {todayGaps.length > 0 && (
                   <section>
                     <SectionHeader>Free today</SectionHeader>
-                    <ListGroup>
+                    <div className="row-list">
                       {todayGaps.map((gap) => (
-                        <ListRow
+                        <Row
+                          as="div"
                           key={`${gap.startTime}-${gap.endTime}`}
-                          leading={<IconClock size={19} />}
+                          leading={<IconTile Icon={IconClock} tone="green" size={36} />}
                           title={
                             <span className="type-data">
                               {formatTime12(gap.startTime)} – {formatTime12(gap.endTime)}
                             </span>
                           }
-                          subtitle={describeGap(gap)}
+                          detail={describeGap(gap)}
                         />
                       ))}
-                    </ListGroup>
+                    </div>
                   </section>
                 )}
               </>
@@ -247,25 +268,29 @@ export function ScheduleView({ termLabel }: ScheduleViewProps) {
 
             <section>
               <SectionHeader>Your schedule</SectionHeader>
-              <ListGroup>
-                <ListRow
+              <div className="row-list">
+                <Row
+                  as="div"
                   href="/schedule/import"
-                  title="Import or paste a schedule"
-                  subtitle="From ERS, or straight off the clipboard"
+                  leading={<IconTile Icon={IconSchedule} tone="blue" size={36} />}
+                  title="Import or paste"
+                  detail="From ERS or the clipboard"
                 />
-                <ListRow
+                <Row
+                  as="div"
                   href="/schedule/resync"
-                  leading={<IconRefresh size={20} />}
+                  leading={<IconTile Icon={IconRefresh} tone="blue" size={36} />}
                   title="Check ERS for changes"
-                  subtitle="You approve every change before it lands"
+                  detail="You approve every change"
                 />
-                <ListRow
+                <Row
+                  as="div"
                   onClick={() => setSheetOpen(true)}
-                  leading={<IconPlus size={20} />}
+                  leading={<IconTile Icon={IconPlus} tone="blue" size={36} />}
                   title="Add a block by hand"
-                  subtitle="Org meetings, shifts, anything else that takes your time"
+                  detail="Meetings, shifts, anything else"
                 />
-              </ListGroup>
+              </div>
             </section>
           </aside>
         </div>
@@ -316,31 +341,35 @@ function UpNext({
 
   return (
     <Card className="relative overflow-hidden">
-      <span
-        aria-hidden
-        className="absolute inset-y-0 left-0 w-1"
-        style={{ background: tintOf(block.colorKey) }}
-      />
-      <div className="flex items-start justify-between gap-3 pl-2">
-        <p className="type-section-header">{isNow ? 'Right now' : 'Up next'}</p>
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-2.5">
+          <span
+            aria-hidden
+            className="glyph grid size-9 place-items-center"
+            style={{ color: tintOf(block.colorKey) }}
+          >
+            <IconClock size={26} />
+          </span>
+          <p className="type-section-header">{isNow ? 'Right now' : 'Up next'}</p>
+        </span>
         <span
-          className="type-caption-1 type-data shrink-0 rounded-full px-2.5 py-1 font-medium"
+          className="type-caption-1 type-data shrink-0 rounded-full px-3 py-1 font-semibold"
           style={{ background: 'var(--accent-subtle)', color: 'var(--crimson-800)' }}
         >
           {when}
         </span>
       </div>
-      <h3 className="type-title-3 type-data mt-1.5 truncate pl-2">{block.label}</h3>
+      <h3 className="type-title-3 type-data mt-3 truncate">{block.label}</h3>
       {block.courseTitle && block.courseTitle !== block.label && (
-        <p className="type-subheadline truncate pl-2 text-[var(--label-secondary)]">
+        <p className="type-subheadline truncate text-[var(--label-secondary)]">
           {block.courseTitle}
         </p>
       )}
-      <p className="type-data type-footnote mt-1.5 pl-2 text-[var(--label-secondary)]">
+      <p className="type-data type-footnote mt-1.5 text-[var(--label-secondary)]">
         {formatTime12(block.startTime)} – {formatTime12(block.endTime)}
         {block.room ? ` · ${block.room}` : ''}
       </p>
-      <div className="mt-3 pl-2">
+      <div className="mt-3">
         <ButtonLink
           href={`/schedule/day/${upcoming && !upcoming.isToday ? upcoming.date : today}`}
           size="sm"
@@ -572,10 +601,11 @@ function BlockChip({
         href={`/schedule/day/${date}` as never}
         className="squircle flex h-full flex-col overflow-hidden px-2 py-1"
         style={{
-          background: tintFill(block.colorKey, isCurrent ? 26 : 15),
-          borderRadius: 'var(--radius-sm)',
-          borderLeft: `3px solid ${tintOf(block.colorKey)}`,
-          boxShadow: isCurrent ? '0 0 0 1.5px var(--accent), var(--shadow-chip)' : undefined,
+          // Tone only, no side rule: the fill already says which subject it is.
+          background: tintFill(block.colorKey, isCurrent ? 28 : 16),
+          color: `color-mix(in srgb, ${tintOf(block.colorKey)} 70%, var(--label))`,
+          borderRadius: '12px',
+          boxShadow: isCurrent ? '0 0 0 2px var(--accent), var(--shadow-chip)' : undefined,
         }}
       >
         <span className="type-caption-1 type-data truncate font-semibold">{block.label}</span>
@@ -615,10 +645,10 @@ function ScheduleSkeleton() {
     <>
       <NavBar title="Schedule" />
       <div className="app-container stack" aria-busy="true" aria-label="Loading your schedule">
-        <div className="skeleton h-20 rounded-[var(--radius-md)]" />
+        <div className="skeleton h-20 rounded-[var(--radius-lg)]" />
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="skeleton h-[22rem] rounded-[var(--radius-md)]" />
-          <div className="skeleton h-[22rem] rounded-[var(--radius-md)]" />
+          <div className="skeleton h-[22rem] rounded-[var(--radius-lg)]" />
+          <div className="skeleton h-[22rem] rounded-[var(--radius-lg)]" />
         </div>
       </div>
     </>

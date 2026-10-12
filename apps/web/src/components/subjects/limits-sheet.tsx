@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
-import { IconPlus } from '@/components/ui/icon'
+import { IconPlus, IconSave } from '@/components/ui/icon'
 import type { SubjectDefaults } from '@/lib/queries/subjects'
 
 /**
@@ -56,6 +56,7 @@ export function LimitsSheet({
             onSave({ allowedAbsences: absences, latesPerAbsence: lates })
             onClose()
           }}
+          leading={<IconSave size={18} />}
         >
           Save
         </Button>

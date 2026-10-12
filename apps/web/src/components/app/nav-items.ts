@@ -10,11 +10,12 @@ import {
   IconCommute,
   IconDeadlines,
   IconSchedule,
-  IconSettings,
+  IconProfile,
   IconStudy,
   IconSubjects,
   IconToday,
 } from '@/components/ui/icon'
+import type { Tone } from '@/components/ui/icon-tile'
 
 /**
  * The navigation, in one place.
@@ -37,6 +38,8 @@ export interface NavItem {
   match: (pathname: string) => boolean
   /** Which count, if any, this item shows as a badge. */
   badge?: 'deadlines' | 'announcements'
+  /** The feature's colour, on its icon tile wherever the item is drawn. */
+  tone: Tone
 }
 
 /** The badge counts, read once by the app layout and handed to both navs. */
@@ -60,14 +63,16 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         href: '/today',
+        tone: 'crimson',
         label: 'Today',
         Icon: IconToday,
         match: (p) => p === '/today' || p === '/',
       },
-      { href: '/commute', label: 'Commute', Icon: IconCommute, match: startsWith('/commute') },
-      { href: '/schedule', label: 'Schedule', short: 'Sched', Icon: IconSchedule, match: startsWith('/schedule') },
+      { href: '/commute', tone: 'green', label: 'Commute', Icon: IconCommute, match: startsWith('/commute') },
+      { href: '/schedule', tone: 'blue', label: 'Schedule', short: 'Sched', Icon: IconSchedule, match: startsWith('/schedule') },
       {
         href: '/deadlines',
+        tone: 'crimson',
         label: 'Deadlines',
         short: 'Due',
         Icon: IconDeadlines,
@@ -76,6 +81,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         href: '/announcements',
+        tone: 'crimson',
         label: 'Announcements',
         short: 'News',
         Icon: IconAnnouncement,
@@ -85,7 +91,7 @@ export const NAV_GROUPS: NavGroup[] = [
       /* No badge. A class post with a due date is already counted by
        * Deadlines, and counting it twice would make the two numbers disagree
        * about the same piece of work. */
-      { href: '/classroom', label: 'Classroom', short: 'Class', Icon: IconClassroom, match: startsWith('/classroom') },
+      { href: '/classroom', tone: 'gray', label: 'Classroom', short: 'Class', Icon: IconClassroom, match: startsWith('/classroom') },
     ],
   },
   {
@@ -96,22 +102,23 @@ export const NAV_GROUPS: NavGroup[] = [
        * alongside them — two current pages, announced twice. */
       {
         href: '/subjects',
+        tone: 'gray',
         label: 'Subjects',
         Icon: IconSubjects,
         match: (p) => p.startsWith('/subjects') && !SUBJECT_DESTINATIONS.some((child) => p.startsWith(child)),
       },
-      { href: '/subjects/gwa', label: 'Grades & GWA', Icon: IconGrades, match: startsWith('/subjects/gwa') },
-      { href: '/subjects/catch-up', label: 'Attendance', Icon: IconAttendance, match: startsWith('/subjects/catch-up') },
-      { href: '/study', label: 'Study', Icon: IconCards, match: startsWith('/study') },
-      { href: '/evaluations', label: 'Faculty eval', Icon: IconStudy, match: startsWith('/evaluations') },
+      { href: '/subjects/gwa', tone: 'gray', label: 'Grades & GWA', Icon: IconGrades, match: startsWith('/subjects/gwa') },
+      { href: '/subjects/catch-up', tone: 'gray', label: 'Attendance', Icon: IconAttendance, match: startsWith('/subjects/catch-up') },
+      { href: '/study', tone: 'gray', label: 'Study', Icon: IconCards, match: startsWith('/study') },
+      { href: '/evaluations', tone: 'gray', label: 'Faculty eval', Icon: IconStudy, match: startsWith('/evaluations') },
     ],
   },
   {
     label: 'More',
     items: [
-      { href: '/ask', label: 'Ask OneTUP', short: 'Ask', Icon: IconAsk, match: startsWith('/ask') },
-      { href: '/campus', label: 'Campus', Icon: IconCampus, match: startsWith('/campus') },
-      { href: '/settings', label: 'Settings', Icon: IconSettings, match: startsWith('/settings') },
+      { href: '/ask', tone: 'crimson', label: 'Ask OneTUP', short: 'Ask', Icon: IconAsk, match: startsWith('/ask') },
+      { href: '/campus', tone: 'gray', label: 'Campus', Icon: IconCampus, match: startsWith('/campus') },
+      { href: '/settings', tone: 'gray', label: 'Profile', Icon: IconProfile, match: startsWith('/settings') },
     ],
   },
 ]

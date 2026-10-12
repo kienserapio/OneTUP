@@ -13,10 +13,18 @@ import {
   IconChevronDown,
   IconCheck,
   IconClock,
+  IconCommute,
   IconFare,
   IconRoute,
+  IconCar,
+  IconTrain,
+  IconTricycle,
+  IconWalk,
   IconWarning,
+  type IconProps,
 } from '@/components/ui/icon'
+import { IconTile, type Tone } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { cx } from '@/lib/cx'
 
 /**
@@ -85,6 +93,41 @@ const MODE_LABEL: Record<string, string> = {
   tnvs: 'Ride-hail',
 }
 
+/**
+ * Each mode as an icon tile. Walking has its own glyph; every vehicle shares
+ * the bus until the icon set grows a train and a car, and the tone is what
+ * tells them apart at a glance.
+ */
+const MODE_TILE: Record<string, { Icon: React.ComponentType<IconProps>; tone: Tone }> = {
+  walk: { Icon: IconWalk, tone: 'gray' },
+  jeep: { Icon: IconCommute, tone: 'crimson' },
+  bus: { Icon: IconCommute, tone: 'blue' },
+  uv_express: { Icon: IconCommute, tone: 'green' },
+  rail: { Icon: IconTrain, tone: 'gray' },
+  tricycle: { Icon: IconTricycle, tone: 'crimson' },
+  taxi: { Icon: IconCar, tone: 'gray' },
+  tnvs: { Icon: IconCar, tone: 'gray' },
+}
+
+const tileFor = (mode: string) => MODE_TILE[mode] ?? { Icon: IconCommute, tone: 'gray' as Tone }
+
+/**
+ * Whether a leg has a path someone actually traced. The same test the map uses
+ * to decide between a solid line and a dashed one between the two stops — so
+ * the list and the map always agree about which legs are approximate.
+ */
+function isTraced(geometry: unknown): boolean {
+  if (!geometry || typeof geometry !== 'object') return false
+  const shape = geometry as { type?: string; coordinates?: unknown }
+  if (shape.type !== 'LineString' || !Array.isArray(shape.coordinates)) return false
+  return (
+    (shape.coordinates as unknown[]).filter(
+      (point) =>
+        Array.isArray(point) && point.length >= 2 && point.every((n) => typeof n === 'number'),
+    ).length >= 2
+  )
+}
+
 const FRESHNESS_LABEL: Record<Freshness, string> = {
   fresh: 'Confirmed recently',
   aging: 'Over a month old',
@@ -126,7 +169,7 @@ export function RoutePanel({
   return (
     <section
       aria-label="Routes to campus"
-      className="card squircle pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden min-[900px]:h-full"
+      className="card pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-[var(--radius-xl)] min-[900px]:h-full"
       style={{ boxShadow: 'var(--shadow-float)' }}
     >
       {/* The grabber is the toggle. A phone reads that shape as "this sheet
@@ -140,8 +183,8 @@ export function RoutePanel({
       >
         <span
           aria-hidden
-          className="mx-auto block h-1 w-9 rounded-[var(--radius-pill)]"
-          style={{ background: 'var(--fill-tertiary)' }}
+          className="mx-auto block h-[5px] w-10 rounded-[var(--radius-pill)]"
+          style={{ background: 'var(--label-quaternary)' }}
         />
         <span className="type-caption-1 mt-[var(--space-2)] flex w-full items-center justify-center gap-[var(--space-1)] text-[var(--label-secondary)]">
           {expanded
@@ -159,7 +202,7 @@ export function RoutePanel({
       <header className="px-[var(--space-4)] pb-[var(--space-3)] pt-[var(--space-3)]">
         {selected ? (
           <>
-            <div className="flex items-start justify-between gap-[var(--space-2)]">
+            <div className="flex items-center justify-between gap-[var(--space-2)]">
               <h2 className="type-headline min-w-0 flex-1 truncate">
                 {selected.label ?? 'Route'}
               </h2>
@@ -171,28 +214,31 @@ export function RoutePanel({
               </Badge>
             </div>
 
+            <ModeStrip legs={selected.legs} />
+
             <StatChips route={selected} />
 
-            <div className="mt-[var(--space-3)] flex flex-wrap gap-[var(--space-2)]">
-              <Button size="sm" onClick={onConfirm} leading={<IconCheck size={15} />}>
-                I rode this
-              </Button>
+            <div className="mt-[var(--space-3)] grid grid-cols-2 gap-[var(--space-2)]">
               <Button
                 size="sm"
-                variant={isDefault ? 'plain' : 'accent'}
+                variant={isDefault ? 'glass' : 'accent'}
                 onClick={onMakeDefault}
                 disabled={isDefault}
+                className="col-span-2"
               >
                 {isDefault ? 'Saved as your route' : 'Use for my wake-up plan'}
               </Button>
-              <ButtonLink href="/commute/plan" variant="plain" size="sm">
+              <Button size="sm" onClick={onConfirm} leading={<IconCheck size={15} />}>
+                I rode this
+              </Button>
+              <ButtonLink href="/commute/plan" size="sm">
                 When to leave
               </ButtonLink>
             </div>
           </>
         ) : (
-          <p className="type-subheadline text-[var(--label-secondary)]">
-            Pick a route below and it draws on the map.
+          <p className="type-subheadline font-semibold text-[var(--label-secondary)]">
+            Pick a route below
           </p>
         )}
       </header>
@@ -205,7 +251,6 @@ export function RoutePanel({
           // the height to show the whole thing and nothing to gain by hiding it.
           !expanded && 'hidden min-[900px]:block',
         )}
-        style={{ borderTop: '1px solid var(--separator)' }}
       >
         {routes.length > 1 && (
           <div
@@ -246,17 +291,19 @@ export function RoutePanel({
 
         {selected && (
           <>
-            <h3 className="type-section-header mt-[var(--space-5)] pb-[var(--space-2)]">
-              The way there
-            </h3>
+            <div className="mt-[var(--space-5)] flex items-center gap-1.5 pb-[var(--space-3)]">
+              <h3 className="type-section-header">The way there</h3>
+              <InfoTip title="Where this comes from">
+                Routes and fares come from students — confirm one after you ride it so the next
+                person gets it right.
+              </InfoTip>
+            </div>
             <LegList legs={selected.legs} />
 
-            <p className="type-caption-1 mt-[var(--space-3)] text-[var(--label-tertiary)]">
+            <p className="type-caption-1 mt-[var(--space-4)] text-[var(--label-tertiary)]">
               {describeFreshness(selected.freshness)}
               {selected.verifiedCount > 0 &&
                 ` · ${selected.verifiedCount} confirmation${selected.verifiedCount === 1 ? '' : 's'}`}
-              . Routes and fares come from students — confirm one after you ride it so the next
-              person gets it right.
             </p>
           </>
         )}
@@ -274,7 +321,9 @@ function StatChips({ route }: { route: Route }) {
   const discounted = route.totalFareRegular > route.totalFareStudent
 
   return (
-    <dl className="mt-[var(--space-3)] grid grid-cols-3 gap-[var(--space-2)]">
+    /* The fare gets the wide column: it is the longest figure, and on a phone
+       an even three-way split cut it to "₱26.5…". */
+    <dl className="mt-[var(--space-3)] grid grid-cols-[0.9fr_1.5fr_0.8fr] gap-[var(--space-2)]">
       <Chip icon={<IconClock size={13} />} label="Time">
         {route.totalMinutes}
         <span className="type-footnote ml-0.5 text-[var(--label-secondary)]">min</span>
@@ -283,7 +332,7 @@ function StatChips({ route }: { route: Route }) {
       <Chip icon={<IconFare size={13} />} label="Student fare">
         {formatPeso(route.totalFareStudent)}
         {discounted && (
-          <span className="type-data type-caption-1 ml-1 align-middle text-[var(--label-tertiary)] line-through">
+          <span className="type-data type-caption-1 ml-1.5 align-middle text-[var(--label-tertiary)] line-through">
             {formatPeso(route.totalFareRegular)}
           </span>
         )}
@@ -306,20 +355,17 @@ function Chip({
   children: React.ReactNode
 }) {
   return (
-    <div
-      className="min-w-0 rounded-[var(--radius-sm)] px-[var(--space-3)] py-[var(--space-2)]"
-      style={{ background: 'var(--surface-sunken)', border: '1px solid var(--separator)' }}
-    >
-      {/* Weight and tracking are inline because the type scale is unlayered CSS
-          and therefore outranks anything in Tailwind's utilities. */}
+    <div className="min-w-0 py-[var(--space-1)]">
+      {/* Weight is inline because the type scale is unlayered CSS and
+          therefore outranks anything in Tailwind's utilities. */}
       <dt
-        className="type-caption-2 flex items-center gap-1 uppercase text-[var(--label-tertiary)]"
-        style={{ fontWeight: 600, letterSpacing: '0.06em' }}
+        className="type-caption-2 flex items-center gap-1 text-[var(--label-tertiary)]"
+        style={{ fontWeight: 600 }}
       >
-        <span className="shrink-0">{icon}</span>
+        <span className="shrink-0 text-[var(--tone-green)]">{icon}</span>
         <span className="truncate">{label}</span>
       </dt>
-      <dd className="type-data type-title-3 mt-0.5 truncate">{children}</dd>
+      <dd className="type-data type-title-3 mt-0.5 whitespace-nowrap">{children}</dd>
     </div>
   )
 }
@@ -350,21 +396,31 @@ function RouteCard({
       type="button"
       aria-pressed={isSelected}
       onClick={onSelect}
-      className="squircle block w-full rounded-[var(--radius-sm)] p-[var(--space-3)] text-left"
+      className="block w-full rounded-[var(--radius-lg)] p-[var(--space-3)] text-left transition-transform duration-150 active:scale-[0.98]"
       style={{
-        background: isSelected ? 'var(--accent-subtle)' : 'var(--surface-sunken)',
-        border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--separator)'}`,
-        transition: 'border-color var(--duration-fast) var(--ease-standard)',
+        background: isSelected ? 'var(--tone-green-tint)' : 'var(--surface-sunken)',
+        boxShadow: isSelected ? 'inset 0 0 0 2px var(--tone-green)' : 'none',
+        transition: 'background-color var(--duration-fast) var(--ease-standard)',
       }}
     >
-      <div className="flex items-baseline gap-[var(--space-2)]">
-        <span className="type-subheadline min-w-0 flex-1 truncate" style={{ fontWeight: 600 }}>
-          {route.label ?? 'Route'}
+      {/* Time first, like a departures board: it is the number a student
+          compares down the list. */}
+      <div className="flex items-center gap-[var(--space-3)]">
+        <span className="w-14 shrink-0">
+          <span className="type-data block text-[1.375rem] font-bold leading-none tracking-[-0.02em]">
+            {route.totalMinutes}
+          </span>
+          <span className="text-[0.6875rem] font-semibold text-[var(--label-tertiary)]">min</span>
         </span>
-        <span className="type-data type-subheadline shrink-0">{route.totalMinutes} min</span>
+        <span className="min-w-0 flex-1">
+          <span className="type-subheadline block truncate" style={{ fontWeight: 600 }}>
+            {route.label ?? 'Route'}
+          </span>
+          <ModeStrip legs={route.legs} size={22} />
+        </span>
       </div>
 
-      <p className="type-data type-footnote mt-0.5 text-[var(--label-secondary)]">
+      <p className="type-data type-footnote mt-[var(--space-2)] pl-[4.25rem] text-[var(--label-secondary)]">
         {formatPeso(route.totalFareStudent)}
         {discounted && (
           <span className="ml-1 text-[var(--label-tertiary)] line-through">
@@ -376,7 +432,7 @@ function RouteCard({
       </p>
 
       {(claims.length > 0 || isDefault) && (
-        <div className="mt-[var(--space-2)] flex flex-wrap items-center gap-1.5">
+        <div className="mt-[var(--space-2)] flex flex-wrap items-center gap-1.5 pl-[4.25rem]">
           {claims.map((claim) => (
             <Badge key={claim.label} tone="official">
               {claim.label}
@@ -389,41 +445,62 @@ function RouteCard({
   )
 }
 
-/** The legs, dotted in the same colours the polylines are drawn in. */
+/**
+ * The legs as a timeline: each mode's tile, a dotted connector to the next,
+ * and a dot in the same colour the polyline is drawn in so the list and the
+ * map can be read against each other. A leg with no traced path is labelled
+ * the way the map draws it — dashed, between the stops, not a claim about the
+ * road.
+ */
 function LegList({ legs }: { legs: Leg[] }) {
   return (
     <ol className="list-none">
       {legs.map((leg, index) => {
         const last = index === legs.length - 1
+        const { Icon, tone } = tileFor(leg.mode)
+        const traced = isTraced(leg.geometry)
         return (
           <li key={leg.ordinal} className="flex gap-[var(--space-3)]">
-            <span aria-hidden className="flex w-3 flex-none flex-col items-center">
-              <span
-                className="mt-1.5 block size-3 flex-none rounded-full"
-                style={{ background: legColor(index) }}
-              />
+            <span aria-hidden className="flex w-9 flex-none flex-col items-center">
+              <span className="relative">
+                <IconTile Icon={Icon} tone={tone} size={36} />
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 block size-3 rounded-full"
+                  style={{ background: legColor(index), boxShadow: '0 0 0 2px var(--bg)' }}
+                />
+              </span>
               {!last && (
-                <span className="block w-[2px] flex-1" style={{ background: 'var(--separator)' }} />
+                <span
+                  className="my-1 block flex-1 border-l-2 border-dotted"
+                  style={{ borderColor: 'var(--label-quaternary)' }}
+                />
               )}
             </span>
 
-            <div className={cx('min-w-0 flex-1', last ? 'pb-0' : 'pb-[var(--space-4)]')}>
+            <div className={cx('min-w-0 flex-1 pt-1', last ? 'pb-0' : 'pb-[var(--space-4)]')}>
               <p className="type-subheadline">
                 <span className="font-semibold">{MODE_LABEL[leg.mode] ?? leg.mode}</span>{' '}
                 {leg.from_label} → {leg.to_label}
               </p>
-              <p className="type-data type-footnote text-[var(--label-secondary)]">
-                {leg.duration_minutes} min
+              <p className="type-data type-footnote flex flex-wrap items-center gap-x-1.5 text-[var(--label-secondary)]">
+                <span>{leg.duration_minutes} min</span>
                 {leg.fare_regular > 0 && (
-                  <>
-                    {' · '}
-                    {formatPeso(leg.fare_student)}
+                  <span>
+                    · {formatPeso(leg.fare_student)}
                     {leg.discount_applied && (
                       <span className="ml-1 text-[var(--label-tertiary)] line-through">
                         {formatPeso(leg.fare_regular)}
                       </span>
                     )}
-                  </>
+                  </span>
+                )}
+                {!traced && (
+                  <span
+                    className="rounded-full px-2 py-px text-[0.6875rem] font-semibold"
+                    style={{ background: 'var(--tone-crimson-tint)', color: 'var(--tone-crimson-ink)' }}
+                  >
+                    Approximate line
+                  </span>
                 )}
               </p>
               {leg.notes && (
@@ -434,5 +511,32 @@ function LegList({ legs }: { legs: Leg[] }) {
         )
       })}
     </ol>
+  )
+}
+
+/** A route at a glance: the mode of each leg, in order, as small tiles. */
+function ModeStrip({ legs, size = 26 }: { legs: Leg[]; size?: number }) {
+  return (
+    <span
+      className="mt-1 flex flex-wrap items-center gap-1"
+      aria-label={legs.map((leg) => MODE_LABEL[leg.mode] ?? leg.mode).join(', then ')}
+      role="img"
+    >
+      {legs.map((leg, index) => {
+        const { Icon, tone } = tileFor(leg.mode)
+        return (
+          <span key={leg.ordinal} className="flex items-center gap-1">
+            {index > 0 && (
+              <span
+                aria-hidden
+                className="block w-2 border-t-2 border-dotted"
+                style={{ borderColor: 'var(--label-quaternary)' }}
+              />
+            )}
+            <IconTile Icon={Icon} tone={tone} size={size} />
+          </span>
+        )
+      })}
+    </span>
   )
 }

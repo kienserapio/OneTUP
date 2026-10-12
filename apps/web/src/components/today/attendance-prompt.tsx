@@ -8,7 +8,15 @@ import { deleteRecord } from '@/lib/offline/db'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { spring, transition } from '@/design/motion'
 import { Card } from '@/components/ui/surfaces'
-import { IconCancelled, IconCheck, IconClock, IconClose, IconShield } from '@/components/ui/icon'
+import {
+  IconAttendance,
+  IconCancelled,
+  IconCheck,
+  IconClock,
+  IconClose,
+  IconShield,
+} from '@/components/ui/icon'
+import { IconTile, type Tone } from '@/components/ui/icon-tile'
 import type { AttendanceStanding, CourseBlock } from '@/lib/queries/today'
 import { cx } from '@/lib/cx'
 
@@ -29,16 +37,54 @@ import { cx } from '@/lib/cx'
 interface Option {
   status: AttendanceStatus
   label: string
+  /** The tone's saturated colour, for dots and the confirmation. */
   color: string
+  /** Tint behind the pill and the ink its icon and label are set in. */
+  tint: string
+  ink: string
+  /** The glyph's colour. */
+  tone: Tone
   Icon: typeof IconCheck
 }
 
 /** The four answers about the student. One tap, four targets, no scrolling. */
 const OPTIONS: Option[] = [
-  { status: 'present', label: 'Present', color: 'var(--ok)', Icon: IconCheck },
-  { status: 'absent', label: 'Absent', color: 'var(--danger)', Icon: IconClose },
-  { status: 'late', label: 'Late', color: 'var(--warning)', Icon: IconClock },
-  { status: 'excused', label: 'Excused', color: 'var(--info)', Icon: IconShield },
+  {
+    status: 'present',
+    label: 'Present',
+    color: 'var(--tone-green)',
+    tint: 'var(--tone-green-tint)',
+    ink: 'var(--tone-green-ink)',
+    tone: 'green',
+    Icon: IconCheck,
+  },
+  {
+    status: 'absent',
+    label: 'Absent',
+    color: 'var(--tone-crimson)',
+    tint: 'var(--tone-crimson-tint)',
+    ink: 'var(--tone-crimson-ink)',
+    tone: 'crimson',
+    Icon: IconClose,
+  },
+  {
+    status: 'late',
+    label: 'Late',
+    color: 'var(--tone-crimson)',
+    tint: 'var(--tone-crimson-tint)',
+    ink: 'var(--tone-crimson-ink)',
+    tone: 'crimson',
+    Icon: IconClock,
+  },
+  {
+    status: 'excused',
+    label: 'Excused',
+    color: 'var(--tone-gray)',
+    tint: 'var(--tone-gray-tint)',
+    ink: 'var(--tone-gray-ink)',
+    tone: 'gray',
+    Icon: IconShield,
+  },
 ]
 
 /**
@@ -50,7 +96,10 @@ const OPTIONS: Option[] = [
 const CANCELLED: Option = {
   status: 'cancelled',
   label: 'Class cancelled',
-  color: 'var(--label-secondary)',
+  color: 'var(--tone-gray)',
+  tint: 'var(--tone-gray-tint)',
+  ink: 'var(--tone-gray-ink)',
+  tone: 'gray',
   Icon: IconCancelled,
 }
 
@@ -178,12 +227,17 @@ export function AttendancePrompt({
         animate={{ opacity: 1, y: 0 }}
         transition={transition(spring.snap)}
       >
-        <Card className="flex items-center gap-3">
-          <span
+        <Card className="card-glass flex items-center gap-3">
+          <motion.span
             aria-hidden
-            className="size-2.5 shrink-0 rounded-full"
-            style={{ background: option.color }}
-          />
+            initial={{ scale: 0.4 }}
+            animate={{ scale: 1 }}
+            transition={transition(spring.flick)}
+            data-tone={option.tone}
+            className="glyph grid size-10 shrink-0 place-items-center"
+          >
+            <option.Icon size={28} />
+          </motion.span>
           <p className="type-subheadline flex-1">
             {option.status === 'cancelled' ? (
               <>
@@ -204,7 +258,8 @@ export function AttendancePrompt({
           <button
             type="button"
             onClick={undo}
-            className="type-subheadline min-h-[var(--target-min)] px-1 font-medium text-[var(--accent)]"
+            className="type-subheadline min-h-[var(--target-min)] rounded-full px-4 font-semibold"
+            style={{ background: 'var(--fill-tertiary)', color: 'var(--label)' }}
           >
             Undo
           </button>
@@ -214,9 +269,10 @@ export function AttendancePrompt({
   }
 
   return (
-    <Card>
+    <Card className="card-glass">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <IconTile Icon={IconAttendance} tone="green" size={40} />
+        <div className="min-w-0 flex-1">
           <h3 className="type-headline">
             <span className="type-data">{block.label}</span>
           </h3>
@@ -229,14 +285,18 @@ export function AttendancePrompt({
             </p>
           )}
         </div>
-        <span className="type-footnote type-data shrink-0 text-right text-[var(--label-secondary)]">
+        <span
+          className="type-footnote type-data shrink-0 rounded-full px-2.5 py-1 text-right font-semibold"
+          style={{ background: 'var(--fill-quaternary)', color: 'var(--label-secondary)' }}
+        >
           {formatTime12(block.startTime)}–{formatTime12(block.endTime)}
-          {block.room ? <span className="block">{block.room}</span> : null}
         </span>
       </div>
 
-      {block.faculty && (
-        <p className="type-caption-1 mt-1 truncate text-[var(--label-tertiary)]">{block.faculty}</p>
+      {(block.room || block.faculty) && (
+        <p className="type-caption-1 mt-1.5 truncate text-[var(--label-tertiary)]">
+          {[block.room, block.faculty].filter(Boolean).join(' · ')}
+        </p>
       )}
 
       {/* What the answer costs. Recording an absence at 8 of 9 is a different
@@ -248,7 +308,7 @@ export function AttendancePrompt({
       {standing && !compact && (
         <div className="mt-3 flex items-center gap-3">
           <span
-            className="h-1.5 flex-1 overflow-hidden rounded-full"
+            className="h-2 flex-1 overflow-hidden rounded-full"
             style={{ background: 'var(--fill-tertiary)' }}
           >
             <span
@@ -278,21 +338,23 @@ export function AttendancePrompt({
             onClick={() => void record(option.status)}
             whileTap={{ scale: 0.96 }}
             transition={transition(spring.snap)}
-            /* Tinted rather than plain glass: four identical grey pills with
-               coloured text made the destructive answer look exactly like the
+            /* Each answer in its own tone, icon first: four identical grey
+               pills made the destructive answer look exactly like the
                harmless one, at the one moment a student is tapping fast. */
             className={cx(
-              'flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5',
-              'rounded-[var(--radius-sm)] text-[0.9375rem] font-semibold',
+              'flex min-h-[3.5rem] items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4',
+              'text-[0.9375rem] font-semibold',
               'transition-transform disabled:opacity-50',
             )}
-            style={{
-              color: option.color,
-              background: `color-mix(in srgb, ${option.color} 11%, transparent)`,
-              border: `1px solid color-mix(in srgb, ${option.color} 26%, transparent)`,
-            }}
+            style={{ color: option.ink, background: option.tint }}
           >
-            <option.Icon size={19} />
+            <span
+              aria-hidden
+              data-tone={option.tone}
+              className="glyph grid size-10 shrink-0 place-items-center"
+            >
+              <option.Icon size={26} />
+            </span>
             {option.status === 'present' && deliveryMode === 'online' ? 'Attended online' : option.label}
           </motion.button>
         ))}
@@ -308,14 +370,10 @@ export function AttendancePrompt({
         transition={transition(spring.snap)}
         className={cx(
           'mt-2 flex min-h-[var(--target-min)] w-full items-center justify-center gap-1.5',
-          'rounded-[var(--radius-sm)] text-[0.9375rem] font-medium',
+          'rounded-full text-[0.9375rem] font-medium',
           'transition-transform disabled:opacity-50',
         )}
-        style={{
-          color: CANCELLED.color,
-          background: 'var(--fill-quaternary)',
-          border: '1px solid var(--separator)',
-        }}
+        style={{ color: CANCELLED.ink, background: CANCELLED.tint }}
       >
         <CANCELLED.Icon size={18} />
         {CANCELLED.label}

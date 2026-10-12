@@ -41,6 +41,30 @@ import {
   IconWalk as TablerWalk,
   IconWifiOff,
   IconX,
+  IconInfoCircleFilled,
+  IconHomeFilled,
+  IconDeviceMobileFilled,
+  IconBellRingingFilled,
+  IconClipboardFilled,
+  IconChartBarPopular,
+  IconKeyFilled,
+  IconEyeFilled,
+  IconCircleCheckFilled,
+  IconConfettiFilled,
+  IconArrowLeft as TablerArrowLeft,
+  IconTrainFilled,
+  IconCarFilled,
+  IconMotorbike,
+  IconDeviceFloppyFilled,
+  IconSendFilled,
+  IconDownloadFilled,
+  IconCopyFilled,
+  IconPlayerPlayFilled,
+  IconArrowRight,
+  IconDoorEnter,
+  IconPlayerStopFilled,
+  IconArrowUp,
+  IconLanguage as TablerLanguage,
 } from '@tabler/icons-react'
 
 /**
@@ -94,7 +118,7 @@ function alias(Glyph: (props: TablerGlyphProps) => React.ReactNode) {
 
 /* --- Destinations -------------------------------------------------------- */
 
-export const IconToday = alias(IconClockFilled)
+export const IconToday = alias(IconHomeFilled)
 export const IconSchedule = alias(IconCalendarFilled)
 export const IconAsk = alias(IconSparklesFilled)
 export const IconDeadlines = alias(IconClipboardCheckFilled)
@@ -153,3 +177,36 @@ export const IconWalk = alias(TablerWalk)
 export const IconFare = alias(IconCurrencyPeso)
 export const IconCoin = alias(IconCoinFilled)
 export const IconTarget = alias(IconTargetArrow)
+
+/* --- Onboarding and explanation ------------------------------------------ */
+
+export const IconInfo = alias(IconInfoCircleFilled)
+export const IconPhone = alias(IconDeviceMobileFilled)
+export const IconBellRinging = alias(IconBellRingingFilled)
+export const IconClipboard = alias(IconClipboardFilled)
+export const IconChart = alias(IconChartBarPopular)
+export const IconKey = alias(IconKeyFilled)
+export const IconEye = alias(IconEyeFilled)
+export const IconDone = alias(IconCircleCheckFilled)
+export const IconCelebrate = alias(IconConfettiFilled)
+export const IconBack = alias(TablerArrowLeft)
+
+/* --- Vehicles, so a route's legs are told apart by shape and not only colour */
+
+export const IconTrain = alias(IconTrainFilled)
+export const IconCar = alias(IconCarFilled)
+export const IconTricycle = alias(IconMotorbike)
+
+/* --- On buttons, saying what the press does ------------------------------ */
+
+export const IconSave = alias(IconDeviceFloppyFilled)
+export const IconSend = alias(IconSendFilled)
+export const IconStop = alias(IconPlayerStopFilled)
+export const IconArrowUpward = alias(IconArrowUp)
+export const IconLanguage = alias(TablerLanguage)
+/* Bringing something in from ERS or a paste: an arrow down into the app. */
+export const IconImport = alias(IconDownloadFilled)
+export const IconCopy = alias(IconCopyFilled)
+export const IconPlay = alias(IconPlayerPlayFilled)
+export const IconForward = alias(IconArrowRight)
+export const IconJoin = alias(IconDoorEnter)

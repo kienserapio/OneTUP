@@ -1,41 +1,44 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { type ComponentType, useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import {
-  type DeparturePlanRow,
-  describeTimeLeft,
-  formatTime12,
-  urgencyOf,
-} from '@onetup/core'
-import { loadToday, type TodayData } from '@/lib/queries/today'
+import { type DeparturePlanRow, describeTimeLeft } from '@onetup/core'
+import { loadToday, type TodayData, type TrackerItem } from '@/lib/queries/today'
 import { readAll } from '@/lib/offline/db'
 import { useNow } from '@/lib/hooks/use-local'
 import { syncNow } from '@/lib/offline/sync'
-import { Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
+import { Card, SectionHeader } from '@/components/ui/surfaces'
 import { ButtonLink } from '@/components/ui/button'
 import {
-  IconAnnouncement,
   IconAttendance,
-  IconCampus,
-  IconClock,
-  IconCommute,
+  IconCelebrate,
+  IconClassroom,
   IconDeadlines,
   IconGrades,
+  IconImport,
+  IconSchedule,
   IconSubjects,
   IconWarning,
+  type IconProps,
 } from '@/components/ui/icon'
+import { Watermark } from '@/components/ui/watermark'
+import { IconTile, type Tone } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
+import { Row, RowList, RowPill } from '@/components/ui/row'
 import { AttendancePrompt } from '@/components/today/attendance-prompt'
 import { SuspensionCard } from '@/components/today/suspension-card'
 import { UpNextCard } from '@/components/today/up-next-card'
 import { DepartureCard } from '@/components/today/departure-card'
+import { WeekStrip } from '@/components/today/week-strip'
 
 /**
  * Today.
  *
- * The order is the argument: where you have to be, what you owe an answer to,
- * what is about to be due, then everything else. A student who opens this, sees
- * what they need and closes it in eight seconds is the success case — so
+ * A greeting and the week at a glance, the one card that says where to be
+ * next, then a single feed of whatever needs an answer — overdue work, things
+ * due soon, subjects near their cut limit, classes not yet logged — and three
+ * numbers at the foot for the rest of the app. A student who opens this, sees
+ * what they need and closes it in eight seconds is the success case, so
  * nothing here is designed to hold attention.
  */
 export function TodayView({ firstName }: { firstName: string | null }) {
@@ -60,20 +63,28 @@ export function TodayView({ firstName }: { firstName: string | null }) {
 
   if (!data) return <TodaySkeleton />
 
-  const urgent = [...data.overdue, ...data.dueSoon]
-
   return (
-    <div className="app-container stack pb-6 pt-5">
+    <div className="app-container stack pb-6 pt-4">
       <header>
-        <h2 className="type-large-title">
+        <h2 className="text-[2rem] font-bold leading-[1.1] tracking-[-0.03em]">
           {greeting()}
-          {firstName ? `, ${firstName}` : ''}
+          {firstName ? (
+            <>
+              ,<br />
+              <span className="text-[var(--accent)]">{firstName}</span>
+            </>
+          ) : null}
         </h2>
-        <p className="type-body mt-1 text-[var(--label-secondary)]">{summarise(data, now)}</p>
+        <p className="sr-only">{summarise(data, now)}</p>
+        <p aria-hidden className="mt-2 text-[0.9375rem] font-medium text-[var(--label-secondary)]">
+          {headline(data, now)}
+        </p>
       </header>
 
-      {/* Above everything, because it changes what the rest of the day means —
-          but it never changes a record on its own. */}
+      {data.overview.hasSchedule && <WeekStrip week={data.week} />}
+
+      {/* Above everything below the strip, because it changes what the rest of
+          the day means — but it never changes a record on its own. */}
       {data.advisory && (
         <SuspensionCard
           advisory={data.advisory}
@@ -85,35 +96,23 @@ export function TodayView({ firstName }: { firstName: string | null }) {
       )}
 
       {/* Gated on whether a schedule exists at all, not on whether one exists
-          today. The old test was `data.blocks.length === 0`, and `blocks` is
-          only ever this weekday's classes — so every Sunday, and every free
-          weekday, a student with a fully imported timetable was told they had
-          no schedule and offered a button to import the one they already had.
-
-          Without one, the import takes Up Next's place rather than waiting at
-          the bottom: a student who skipped it in onboarding otherwise read an
-          empty card and six tiles of dashes before reaching the one button
-          that makes the app work. */}
-      {data.overview.hasSchedule ? (
-        <UpNextCard data={data} />
-      ) : (
-        <Card>
-          <EmptyState
-            title="No schedule yet. Import it from ERS, or paste it in — either works."
-            action={
-              <ButtonLink href="/schedule/import" variant="accent">
-                Bring in your schedule
-              </ButtonLink>
-            }
-          />
-        </Card>
-      )}
-
-      <QuickActions />
+          today — `blocks` is only this weekday's classes, and a Sunday is not
+          a missing timetable. Without one, the import takes Up Next's place:
+          it is the one button that makes the rest of the app work. */}
+      {data.overview.hasSchedule ? <UpNextCard data={data} /> : <AddSchedule />}
 
       {data.pendingAttendance.length > 0 && (
         <section>
-          <SectionHeader>Were you there?</SectionHeader>
+          <SectionHeader
+            info={
+              <InfoTip title="Attendance">
+                Tap how each class went. Three lates count as one absence, and you get a warning
+                before a subject reaches its limit.
+              </InfoTip>
+            }
+          >
+            Were you there?
+          </SectionHeader>
           <div className="stack">
             {data.pendingAttendance.map((block) => (
               <AttendancePrompt
@@ -130,314 +129,212 @@ export function TodayView({ firstName }: { firstName: string | null }) {
 
       {plan && <DepartureCard plan={plan} />}
 
-      {data.blocks.length > 0 && (
-        <section>
-          <SectionHeader
-            action={
-              <Link href="/schedule" className="type-footnote text-[var(--accent)]">
-                Full week
-              </Link>
-            }
-          >
-            Rest of your day
-          </SectionHeader>
-          <ListGroup>
-            {data.blocks.map((block) => {
-              const done = block.endTime <= currentTime(now)
-              return (
-                <ListRow
-                  key={block.id}
-                  href={`/schedule/day/${data.date}`}
-                  leading={
-                    <span
-                      aria-hidden
-                      className="block size-2.5 rounded-full"
-                      style={{ background: done ? 'var(--separator-opaque)' : 'var(--accent)' }}
-                    />
-                  }
-                  title={
-                    <span className={done ? 'opacity-55' : undefined}>
-                      <span className="type-data">{block.label}</span>
-                      {block.courseTitle ? ` · ${block.courseTitle}` : ''}
-                    </span>
-                  }
-                  subtitle={
-                    <span className="type-data">
-                      {formatTime12(block.startTime)} – {formatTime12(block.endTime)}
-                      {block.room ? ` · ${block.room}` : ''}
-                    </span>
-                  }
-                />
-              )
-            })}
-          </ListGroup>
-        </section>
-      )}
+      <NeedsYou data={data} now={now} />
 
-      {urgent.length > 0 && (
-        <section>
-          <SectionHeader
-            action={
-              <Link href="/deadlines" className="type-footnote text-[var(--accent)]">
-                See all
-              </Link>
-            }
-          >
-            Due soon
-          </SectionHeader>
-          <ListGroup>
-            {urgent.slice(0, 5).map((item) => (
-              <ListRow
-                key={`${item.source}-${item.id}`}
-                href={item.href}
-                title={item.title}
-                subtitle={[item.sectionCode, describeTimeLeft(item.dueAt, now)]
-                  .filter(Boolean)
-                  .join(' · ')}
-                leading={
-                  <span
-                    aria-hidden
-                    className="block size-2.5 rounded-full"
-                    style={{
-                      background: urgencyColor(
-                        urgencyOf({ dueAt: item.dueAt, status: 'open' }, now),
-                      ),
-                    }}
-                  />
-                }
-              />
-            ))}
-          </ListGroup>
-        </section>
-      )}
-
-      {data.attendanceWarnings.length > 0 && (
-        <section>
-          <SectionHeader>Watch your cuts</SectionHeader>
-          <ListGroup>
-            {data.attendanceWarnings.map((warning) => (
-              <ListRow
-                key={warning.code}
-                href="/subjects"
-                leading={<IconWarning size={20} style={{ color: attendanceColor(warning.state) }} />}
-                title={<span className="type-data">{warning.code}</span>}
-                subtitle={
-                  warning.remaining === 0
-                    ? 'At the limit for this subject'
-                    : `${warning.remaining} absence${warning.remaining === 1 ? '' : 's'} left`
-                }
-              />
-            ))}
-          </ListGroup>
-        </section>
-      )}
-
-      {data.catchUp.length > 0 && (
-        <Card className="flex items-center gap-3 p-4">
-          <IconClock size={22} className="shrink-0 text-[var(--label-secondary)]" />
-          <p className="type-subheadline flex-1">
-            {data.catchUp.length} class{data.catchUp.length === 1 ? '' : 'es'} from the past four
-            weeks still need an answer.
-          </p>
-          <ButtonLink href="/subjects/catch-up" size="sm" variant="plain">
-            Catch up
-          </ButtonLink>
-        </Card>
-      )}
-
-      {data.gaps.length > 0 && (
-        <section>
-          <SectionHeader>Free today</SectionHeader>
-          <ListGroup>
-            {data.gaps.map((gap) => (
-              <ListRow
-                key={`${gap.startTime}-${gap.endTime}`}
-                title={
-                  <span className="type-data">
-                    {formatTime12(gap.startTime)} – {formatTime12(gap.endTime)}
-                  </span>
-                }
-                subtitle={describeGap(gap.minutes, gap.after, gap.before)}
-              />
-            ))}
-          </ListGroup>
-        </section>
-      )}
-
-      {/* Every number here is derived from the schedule, so without one the
-          grid is a page of dashes — a report that nothing works, not a state. */}
-      {data.overview.hasSchedule && <Overview overview={data.overview} />}
+      {data.overview.hasSchedule && <Stats overview={data.overview} />}
     </div>
   )
 }
 
 /**
- * The four things a student reaches for without navigating.
+ * Everything that wants an answer, in one list.
  *
- * Four, not six, and one word each: a quick action competes for the same glance
- * as the card above it, and "Log attendance" beside "Plan my trip" beside "Share
- * news" is a sentence to read rather than a target to hit. They are drawn as
- * solid crimson tiles with the same inset highlight and lift as the buttons,
- * because they *are* buttons — the previous white cards read as content.
+ * Overdue first, then due soon, then cuts, then the catch-up count — the order
+ * a student would triage them in. Separate sections for each used to make the
+ * screen a stack of headings with one row under each.
  */
-function QuickActions() {
-  const actions = [
-    { href: '/subjects/catch-up', label: 'Attendance', Icon: IconAttendance },
-    { href: '/deadlines/new', label: 'Deadline', Icon: IconDeadlines },
-    { href: '/commute', label: 'Commute', Icon: IconCommute },
-    { href: '/campus', label: 'Campus', Icon: IconCampus },
+function NeedsYou({ data, now }: { data: TodayData; now: Date }) {
+  const urgent = [...data.overdue, ...data.dueSoon]
+  const shown = urgent.slice(0, 5)
+  const nothing = urgent.length === 0 && data.attendanceWarnings.length === 0 && data.catchUp.length === 0
+
+  return (
+    <section>
+      <SectionHeader
+        action={
+          urgent.length > 0 ? (
+            <Link href="/deadlines" className="type-footnote font-semibold text-[var(--accent)]">
+              See all
+            </Link>
+          ) : undefined
+        }
+        info={
+          <InfoTip title="Needs you">
+            Anything overdue or due in the next 48 hours, subjects close to their absence limit,
+            and classes you have not logged yet.
+          </InfoTip>
+        }
+      >
+        Needs you
+      </SectionHeader>
+
+      {nothing ? (
+        <Row
+          as="div"
+          leading={<IconTile Icon={IconCelebrate} tone="green" size={36} />}
+          title="You're all caught up"
+          detail="Nothing due, no cuts to watch."
+        />
+      ) : (
+        <RowList label="Needs you" className="row-list-glass">
+          {shown.map((item) => (
+            <DueRow key={`${item.source}-${item.id}`} item={item} now={now} />
+          ))}
+
+          {data.attendanceWarnings.map((warning) => (
+            <Row
+              key={warning.code}
+              href="/subjects"
+              leading={
+                <IconTile Icon={IconWarning} tone={attendanceTone(warning.state)} size={36} />
+              }
+              title={<span className="type-data">{warning.code}</span>}
+              meta={
+                <RowPill tone={warning.remaining === 0 ? 'crimson' : undefined}>
+                  {warning.remaining === 0
+                    ? 'At the absence limit'
+                    : `${warning.remaining} absence${warning.remaining === 1 ? '' : 's'} left`}
+                </RowPill>
+              }
+            />
+          ))}
+
+          {data.catchUp.length > 0 && (
+            <Row
+              href="/subjects/catch-up"
+              leading={<IconTile Icon={IconAttendance} tone="gray" size={36} />}
+              title={`${data.catchUp.length} class${data.catchUp.length === 1 ? '' : 'es'} to log`}
+              detail="From the past 4 weeks"
+            />
+          )}
+        </RowList>
+      )}
+    </section>
+  )
+}
+
+function DueRow({ item, now }: { item: TrackerItem; now: Date }) {
+  const overdue = Date.parse(item.dueAt) < now.getTime()
+  return (
+    <Row
+      href={item.href}
+      leading={
+        <IconTile
+          Icon={item.source === 'class' ? IconClassroom : IconDeadlines}
+          tone={item.source === 'class' ? 'gray' : 'crimson'}
+          size={36}
+        />
+      }
+      title={item.title}
+      meta={
+        <>
+          <RowPill tone={overdue ? 'crimson' : undefined}>{describeTimeLeft(item.dueAt, now)}</RowPill>
+          {item.sectionCode && <RowPill>{item.sectionCode}</RowPill>}
+        </>
+      }
+    />
+  )
+}
+
+/**
+ * The rest of the app in three numbers. Each is a door, not a report: tap it
+ * to open the screen it comes from.
+ */
+function Stats({ overview }: { overview: TodayData['overview'] }) {
+  const stats: {
+    href: string
+    value: string
+    label: string
+    Icon: ComponentType<IconProps>
+    alert?: boolean
+  }[] = [
+    {
+      href: '/subjects/gwa',
+      Icon: IconGrades,
+      value: overview.gwa === null ? '—' : overview.gwa.toFixed(2),
+      label: 'GWA',
+    },
+    { href: '/subjects', Icon: IconSubjects, value: String(overview.subjects), label: 'Subjects' },
+    {
+      href: '/deadlines',
+      Icon: IconDeadlines,
+      value: String(overview.openDeadlines),
+      label: overview.overdue > 0 ? `Open · ${overview.overdue} late` : 'Open tasks',
+      alert: overview.overdue > 0,
+    },
   ]
 
   return (
-    /* Laid out inline rather than through a class: the 30rem cap is what stops
-       four square tiles becoming 250px each across a dashboard column, and it
-       is a no-op on any phone, which is narrower than the cap anyway. */
-    <nav
-      aria-label="Quick actions"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-        gap: 'var(--space-3)',
-        maxWidth: '30rem',
-      }}
-    >
-      {actions.map((action) => (
+    <nav aria-label="At a glance" className="grid grid-cols-3 gap-2.5">
+      {stats.map((stat) => (
         <Link
-          key={action.href}
-          href={action.href as never}
-          className="quick-action squircle"
+          key={stat.href}
+          href={stat.href as never}
+          className="card-glass flex min-h-[5.5rem] flex-col items-start justify-end gap-1 px-4 py-3.5 transition-transform duration-150 active:scale-[0.97]"
         >
-          <action.Icon size={26} />
-          <span className="type-caption-1 font-semibold leading-tight">{action.label}</span>
+          <Watermark Icon={stat.Icon} size={64} />
+          <span
+            className="text-[1.5rem] font-bold leading-none tabular-nums tracking-[-0.03em]"
+            style={{ color: stat.alert ? 'var(--accent)' : 'var(--label)' }}
+          >
+            {stat.value}
+          </span>
+          <span className="truncate text-[0.75rem] font-medium text-[var(--label-secondary)]">
+            {stat.label}
+          </span>
         </Link>
       ))}
     </nav>
   )
 }
 
-/**
- * The rest of the app, in one glance.
- *
- * Today is the home screen, so it owes the student a state for every other
- * screen — not a summary of what is on those screens, but the one number that
- * decides whether they need to open it. Everything here is a link; nothing here
- * is a place you can act without leaving.
- */
-function Overview({ overview }: { overview: TodayData['overview'] }) {
-  const tiles: {
-    href: string
-    label: string
-    value: string
-    hint: string
-    Icon: typeof IconGrades
-    tone?: 'warning'
-  }[] = [
-    {
-      href: '/subjects/gwa',
-      label: 'Grades & GWA',
-      value: overview.gwa === null ? '—' : overview.gwa.toFixed(2),
-      hint:
-        overview.gradedCourses === 0
-          ? 'Nothing graded yet'
-          : `${overview.gradedCourses} subject${overview.gradedCourses === 1 ? '' : 's'} graded`,
-      Icon: IconGrades,
-    },
-    /* "Cuts", not "Attendance": the quick action above already uses that word
-     * for the catch-up screen, and the number here counts subjects near their
-     * absence limit — which is what a TUP student calls cuts. */
-    {
-      href: '/subjects',
-      label: 'Cuts',
-      value: String(overview.cutWarnings),
-      hint:
-        overview.cutWarnings === 0
-          ? 'No subject near its limit'
-          : `subject${overview.cutWarnings === 1 ? '' : 's'} near the limit`,
-      Icon: IconAttendance,
-      tone: overview.cutWarnings > 0 ? 'warning' : undefined,
-    },
-    {
-      href: '/deadlines',
-      label: 'Deadlines',
-      value: String(overview.openDeadlines),
-      hint:
-        overview.overdue > 0
-          ? `${overview.overdue} overdue`
-          : overview.dueSoon > 0
-            ? `${overview.dueSoon} due soon`
-            : 'Nothing urgent',
-      Icon: IconDeadlines,
-      tone: overview.overdue > 0 ? 'warning' : undefined,
-    },
-    {
-      href: '/announcements',
-      label: 'Announcements',
-      value: String(overview.recentAnnouncements),
-      hint: overview.recentAnnouncements === 0 ? 'Nothing new this week' : 'in the last 3 days',
-      Icon: IconAnnouncement,
-    },
-    {
-      href: '/subjects',
-      label: 'Subjects',
-      value: String(overview.subjects),
-      hint: `${overview.units} unit${overview.units === 1 ? '' : 's'} this term`,
-      Icon: IconSubjects,
-    },
-  ]
-
+function AddSchedule() {
   return (
-    <section>
-      <SectionHeader
-        action={
-          <Link href="/ask" className="type-footnote text-[var(--accent)]">
-            Ask about any of it
-          </Link>
-        }
-      >
-        Everything else
-      </SectionHeader>
-
-      <nav aria-label="Overview" className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
-        {tiles.map((tile) => (
-          <Link
-            key={tile.label}
-            href={tile.href as never}
-            className="card squircle flex flex-col gap-1 p-3.5"
-          >
-            <span className="flex items-center gap-2">
-              <tile.Icon
-                size={18}
-                style={{ color: tile.tone === 'warning' ? 'var(--warning)' : 'var(--accent)' }}
-              />
-              <span className="type-caption-1 truncate text-[var(--label-secondary)]">
-                {tile.label}
-              </span>
-            </span>
-            <span
-              className="type-data type-title-2"
-              style={{ color: tile.tone === 'warning' ? 'var(--warning)' : 'var(--label)' }}
-            >
-              {tile.value}
-            </span>
-            <span className="type-caption-1 leading-tight text-[var(--label-tertiary)]">
-              {tile.hint}
-            </span>
-          </Link>
-        ))}
-      </nav>
-    </section>
+    <Card className="card-glass flex flex-col items-center gap-4 px-5 py-7 text-center">
+      <IconTile Icon={IconSchedule} tone="blue" variant="solid" size={64} />
+      <div>
+        <p className="flex items-center justify-center gap-1.5 text-[1.1875rem] font-semibold">
+          Add your schedule
+          <InfoTip title="Two ways in">
+            Sign in to ERS once and OneTUP reads your schedule, or copy the table from ERS and
+            paste it. You check everything before it is saved.
+          </InfoTip>
+        </p>
+        <p className="type-subheadline mt-1 text-[var(--label-secondary)]">
+          Everything here builds on it.
+        </p>
+      </div>
+      <ButtonLink href="/schedule/import" variant="accent" block leading={<IconImport size={18} />}>
+        Bring in your schedule
+      </ButtonLink>
+    </Card>
   )
 }
 
 function TodaySkeleton() {
   return (
-    <div className="app-container stack pt-5" aria-busy="true" aria-label="Loading today">
-      <div className="skeleton h-12 w-64 rounded-[var(--radius-sm)]" />
+    <div className="app-container stack pt-4" aria-busy="true" aria-label="Loading today">
+      <div className="skeleton h-20 w-64 rounded-[var(--radius-sm)]" />
+      <div className="skeleton h-16 rounded-[var(--radius-lg)]" />
       <div className="skeleton h-44 rounded-[var(--radius-xl)]" />
-      <div className="skeleton h-24 rounded-[var(--radius-md)]" />
-      <div className="skeleton h-32 rounded-[var(--radius-md)]" />
+      <div className="skeleton h-16 rounded-[var(--radius-lg)]" />
+      <div className="skeleton h-16 rounded-[var(--radius-lg)]" />
     </div>
   )
+}
+
+/** The day in a few words, under the greeting. */
+function headline(data: TodayData, now: Date): string {
+  const parts: string[] = []
+  if (data.overview.hasSchedule) {
+    const remaining = data.blocks.filter((block) => block.endTime > currentTime(now)).length
+    parts.push(
+      remaining === 0 ? 'No classes left today' : `${remaining} class${remaining === 1 ? '' : 'es'} left`,
+    )
+  }
+  const due = data.overdue.length + data.dueSoon.length
+  if (due > 0) parts.push(`${due} due soon`)
+  return parts.length > 0 ? parts.join(' · ') : 'Here is your day.'
 }
 
 /** Filipino greeting by time of day — both languages are first-class here. */
@@ -477,39 +374,16 @@ function currentTime(now: Date): string {
   return new Date(now.getTime() + 8 * 3_600_000).toISOString().slice(11, 16)
 }
 
-function urgencyColor(urgency: string): string {
-  switch (urgency) {
-    case 'overdue':
-    case 'critical':
-      return 'var(--danger)'
-    case 'urgent':
-      return 'var(--warning)'
-    case 'soon':
-      return 'var(--caution)'
-    case 'upcoming':
-      return 'var(--info)'
-    default:
-      return 'var(--label-tertiary)'
-  }
-}
-
-function attendanceColor(state: string): string {
+/** A cut warning's state, as the tone its glyph is painted in. */
+function attendanceTone(state: string): Tone {
   switch (state) {
     case 'at_limit':
-      return 'var(--danger)'
+      return 'crimson'
     case 'warning':
-      return 'var(--warning)'
     case 'caution':
-      return 'var(--caution)'
+      return 'crimson'
     default:
-      return 'var(--ok)'
+      return 'green'
   }
 }
 
-function describeGap(minutes: number, after: string | null, before: string | null): string {
-  const length = minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h ${minutes % 60 || ''}`.trim()
-  if (after && before) return `${length} between ${after} and ${before}`
-  if (before) return `${length} before ${before}`
-  if (after) return `${length} after ${after}`
-  return length
-}

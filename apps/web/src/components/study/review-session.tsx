@@ -14,9 +14,10 @@ import { queueWrite, syncNow } from '@/lib/offline/sync'
 import { currentUserId } from '@/lib/queries/classroom'
 import { spring, transition } from '@/design/motion'
 import { Card, EmptyState } from '@/components/ui/surfaces'
-import { Button, ButtonLink } from '@/components/ui/button'
+import { ButtonLink } from '@/components/ui/button'
 import { NavBar } from '@/components/app/nav-bar'
-import { IconCards } from '@/components/ui/icon'
+import { IconCards, IconCelebrate, IconBack } from '@/components/ui/icon'
+import { IconTile, type Tone } from '@/components/ui/icon-tile'
 
 /**
  * The review loop.
@@ -121,7 +122,7 @@ export function ReviewSession() {
         <div className="app-container stack pb-4">
           <Card>
             <EmptyState
-              icon={<IconCards size={28} />}
+              icon={<IconTile Icon={IconCards} tone="crimson" variant="solid" size={64} />}
               title="Nothing is due today. That is the system working, not a screen with nothing on it."
               action={
                 <ButtonLink href="/study" variant="plain">
@@ -159,23 +160,36 @@ export function ReviewSession() {
             exit={{ opacity: 0, y: -10 }}
             transition={transition(spring.ui)}
           >
+            {/* Big, centred, and the whole thing is the target: a card is
+                flipped by tapping it, not by finding a button on it. */}
             <button
               type="button"
               onClick={() => setRevealed(true)}
               disabled={revealed}
-              className="card squircle flex w-full flex-col justify-center gap-4 px-5 py-8 text-left disabled:cursor-default"
+              className="card flex min-h-[19rem] w-full flex-col items-center justify-center gap-5 px-6 py-10 text-center !rounded-[28px] disabled:cursor-default"
               aria-label={revealed ? undefined : 'Show the answer'}
             >
-              <p className="type-title-2 text-balance">{card.front}</p>
+              <IconTile Icon={IconCards} tone="gray" size={44} />
+              <p className="text-balance text-[1.5rem] font-semibold leading-snug tracking-[-0.02em]">
+                {card.front}
+              </p>
 
               {revealed ? (
-                <>
-                  <hr className="border-0 border-t" style={{ borderColor: 'var(--separator)' }} />
-                  <p className="type-body text-balance text-[var(--label-secondary)]">{card.back}</p>
-                </>
+                <motion.p
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={transition(spring.ui)}
+                  className="type-body w-full text-balance rounded-[20px] px-4 py-4 text-[var(--label-secondary)]"
+                  style={{ background: 'var(--canvas)' }}
+                >
+                  {card.back}
+                </motion.p>
               ) : (
-                <span className="type-footnote text-[var(--label-tertiary)]">
-                  Tap to see the answer
+                <span
+                  className="type-footnote rounded-full px-3.5 py-1.5 font-semibold"
+                  style={{ background: 'var(--fill-tertiary)', color: 'var(--label-secondary)' }}
+                >
+                  Tap to flip
                 </span>
               )}
             </button>
@@ -214,11 +228,13 @@ function QualityButtons({
     }
   }
 
-  const options: Array<{ label: string; quality: ReviewQuality; destructive?: boolean }> = [
-    { label: 'Again', quality: QUALITY.again, destructive: true },
-    { label: 'Hard', quality: QUALITY.hard },
-    { label: 'Good', quality: QUALITY.good },
-    { label: 'Easy', quality: QUALITY.easy },
+  /* Each answer gets a tone, so the four read as a scale — red for "again"
+   * through to the calm end for "easy" — before a label is read. */
+  const options: Array<{ label: string; quality: ReviewQuality; tone: Tone }> = [
+    { label: 'Again', quality: QUALITY.again, tone: 'crimson' },
+    { label: 'Hard', quality: QUALITY.hard, tone: 'gray' },
+    { label: 'Good', quality: QUALITY.good, tone: 'green' },
+    { label: 'Easy', quality: QUALITY.easy, tone: 'blue' },
   ]
 
   return (
@@ -243,18 +259,24 @@ function QualityButtons({
           { daysUntilDeadline: card.daysUntilDeadline, cardsInPack: card.cardsInPack },
         )
         return (
-          <Button
+          <motion.button
             key={option.label}
-            variant={option.destructive ? 'destructive' : 'glass'}
+            type="button"
             disabled={busy}
             onClick={() => void press(option.quality)}
-            className="flex-col !gap-0.5 !py-3"
+            whileTap={{ scale: 0.94 }}
+            transition={transition(spring.snap)}
+            className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-[20px] px-2 py-3 disabled:opacity-50"
+            style={{
+              background: `var(--tone-${option.tone}-tint)`,
+              color: `var(--tone-${option.tone}-ink)`,
+            }}
           >
-            <span className="type-subheadline">{option.label}</span>
-            <span className="type-caption-2 opacity-70">
+            <span className="type-subheadline font-semibold">{option.label}</span>
+            <span className="type-caption-2 opacity-75">
               {describeInterval(outcome.appliedIntervalDays)}
             </span>
-          </Button>
+          </motion.button>
         )
       })}
     </motion.div>
@@ -268,14 +290,14 @@ function SessionDone({ answered }: { answered: number }) {
       <div className="app-container stack pb-4">
         <Card>
           <EmptyState
-            icon={<IconCards size={28} />}
+            icon={<IconTile Icon={IconCelebrate} tone="green" variant="solid" size={64} />}
             title={
               answered === 0
                 ? 'Nothing left in the queue.'
                 : `${answered} card${answered === 1 ? '' : 's'} reviewed. The rest come back on their own schedule.`
             }
             action={
-              <ButtonLink href="/study" variant="accent">
+              <ButtonLink href="/study" variant="accent" leading={<IconBack size={18} />}>
                 Back to packs
               </ButtonLink>
             }
@@ -290,7 +312,7 @@ function Progress({ done, total }: { done: number; total: number }) {
   const pct = total === 0 ? 0 : Math.round((done / total) * 100)
   return (
     <div
-      className="h-1 w-full overflow-hidden rounded-full"
+      className="h-2 w-full overflow-hidden rounded-full"
       style={{ background: 'var(--fill-tertiary)' }}
       role="progressbar"
       aria-valuenow={done}
@@ -300,7 +322,7 @@ function Progress({ done, total }: { done: number; total: number }) {
     >
       <motion.div
         className="h-full rounded-full"
-        style={{ background: 'var(--accent)' }}
+        style={{ background: 'var(--tone-crimson)' }}
         animate={{ width: `${pct}%` }}
         transition={transition(spring.ui)}
       />
@@ -323,8 +345,8 @@ function ReviewSkeleton() {
     <>
       <NavBar title="Review" back={{ href: '/study', label: 'Study' }} largeTitle={false} />
       <div className="app-container stack" aria-busy="true" aria-label="Loading the queue">
-        <div className="skeleton h-1 rounded-full" />
-        <div className="skeleton h-56 rounded-[var(--radius-md)]" />
+        <div className="skeleton h-2 rounded-full" />
+        <div className="skeleton h-[19rem] rounded-[28px]" />
       </div>
     </>
   )

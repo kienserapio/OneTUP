@@ -5,7 +5,10 @@ import { type GradeComponentRow, computeComponentStanding } from '@onetup/core'
 import { deleteComponent, saveComponent } from '@/lib/queries/subjects'
 import { Button } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
-import { Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
+import {Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
+import { Row, RowList } from '@/components/ui/row'
+import { IconChart, IconChevronRight, IconPlus, IconSave } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
 
 /**
  * Component tracking — the optional half of M3.
@@ -64,9 +67,14 @@ export function ComponentEditor({ enrollmentId, components, onChanged }: Compone
       {components.length === 0 ? (
         <Card>
           <EmptyState
+            icon={<IconTile Icon={IconChart} tone="gray" size={48} />}
             title="Track quizzes, exams and projects here to see where you stand before the finals."
             action={
-              <Button variant="accent" onClick={() => setAdding(true)}>
+              <Button
+                variant="accent"
+                onClick={() => setAdding(true)}
+                leading={<IconPlus size={18} />}
+              >
                 Add a component
               </Button>
             }
@@ -74,13 +82,28 @@ export function ComponentEditor({ enrollmentId, components, onChanged }: Compone
         </Card>
       ) : (
         <div className="stack">
-          <ListGroup>
+          <RowList>
             {components.map((component) => (
-              <ListRow
+              <Row
                 key={component.id}
                 onClick={() => setEditing(component)}
+                leading={
+                  <span
+                    className="grid h-9 min-w-12 place-items-center rounded-xl px-1.5 text-[0.75rem] font-bold tabular-nums"
+                    style={{
+                      background: component.is_complete
+                        ? 'var(--tone-crimson-tint)'
+                        : 'var(--canvas)',
+                      color: component.is_complete
+                        ? 'var(--tone-crimson-ink)'
+                        : 'var(--label-secondary)',
+                    }}
+                  >
+                    {Number(component.weight_pct)}%
+                  </span>
+                }
                 title={component.label}
-                subtitle={
+                detail={
                   <span className="type-data">
                     {Number(component.weight_pct)}% of the grade
                     {component.is_complete && component.score_pct !== null
@@ -88,20 +111,42 @@ export function ComponentEditor({ enrollmentId, components, onChanged }: Compone
                       : ' · not yet'}
                   </span>
                 }
+                trailing={
+                  <IconChevronRight size={18} className="shrink-0 text-[var(--label-quaternary)]" />
+                }
               />
             ))}
-          </ListGroup>
+          </RowList>
 
           <Card className="stack">
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="type-subheadline text-[var(--label-secondary)]">
-                Standing so far
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2.5">
+                <IconTile Icon={IconChart} tone="gray" size={32} />
+                <span className="text-[0.875rem] font-semibold text-[var(--label-secondary)]">
+                  Standing so far
+                </span>
               </span>
-              <span className="type-title-3 type-data">
+              <span className="text-[1.75rem] font-bold tabular-nums tracking-[-0.03em]">
                 {standing.currentStanding === null
                   ? '—'
                   : `${standing.currentStanding.toFixed(1)}%`}
               </span>
+            </div>
+
+            {/* How much of the grade is already decided, drawn: the filled part
+                is the weight marked done, the rest is still open. */}
+            <div
+              aria-hidden
+              className="h-2.5 w-full overflow-hidden rounded-full"
+              style={{ background: 'var(--tone-crimson-tint)' }}
+            >
+              <div
+                className="h-full rounded-full transition-[width] duration-500"
+                style={{
+                  width: `${Math.min(100, standing.completedWeight)}%`,
+                  background: 'var(--tone-crimson)',
+                }}
+              />
             </div>
 
             <p className="type-footnote text-[var(--label-secondary)]">
@@ -111,17 +156,17 @@ export function ComponentEditor({ enrollmentId, components, onChanged }: Compone
             </p>
 
             {standing.weightsSumTo !== 100 && (
-              <p className="type-footnote" style={{ color: 'var(--caution)' }}>
+              <p
+                className="type-footnote rounded-[var(--radius-md)] p-3"
+                style={{ background: 'var(--tone-crimson-tint)', color: 'var(--tone-crimson-ink)' }}
+              >
                 Your weights add up to {standing.weightsSumTo}%, not 100%. The standing is still
                 correct for what you entered, but check the syllabus.
               </p>
             )}
 
             <div>
-              <label
-                htmlFor="component-target"
-                className="type-subheadline mb-1.5 block font-medium"
-              >
+              <label htmlFor="component-target" className="mb-1.5 block text-[0.875rem] font-semibold">
                 Aiming for
               </label>
               <div className="flex items-center gap-2">
@@ -227,7 +272,13 @@ function ComponentSheet({
       title={existing ? 'Edit component' : 'Add a component'}
       footer={
         <div className="stack">
-          <Button variant="accent" block disabled={!valid} onClick={() => void save()}>
+          <Button
+            variant="accent"
+            block
+            disabled={!valid}
+            onClick={() => void save()}
+            leading={<IconSave size={18} />}
+          >
             Save
           </Button>
           {existing && (

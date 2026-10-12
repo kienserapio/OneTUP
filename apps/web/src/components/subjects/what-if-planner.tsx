@@ -10,9 +10,11 @@ import {
   planWhatIf,
 } from '@onetup/core'
 import { spring, transition } from '@/design/motion'
-import { Card, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
+import {Card, SectionHeader } from '@/components/ui/surfaces'
+import { Row, RowList } from '@/components/ui/row'
 import { Button } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
+import { InfoTip } from '@/components/ui/info-tip'
 import { GradeScaleGrid } from '@/components/subjects/grade-sheet'
 import { cx } from '@/lib/cx'
 
@@ -92,16 +94,21 @@ export function WhatIfPlanner({
 
   return (
     <section>
-      <SectionHeader>What if</SectionHeader>
+      <SectionHeader
+        info={
+          <InfoTip title="What if">
+            Type the GWA you want and see what it takes in the subjects still ungraded — worked out
+            with the same arithmetic as your thresholds.
+          </InfoTip>
+        }
+      >
+        What if
+      </SectionHeader>
 
       <div className="stack">
         <Card className="stack">
           <div>
-            <label
-              htmlFor="whatif-target"
-              className="type-subheadline mb-1.5 block"
-              style={{ fontWeight: 500 }}
-            >
+            <label htmlFor="whatif-target" className="mb-1.5 block text-[0.875rem] font-semibold">
               I want a GWA of
             </label>
             <input
@@ -136,9 +143,7 @@ export function WhatIfPlanner({
 
           {hasPastTerms && (
             <div>
-              <p className="type-subheadline mb-1.5" style={{ fontWeight: 500 }}>
-                Measured against
-              </p>
+              <p className="mb-1.5 text-[0.875rem] font-semibold">Measured against</p>
               <div className="segmented w-full" role="radiogroup" aria-label="What the target covers">
                 {(['term', 'cumulative'] as const).map((option) => (
                   <button
@@ -170,18 +175,21 @@ export function WhatIfPlanner({
 
         {ungraded.length > 0 && (
           <div>
-            <p className="type-footnote px-1 pb-2 text-[var(--label-secondary)]">
-              {scope === 'cumulative'
-                ? 'These are the only grades still in play — every past term is already set. Pin one and the rest recalculates around it.'
-                : 'Expecting a particular grade somewhere? Pin it and the rest recalculates around it.'}
+            <p className="flex items-center gap-1.5 px-1 pb-2 text-[0.875rem] font-semibold">
+              Pin an expected grade
+              <InfoTip title="Pins">
+                {scope === 'cumulative'
+                  ? 'These are the only grades still in play — every past term is already set. Pin one and the rest recalculates around it.'
+                  : 'Expecting a particular grade somewhere? Pin it and the rest recalculates around it.'}
+              </InfoTip>
             </p>
-            <ListGroup>
+            <RowList>
               {ungraded.map((course) => (
-                <ListRow
+                <Row
                   key={course.enrollmentId}
                   onClick={() => setPinning(course)}
                   title={<span className="type-data">{course.code}</span>}
-                  subtitle={`${course.units} unit${course.units === 1 ? '' : 's'}`}
+                  detail={`${course.units} unit${course.units === 1 ? '' : 's'}`}
                   trailing={
                     pins[course.enrollmentId] !== undefined ? (
                       <span className="type-data" style={{ color: 'var(--accent)' }}>
@@ -193,7 +201,7 @@ export function WhatIfPlanner({
                   }
                 />
               ))}
-            </ListGroup>
+            </RowList>
           </div>
         )}
       </div>
@@ -261,7 +269,10 @@ function Verdict({
   const where = scope === 'cumulative' ? 'Across every term on record' : 'This term on its own'
 
   return (
-    <div className="flex gap-2.5">
+    <div
+      className="flex gap-2.5 rounded-[var(--radius-md)] p-3.5"
+      style={{ background: `color-mix(in srgb, ${verdictColor(plan)} 10%, transparent)` }}
+    >
       <span
         aria-hidden
         className="mt-1.5 block size-2.5 shrink-0 rounded-full"

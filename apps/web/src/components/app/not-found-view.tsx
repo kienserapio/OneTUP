@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { ButtonLink } from '@/components/ui/button'
+import { IconToday } from '@/components/ui/icon'
 
 /**
  * The 404.
@@ -39,7 +40,7 @@ export function NotFoundView({
       <div className="mt-1 flex flex-wrap justify-center gap-2">
         {actions ?? (
           <>
-            <ButtonLink href="/today" variant="accent">
+            <ButtonLink href="/today" variant="accent" leading={<IconToday size={18} />}>
               Go to Today
             </ButtonLink>
             <ButtonLink href="/campus">Campus map</ButtonLink>

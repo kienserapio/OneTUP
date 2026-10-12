@@ -283,8 +283,9 @@ export function RouteMap({
             left: Math.max(left, 8),
             right: Math.max(right, 8),
             bottom: Math.max(bottom, 8),
-            borderRadius: 'var(--radius-sm)',
-            background: 'color-mix(in srgb, var(--bg) 88%, transparent)',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--bg)',
+            boxShadow: 'var(--shadow-chip)',
           }}
         >
           Dashed lines join the stops. Nobody has traced the roads between them

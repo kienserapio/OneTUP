@@ -6,11 +6,14 @@ import { AnimatePresence, motion } from 'motion/react'
 import type { ImportProposal, ReviewedCourse } from '@/lib/import/types'
 import { syncNow } from '@/lib/offline/sync'
 import { spring, transition } from '@/design/motion'
-import { Card, ListGroup, ListRow } from '@/components/ui/surfaces'
+import { Card } from '@/components/ui/surfaces'
 import { NavBar } from '@/components/app/nav-bar'
-import { IconCheck } from '@/components/ui/icon'
+import { IconCheck, IconClipboard, IconEye, IconKey, IconShield } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { ImportReview } from '@/components/schedule/import-review'
 import { ErsConnect, PasteBox } from '@/components/schedule/import-source'
+import { Row } from '@/components/ui/row'
 
 /**
  * Importing a schedule after onboarding.
@@ -145,41 +148,48 @@ function ChooseStep({
   return (
     <div className="stack">
       <header>
-        <h2 className="type-title-2">Bring in your schedule</h2>
-        <p className="type-subheadline mt-1 max-w-[60ch] text-[var(--label-secondary)]">
-          {termLabel
-            ? `Whatever you import lands in ${termLabel}. You review every row before anything saves.`
-            : 'You review every row before anything saves.'}
-        </p>
+        <h2 className="type-title-2 flex items-center gap-1.5">
+          Bring in your schedule
+          <InfoTip title="Before it saves">
+            {termLabel
+              ? `Whatever you import lands in ${termLabel}. You review every row before anything saves.`
+              : 'You review every row before anything saves.'}
+          </InfoTip>
+        </h2>
+        <p className="type-subheadline mt-1 text-[var(--label-secondary)]">Pick a way in.</p>
       </header>
 
       {/* Two ways in, and the promise that governs both — side by side once
           there is room, because they are read as one decision. */}
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-        <ListGroup>
-          <ListRow
+        <div className="row-list">
+          <Row
+            as="div"
             onClick={onConnect}
+            leading={<IconTile Icon={IconKey} tone="blue" size={40} />}
             title="Connect ERS"
-            subtitle="We sign in once, read the schedule page, and discard your password"
+            detail="One sign-in, password discarded"
           />
-          <ListRow
+          <Row
+            as="div"
             onClick={onPaste}
+            leading={<IconTile Icon={IconClipboard} tone="blue" size={40} />}
             title="Paste it instead"
-            subtitle="Copy the table out of ERS. No password, works when the portal is down"
+            detail="No password, works when ERS is down"
           />
-        </ListGroup>
+        </div>
 
         <Card>
-          <p className="type-subheadline font-medium">Either way:</p>
-          <ul className="mt-2 space-y-2">
+          <p className="type-subheadline font-semibold">Either way</p>
+          <ul className="mt-3 space-y-3">
             {[
-              'Nothing is saved until you have checked it.',
-              'Anything the reader was unsure about is flagged for you.',
-              'Blocks you added by hand are left exactly as they are.',
+              { Icon: IconEye, text: 'Nothing is saved until you have checked it.' },
+              { Icon: IconCheck, text: 'Anything the reader was unsure about is flagged for you.' },
+              { Icon: IconShield, text: 'Blocks you added by hand are left exactly as they are.' },
             ].map((point) => (
-              <li key={point} className="type-subheadline flex gap-2.5">
-                <IconCheck size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--ok)' }} />
-                <span>{point}</span>
+              <li key={point.text} className="type-subheadline flex items-center gap-3">
+                <IconTile Icon={point.Icon} tone="green" size={32} />
+                <span>{point.text}</span>
               </li>
             ))}
           </ul>

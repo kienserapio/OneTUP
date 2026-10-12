@@ -7,7 +7,10 @@ import { syncNow } from '@/lib/offline/sync'
 import { Sheet } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Field, FormError } from '@/components/auth/auth-form'
-import { IconOffline } from '@/components/ui/icon'
+import { IconOffline, IconSend } from '@/components/ui/icon'
+import { Select } from '@/components/ui/select'
+import { DatePicker } from '@/components/ui/date-picker'
+import { TimePicker } from '@/components/ui/time-picker'
 
 /**
  * The New post form.
@@ -147,6 +150,7 @@ export function ClassPostComposer({
           block
           disabled={!online || busy || title.trim().length === 0}
           onClick={() => void publish()}
+          leading={<IconSend size={18} />}
         >
           {busy ? 'Posting…' : 'Post to the classroom'}
         </Button>
@@ -191,39 +195,31 @@ export function ClassPostComposer({
             <label htmlFor="post-kind" className="type-subheadline mb-1.5 block font-medium">
               Kind
             </label>
-            <select
+            <Select
               id="post-kind"
               value={kind}
-              onChange={(event) => setKind(event.target.value)}
+              onChange={setKind}
               disabled={!online}
-              className="field"
-            >
-              {KINDS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              label="Kind"
+              options={KINDS.map((option) => ({ value: option.value, label: option.label }))}
+            />
           </div>
 
           <div>
             <label htmlFor="post-course" className="type-subheadline mb-1.5 block font-medium">
               Subject <span className="text-[var(--label-tertiary)]">(optional)</span>
             </label>
-            <select
+            <Select
               id="post-course"
               value={courseId}
-              onChange={(event) => setCourseId(event.target.value)}
+              onChange={setCourseId}
               disabled={!online}
-              className="field"
-            >
-              <option value="">No subject</option>
-              {courses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.code}
-                </option>
-              ))}
-            </select>
+              label="Subject"
+              options={[
+                { value: '', label: 'No subject' },
+                ...courses.map((course) => ({ value: course.id, label: course.code })),
+              ]}
+            />
           </div>
         </div>
 
@@ -232,37 +228,42 @@ export function ClassPostComposer({
             <label htmlFor="post-due-date" className="type-subheadline mb-1.5 block font-medium">
               Due <span className="text-[var(--label-tertiary)]">(optional)</span>
             </label>
-            <input
+            <DatePicker
               id="post-due-date"
-              type="date"
               value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
+              onChange={setDueDate}
               disabled={!online}
-              className="field"
+              label="Due"
+              placeholder="No due date"
+              clearable
             />
           </div>
           <div>
             <label htmlFor="post-due-time" className="type-subheadline mb-1.5 block font-medium">
               Time
             </label>
-            <input
+            <TimePicker
               id="post-due-time"
-              type="time"
               value={dueTime}
-              onChange={(event) => setDueTime(event.target.value)}
+              onChange={setDueTime}
               disabled={!online || !dueDate}
-              className="field"
+              label="Time"
+              clearable
             />
           </div>
         </div>
 
-        <label className="flex min-h-[var(--target-min)] items-start gap-3">
+        <label
+          className="flex min-h-[var(--target-min)] cursor-pointer items-start gap-3 rounded-[var(--radius-lg)] p-3.5"
+          style={{ background: 'var(--surface-sunken)' }}
+        >
           <input
             type="checkbox"
             checked={requiresSubmission}
             onChange={(event) => setRequiresSubmission(event.target.checked)}
             disabled={!online}
-            className="mt-1 size-5 shrink-0"
+            className="mt-0.5 size-5 shrink-0"
+            style={{ accentColor: 'var(--tone-green)' }}
           />
           <span>
             <span className="type-subheadline block font-medium">Ask who has submitted</span>

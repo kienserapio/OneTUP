@@ -7,6 +7,19 @@ import { supabaseBrowser } from '@/lib/supabase/client'
 import { NavBar } from '@/components/app/nav-bar'
 import { Button } from '@/components/ui/button'
 import { Card, GeneratedMark, SectionHeader } from '@/components/ui/surfaces'
+import {
+  IconAnnouncement,
+  IconDone,
+  IconWarning,
+  IconClipboard,
+  IconEye,
+  IconSend,
+} from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
+import { Select } from '@/components/ui/select'
+import { DatePicker } from '@/components/ui/date-picker'
+import { TimePicker } from '@/components/ui/time-picker'
 import { currentUserId, loadClassroom, type ClassroomData } from '@/lib/queries/classroom'
 import { syncNow } from '@/lib/offline/sync'
 import { Field, FormError } from '@/components/auth/auth-form'
@@ -54,7 +67,7 @@ export function ShareIntake() {
     <Suspense
       fallback={
         <div className="app-container pt-2">
-          <div className="skeleton h-64 rounded-[var(--radius-md)]" />
+          <div className="skeleton h-64 rounded-[var(--radius-lg)]" />
         </div>
       }
     >
@@ -201,13 +214,20 @@ function ShareIntakeInner() {
       <>
         <NavBar title="Already shared" back={{ href: '/announcements' }} largeTitle={false} />
         <div className="app-container stack max-w-[36rem] pt-2">
-          <Card>
+          <Card className="flex flex-col items-center gap-3 py-7 text-center">
+            <IconTile Icon={IconDone} tone="green" size={56} />
             <p className="type-body">
               Someone in your section already shared this. We&rsquo;ve counted yours as a
               confirmation instead of posting it twice.
             </p>
           </Card>
-          <Button variant="accent" block onClick={() => router.push('/announcements')}>
+          <Button
+            variant="accent"
+            size="lg"
+            block
+            onClick={() => router.push('/announcements')}
+            leading={<IconEye size={20} />}
+          >
             See it
           </Button>
         </div>
@@ -236,11 +256,20 @@ function ShareIntakeInner() {
         )}
 
         {!proposal ? (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+          <div className="max-w-[40rem]">
             <Card className="flex flex-col gap-3">
-              <label htmlFor="announcement-text" className="type-subheadline font-medium">
-                The message
-              </label>
+              <div className="flex items-center gap-3">
+                <IconTile Icon={IconAnnouncement} tone="blue" size={40} />
+                <label htmlFor="announcement-text" className="type-subheadline font-semibold">
+                  The message
+                </label>
+                {/* What used to be a side card: the next steps, one tap away. */}
+                <InfoTip title="What happens next">
+                  We pull out the subject, the date and what kind of thing it is. You check every
+                  field, and nothing reaches your section until you post it. You can only post into
+                  subjects you&rsquo;re enrolled in.
+                </InfoTip>
+              </div>
               <textarea
                 id="announcement-text"
                 rows={10}
@@ -251,30 +280,15 @@ function ShareIntakeInner() {
               />
               <Button
                 variant="accent"
+                size="lg"
                 block
                 onClick={() => void read()}
                 disabled={busy || !text.trim()}
+                leading={<IconClipboard size={20} />}
               >
                 {busy ? 'Reading…' : 'Read it'}
               </Button>
             </Card>
-
-            {/* The offset clears the sticky top bar, which is drawn above this. */}
-            <aside
-              className="lg:sticky"
-              style={{ top: 'calc(var(--topbar-height) + var(--space-4))' }}
-            >
-              <Card className="flex flex-col gap-2">
-                <h2 className="type-headline">What happens next</h2>
-                <p className="type-footnote text-[var(--label-secondary)]">
-                  We pull out the subject, the date and what kind of thing it is. You check every
-                  field, and nothing reaches your section until you post it.
-                </p>
-                <p className="type-footnote text-[var(--label-secondary)]">
-                  You can only post into subjects you&rsquo;re enrolled in.
-                </p>
-              </Card>
-            </aside>
           </div>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
@@ -299,28 +313,24 @@ function ShareIntakeInner() {
                   <label htmlFor="event-date" className="type-subheadline mb-1.5 block font-medium">
                     Date
                   </label>
-                  <input
+                  <DatePicker
                     id="event-date"
-                    type="date"
                     value={proposal.event_date ?? ''}
-                    onChange={(event) =>
-                      setProposal({ ...proposal, event_date: event.target.value || null })
-                    }
-                    className="field type-data"
+                    onChange={(value) => setProposal({ ...proposal, event_date: value || null })}
+                    label="Date"
+                    clearable
                   />
                 </div>
                 <div>
                   <label htmlFor="event-time" className="type-subheadline mb-1.5 block font-medium">
                     Time
                   </label>
-                  <input
+                  <TimePicker
                     id="event-time"
-                    type="time"
                     value={proposal.event_time ?? ''}
-                    onChange={(event) =>
-                      setProposal({ ...proposal, event_time: event.target.value || null })
-                    }
-                    className="field type-data"
+                    onChange={(value) => setProposal({ ...proposal, event_time: value || null })}
+                    label="Time"
+                    clearable
                   />
                 </div>
               </div>
@@ -329,24 +339,25 @@ function ShareIntakeInner() {
                 <label htmlFor="type" className="type-subheadline mb-1.5 block font-medium">
                   Kind
                 </label>
-                <select
+                <Select
                   id="type"
                   value={proposal.type}
-                  onChange={(event) => setProposal({ ...proposal, type: event.target.value })}
-                  className="field"
-                >
-                  {KINDS.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setProposal({ ...proposal, type: value })}
+                  options={KINDS.map(([value, label]) => ({ value, label }))}
+                  label="Kind"
+                />
               </div>
 
               {!proposal.course_id && (
-                <p className="type-footnote text-[var(--label-secondary)]">
-                  We couldn&rsquo;t match this to one of your subjects, so it will post without one.
-                  You can only post into subjects you&rsquo;re enrolled in.
+                <p
+                  className="type-footnote flex gap-2 rounded-[18px] p-3"
+                  style={{ background: 'var(--tone-crimson-tint)', color: 'var(--tone-crimson-ink)' }}
+                >
+                  <IconWarning size={16} className="mt-px shrink-0" />
+                  <span>
+                    We couldn&rsquo;t match this to one of your subjects, so it will post without
+                    one. You can only post into subjects you&rsquo;re enrolled in.
+                  </span>
                 </p>
               )}
 
@@ -391,7 +402,14 @@ function ShareIntakeInner() {
                 <Button variant="plain" onClick={() => setProposal(null)} disabled={busy}>
                   Back
                 </Button>
-                <Button variant="accent" block onClick={() => void publish()} disabled={busy}>
+                <Button
+                  variant="accent"
+                  size="lg"
+                  block
+                  onClick={() => void publish()}
+                  disabled={busy}
+                  leading={<IconSend size={20} />}
+                >
                   {busy
                     ? 'Posting…'
                     : alsoPost && classroom

@@ -9,6 +9,8 @@ import { supabaseBrowser } from '@/lib/supabase/client'
 import { spring, transition } from '@/design/motion'
 import { Card } from '@/components/ui/surfaces'
 import { IconWarning } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { AttendancePrompt } from '@/components/today/attendance-prompt'
 import type { AttendanceStanding, CourseBlock } from '@/lib/queries/today'
 import { cx } from '@/lib/cx'
@@ -32,7 +34,7 @@ import { cx } from '@/lib/cx'
  *   class, and the student answers each.
  * - **Dismiss** writes nothing anywhere. It is a notice.
  *
- * `--warning`, never `--danger`. This is a notice, not an alarm.
+ * Amber, never crimson. This is a notice, not an alarm.
  */
 
 const LEVEL_LABEL: Record<string, string> = {
@@ -145,11 +147,11 @@ export function SuspensionCard({
       transition={transition(spring.ui)}
     >
       <Card
-        className="stack"
+        className="card-glass stack"
         /* Tinted, not alarming. A suspension is good news as often as not. */
       >
         <div className="flex items-start gap-3">
-          <IconWarning size={22} className="mt-0.5 shrink-0" style={{ color: 'var(--warning)' }} />
+          <IconTile Icon={IconWarning} tone="crimson" size={40} />
           <div className="min-w-0 flex-1">
             <h3 className="type-headline text-balance">{advisory.headline}</h3>
             <p className="type-footnote mt-0.5 text-[var(--label-secondary)]">
@@ -163,10 +165,17 @@ export function SuspensionCard({
           </div>
         </div>
 
-        {/* The sentence that stops this being an instruction. */}
-        <p className="type-footnote text-[var(--label-secondary)]">
-          {scopeName} announced this. Whether your own classes were called off or moved online is
-          between you and your professors — nothing is recorded until you say so.
+        {/* The sentence that stops this being an instruction. The short form
+            stays on screen; the reasoning is one tap away. */}
+        <p
+          className="type-footnote flex items-center gap-1.5 rounded-full py-1.5 pl-3 pr-1.5 font-medium"
+          style={{ background: 'var(--tone-crimson-tint)', color: 'var(--tone-crimson-ink)' }}
+        >
+          <span className="flex-1">Nothing is recorded until you say so.</span>
+          <InfoTip title="Why it asks">
+            {scopeName} announced this. Whether your own classes were called off or moved online
+            is between you and your professors.
+          </InfoTip>
         </p>
 
         {advisory.source_url && (
@@ -174,7 +183,7 @@ export function SuspensionCard({
             href={advisory.source_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="type-footnote font-medium text-[var(--accent)]"
+            className="type-footnote self-start font-semibold text-[var(--accent)]"
           >
             Read the announcement
           </a>
@@ -279,21 +288,13 @@ function NoticeButton({
       transition={transition(spring.snap)}
       className={cx(
         'flex min-h-[var(--target-min)] flex-1 items-center justify-center',
-        'rounded-[var(--radius-sm)] text-[0.9375rem] font-semibold',
+        'rounded-full text-[0.9375rem] font-semibold',
         'transition-transform disabled:opacity-50',
       )}
       style={
         emphasis
-          ? {
-              color: 'var(--warning)',
-              background: 'color-mix(in srgb, var(--warning) 11%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--warning) 26%, transparent)',
-            }
-          : {
-              color: 'var(--label-secondary)',
-              background: 'var(--fill-quaternary)',
-              border: '1px solid var(--separator)',
-            }
+          ? { color: '#ffffff', background: 'var(--tone-crimson)' }
+          : { color: 'var(--label-secondary)', background: 'var(--fill-tertiary)' }
       }
     >
       {children}

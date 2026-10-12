@@ -7,9 +7,12 @@ import type { ImportProposal, ReviewedCourse } from '@/lib/import/types'
 import { Button } from '@/components/ui/button'
 import { Card, SectionHeader } from '@/components/ui/surfaces'
 import { Field } from '@/components/auth/auth-form'
-import { IconClose, IconPlus, IconWarning } from '@/components/ui/icon'
+import { IconClose, IconEye, IconPlus, IconWarning, IconSave } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
+import { Select } from '@/components/ui/select'
+import { TimePicker } from '@/components/ui/time-picker'
 import { spring, transition } from '@/design/motion'
-import { cx } from '@/lib/cx'
 
 /**
  * The review step.
@@ -203,28 +206,38 @@ export function ImportReview({
 
   return (
     <div className="stack">
-      <header>
-        <h2 className="type-title-2">Check this over</h2>
-        <p className="type-subheadline mt-1 text-[var(--label-secondary)]">
-          {courses.length} subject{courses.length === 1 ? '' : 's'}, {formatUnits(totalUnits)} units.
-          Nothing is saved until you say so.
-        </p>
+      <header className="flex items-center gap-3">
+        <IconTile Icon={IconEye} tone="blue" variant="solid" size={48} />
+        <div className="min-w-0">
+          <h2 className="type-title-2 flex items-center gap-1.5">
+            Check this over
+            <InfoTip title="Nothing saved yet">
+              Tap a subject to fix its code, title, units or class times. Nothing is saved until you
+              say so.
+            </InfoTip>
+          </h2>
+          <p className="type-subheadline text-[var(--label-secondary)]">
+            {courses.length} subject{courses.length === 1 ? '' : 's'}, {formatUnits(totalUnits)}{' '}
+            units
+          </p>
+        </div>
       </header>
 
       {flagged > 0 && (
-        <Card className="flex items-start gap-3">
-          <IconWarning size={20} className="mt-0.5 shrink-0" style={{ color: 'var(--warning)' }} />
-          <p className="type-subheadline">
-            {flagged} row{flagged === 1 ? '' : 's'} need{flagged === 1 ? 's' : ''} checking. They are
-            marked below.
-          </p>
-        </Card>
+        <p
+          className="type-subheadline flex items-center gap-3 rounded-[18px] p-3 font-medium"
+          style={{ background: 'var(--tone-crimson-tint)', color: 'var(--tone-crimson-ink)' }}
+        >
+          <IconWarning size={20} className="shrink-0" />
+          {flagged} row{flagged === 1 ? '' : 's'} need{flagged === 1 ? 's' : ''} checking — marked
+          below.
+        </p>
       )}
 
       {error && (
         <p
           role="alert"
-          className="type-subheadline rounded-[var(--radius-sm)] px-3.5 py-2.5"
+          className="type-subheadline rounded-[18px] px-3.5 py-2.5"
           style={{
             background: 'color-mix(in srgb, var(--danger) 12%, transparent)',
             color: 'var(--danger)',
@@ -250,11 +263,16 @@ export function ImportReview({
 
       {proposal.unparsed.length > 0 && (
         <section>
-          <SectionHeader>Couldn&rsquo;t read these</SectionHeader>
+          <SectionHeader
+            info={
+              <InfoTip title="Unreadable rows">
+                These rows didn&rsquo;t make sense to the reader. Add them by hand if you need them.
+              </InfoTip>
+            }
+          >
+            Couldn&rsquo;t read these
+          </SectionHeader>
           <Card>
-            <p className="type-footnote mb-3 text-[var(--label-secondary)]">
-              These rows didn&rsquo;t make sense to the reader. Add them by hand if you need them.
-            </p>
             <ul className="space-y-1.5">
               {proposal.unparsed.map((row, index) => (
                 <li key={index} className="type-data type-footnote text-[var(--label-tertiary)]">
@@ -272,11 +290,17 @@ export function ImportReview({
 
       <div className="flex gap-2 pt-2">
         {onCancel && (
-          <Button variant="plain" onClick={onCancel} disabled={busy}>
+          <Button onClick={onCancel} disabled={busy}>
             Cancel
           </Button>
         )}
-        <Button variant="accent" onClick={commit} disabled={busy} block>
+        <Button
+          variant="accent"
+          onClick={commit}
+          disabled={busy}
+          block
+          leading={<IconSave size={18} />}
+        >
           {busy ? 'Saving…' : commitLabel}
         </Button>
       </div>
@@ -307,12 +331,18 @@ function CourseEditor({
 
   return (
     <motion.div layout transition={transition(spring.ui)}>
-      <Card
-        className={cx(course.needsAttention && 'ring-1')}
-        {...(course.needsAttention
-          ? { style: { boxShadow: 'var(--shadow-card), 0 0 0 1px var(--warning)' } }
-          : {})}
-      >
+      <Card>
+        {/* Flagged by tone rather than by an outline: an amber pill above the
+            code, which is the first thing the eye lands on in the card. */}
+        {course.needsAttention && (
+          <span
+            className="type-caption-1 mb-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-semibold"
+            style={{ background: 'var(--tone-crimson-tint)', color: 'var(--tone-crimson-ink)' }}
+          >
+            <IconWarning size={13} />
+            Check this
+          </span>
+        )}
         <div className="flex items-start justify-between gap-3">
           <button
             type="button"
@@ -342,10 +372,10 @@ function CourseEditor({
             type="button"
             onClick={onRemove}
             aria-label={`Remove ${course.code || 'this subject'}`}
-            className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--label-secondary)]"
-            style={{ background: 'var(--fill-tertiary)' }}
+            data-tone="gray"
+            className="glyph -mr-1 grid size-10 shrink-0 place-items-center rounded-full"
           >
-            <IconClose size={16} />
+            <IconClose size={20} />
           </button>
         </div>
 
@@ -396,41 +426,35 @@ function CourseEditor({
                     <label className="sr-only" htmlFor={`${course.key}-day-${index}`}>
                       Day
                     </label>
-                    <select
+                    <Select
                       id={`${course.key}-day-${index}`}
                       value={meeting.day}
-                      onChange={(event) =>
-                        onMeetingChange(index, { day: event.target.value as Weekday })
-                      }
-                      className="field w-[7.5rem] flex-none"
-                    >
-                      {WEEKDAYS.map((day) => (
-                        <option key={day} value={day}>
-                          {formatWeekday(day)}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => onMeetingChange(index, { day: value as Weekday })}
+                      label="Day"
+                      className="!w-[8.5rem] flex-none"
+                      options={WEEKDAYS.map((day) => ({ value: day, label: formatWeekday(day) }))}
+                    />
 
                     <label className="sr-only" htmlFor={`${course.key}-start-${index}`}>
                       Start time
                     </label>
-                    <input
+                    <TimePicker
                       id={`${course.key}-start-${index}`}
-                      type="time"
                       value={meeting.startTime}
-                      onChange={(event) => onMeetingChange(index, { startTime: event.target.value })}
-                      className="field w-[7rem] flex-none"
+                      onChange={(startTime) => onMeetingChange(index, { startTime })}
+                      label="Start time"
+                      className="!w-[8.5rem] flex-none"
                     />
 
                     <label className="sr-only" htmlFor={`${course.key}-end-${index}`}>
                       End time
                     </label>
-                    <input
+                    <TimePicker
                       id={`${course.key}-end-${index}`}
-                      type="time"
                       value={meeting.endTime}
-                      onChange={(event) => onMeetingChange(index, { endTime: event.target.value })}
-                      className="field w-[7rem] flex-none"
+                      onChange={(endTime) => onMeetingChange(index, { endTime })}
+                      label="End time"
+                      className="!w-[8.5rem] flex-none"
                     />
 
                     <label className="sr-only" htmlFor={`${course.key}-room-${index}`}>
@@ -448,10 +472,10 @@ function CourseEditor({
                       type="button"
                       onClick={() => onRemoveMeeting(index)}
                       aria-label="Remove this class time"
-                      className="grid size-9 shrink-0 place-items-center rounded-full text-[var(--label-secondary)]"
-                      style={{ background: 'var(--fill-tertiary)' }}
+                      data-tone="gray"
+                      className="glyph grid size-10 shrink-0 place-items-center rounded-full"
                     >
-                      <IconClose size={15} />
+                      <IconClose size={20} />
                     </button>
                   </div>
                 ))}

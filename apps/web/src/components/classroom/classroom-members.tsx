@@ -14,10 +14,21 @@ import { supabaseBrowser } from '@/lib/supabase/client'
 import { syncNow } from '@/lib/offline/sync'
 import { NavBar } from '@/components/app/nav-bar'
 import { Button, ButtonLink, IconButton } from '@/components/ui/button'
-import { Badge, Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
+import { Badge, Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
 import { Sheet } from '@/components/ui/sheet'
 import { FormError } from '@/components/auth/auth-form'
-import { IconCheck, IconClassroom, IconClose, IconRefresh } from '@/components/ui/icon'
+import {
+  IconCheck,
+  IconClassroom,
+  IconClose,
+  IconRefresh,
+  IconShield,
+  IconSignOut,
+} from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
+import { initialsOf } from '@/lib/name'
+import { Row } from '@/components/ui/row'
 
 /**
  * Who is in, and who is asking.
@@ -139,7 +150,7 @@ export function ClassroomMembers() {
         <div className="app-container">
           <Card>
             <EmptyState
-              icon={<IconClassroom size={28} />}
+              icon={<IconTile Icon={IconClassroom} tone="gray" size={52} />}
               title="You're not in a classroom yet."
               action={
                 <ButtonLink href="/classroom" variant="plain">
@@ -173,12 +184,13 @@ export function ClassroomMembers() {
             <p className="type-footnote mb-2 px-1 text-[var(--label-secondary)]">
               OneTUP cannot verify these. Approve people you recognise.
             </p>
-            <ListGroup>
+            <div className="row-list">
               {requests.map((request) => (
-                <ListRow
+                <Row
+                  as="div"
                   key={request.id}
                   title={request.name ?? 'Someone'}
-                  subtitle={[request.studentNumber, request.claimedSection, request.message]
+                  detail={[request.studentNumber, request.claimedSection, request.message]
                     .filter(Boolean)
                     .join(' · ')}
                   trailing={
@@ -188,7 +200,7 @@ export function ClassroomMembers() {
                         disabled={busy}
                         onClick={() => void decide(request.id, true)}
                       >
-                        <IconCheck size={18} style={{ color: 'var(--ok)' }} />
+                        <IconCheck size={18} style={{ color: 'var(--tone-green-ink)' }} />
                       </IconButton>
                       <IconButton
                         label={`Decline ${request.name ?? 'this request'}`}
@@ -201,14 +213,27 @@ export function ClassroomMembers() {
                   }
                 />
               ))}
-            </ListGroup>
+            </div>
           </section>
         )}
 
         {data.isRep && inviteUrl && (
           <Card>
-            <p className="type-subheadline font-medium">Invite link</p>
-            <p className="type-caption-1 mt-1 break-all text-[var(--label-secondary)]">{inviteUrl}</p>
+            <span className="flex items-center gap-3">
+              <IconTile Icon={IconClassroom} tone="gray" size={40} />
+              <span className="min-w-0 flex-1">
+                <p className="type-subheadline flex items-center gap-1.5 font-semibold">
+                  Invite link
+                  <InfoTip title="New link">
+                    A new link stops the old one working straight away. Use it if the link went
+                    somewhere it should not have.
+                  </InfoTip>
+                </p>
+                <p className="type-caption-1 mt-0.5 break-all text-[var(--label-secondary)]">
+                  {inviteUrl}
+                </p>
+              </span>
+            </span>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button
                 size="sm"
@@ -227,21 +252,30 @@ export function ClassroomMembers() {
                 New link
               </Button>
             </div>
-            <p className="type-caption-1 mt-2 text-[var(--label-secondary)]">
-              A new link stops the old one working straight away. Use it if the link went somewhere
-              it should not have.
-            </p>
           </Card>
         )}
 
         <section>
           <SectionHeader>In this classroom</SectionHeader>
-          <ListGroup>
+          <div className="row-list">
             {data.members.map((member) => (
-              <ListRow
+              <Row
+                as="div"
                 key={member.userId}
+                leading={
+                  <span
+                    aria-hidden
+                    className="grid size-9 place-items-center rounded-full text-[0.75rem] font-bold"
+                    style={{
+                      background: 'var(--tone-green-tint)',
+                      color: 'var(--tone-green-ink)',
+                    }}
+                  >
+                    {initialsOf(member.name)}
+                  </span>
+                }
                 title={member.name}
-                subtitle={member.userId === userId ? 'You' : undefined}
+                detail={member.userId === userId ? 'You' : undefined}
                 trailing={
                   member.role === 'member' ? undefined : (
                     <Badge tone="neutral">{member.role === 'owner' ? 'Rep · owner' : 'Rep'}</Badge>
@@ -252,7 +286,7 @@ export function ClassroomMembers() {
                 }
               />
             ))}
-          </ListGroup>
+          </div>
         </section>
 
         {/* The stranded classroom, §6 step 6. Offered to any rep, and refused
@@ -261,11 +295,14 @@ export function ClassroomMembers() {
             back as a sentence when it is declined. */}
         {data.role === 'rep' && (
           <Card>
-            <p className="type-subheadline font-medium">If the owner has gone quiet</p>
-            <p className="type-footnote mt-1 text-[var(--label-secondary)]">
-              After 60 days with no sign of them, a rep can take the classroom over so joins can be
-              approved again. They stay in it as a rep.
-            </p>
+            <span className="flex items-center gap-3">
+              <IconTile Icon={IconShield} tone="crimson" size={40} />
+              <p className="type-subheadline flex-1 font-semibold">If the owner has gone quiet</p>
+              <InfoTip title="Taking over">
+                After 60 days with no sign of them, a rep can take the classroom over so joins can
+                be approved again. They stay in it as a rep.
+              </InfoTip>
+            </span>
             <div className="mt-3">
               <Button
                 variant="plain"
@@ -279,11 +316,14 @@ export function ClassroomMembers() {
         )}
 
         <Card>
-          <p className="type-subheadline font-medium">Leaving</p>
-          <p className="type-footnote mt-1 text-[var(--label-secondary)]">
-            Its posts drop out of your tracker, and anything you marked submitted disappears from
-            every list in this classroom at the same moment.
-          </p>
+          <span className="flex items-center gap-3">
+            <IconTile Icon={IconSignOut} tone="crimson" size={40} />
+            <p className="type-subheadline flex-1 font-semibold">Leaving</p>
+            <InfoTip title="What leaving does">
+              Its posts drop out of your tracker, and anything you marked submitted disappears from
+              every list in this classroom at the same moment.
+            </InfoTip>
+          </span>
           <div className="mt-3">
             <Button variant="destructive" disabled={busy} onClick={() => void leave()}>
               Leave {data.group.section_code}

@@ -50,7 +50,7 @@ export function AttendanceMeter({
     return (
       <div className={className} role="img" aria-label={label}>
         <div
-          className="h-1.5 w-full overflow-hidden rounded-full"
+          className="h-2.5 w-full overflow-hidden rounded-full"
           style={{ background: 'var(--fill-tertiary)' }}
         >
           <div
@@ -66,11 +66,11 @@ export function AttendanceMeter({
   }
 
   return (
-    <div className={cx('flex gap-1', className)} role="img" aria-label={label}>
+    <div className={cx('flex gap-1.5', className)} role="img" aria-label={label}>
       {Array.from({ length: summary.allowed }, (_, index) => (
         <span
           key={index}
-          className="h-1.5 flex-1 rounded-full"
+          className="h-2.5 flex-1 rounded-full"
           style={{
             background: index < summary.absenceUnits ? color : 'var(--fill-tertiary)',
           }}
@@ -93,7 +93,7 @@ export function StateDot({ state }: { state: AttendanceState }) {
 /** `2/5` in the state colour — the figure a student scans down the list for. */
 export function CutCount({ summary }: { summary: AttendanceSummary }) {
   return (
-    <span className="type-data" style={{ color: attendanceColor(summary.state) }}>
+    <span className="font-semibold tabular-nums" style={{ color: attendanceColor(summary.state) }}>
       {summary.absenceUnits}/{summary.allowed}
     </span>
   )

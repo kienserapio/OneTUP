@@ -51,24 +51,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .join(' · ')
 
   return (
-    <SyncBoundary>
-      <div className="shell">
-        <Sidebar
-          fullName={profile.full_name}
-          programCode={profile.program_code}
-          yearSection={yearSection || null}
-          counts={counts}
-        />
+    <div>
+      <SyncBoundary>
+        <div className="shell">
+          <Sidebar
+            fullName={profile.full_name}
+            programCode={profile.program_code}
+            yearSection={yearSection || null}
+            counts={counts}
+          />
 
-        <div className="shell-main">
-          <Topbar />
-          <main id="main" className="app-scroll">
-            {children}
-          </main>
+          <div className="shell-main">
+            <Topbar />
+            <main id="main" className="app-scroll">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
-      <TabBar counts={counts} />
-    </SyncBoundary>
+        <TabBar counts={counts} />
+      </SyncBoundary>
+    </div>
   )
 }
 

@@ -13,7 +13,10 @@ import { supabaseBrowser } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
 import { Field } from '@/components/auth/auth-form'
+import { Select } from '@/components/ui/select'
+import { TimePicker } from '@/components/ui/time-picker'
 import type { ScheduleBlockView } from '@/components/schedule/schedule-data'
+import { IconPlus, IconSave } from '@/components/ui/icon'
 
 /**
  * Creating and editing a block by hand.
@@ -182,7 +185,13 @@ export function BlockSheet({ open, onClose, block, defaultDay = 'monday', onSave
               Delete
             </Button>
           )}
-          <Button variant="accent" block onClick={() => void save()} disabled={busy}>
+          <Button
+            variant="accent"
+            block
+            onClick={() => void save()}
+            disabled={busy}
+            leading={editing ? <IconSave size={18} /> : <IconPlus size={18} />}
+          >
             {busy ? 'Saving…' : editing ? 'Save changes' : 'Add it'}
           </Button>
         </div>
@@ -192,7 +201,7 @@ export function BlockSheet({ open, onClose, block, defaultDay = 'monday', onSave
         {error && (
           <p
             role="alert"
-            className="type-subheadline rounded-[var(--radius-sm)] px-3.5 py-2.5"
+            className="type-subheadline rounded-[18px] px-3.5 py-2.5"
             style={{
               background: 'color-mix(in srgb, var(--danger) 12%, transparent)',
               color: 'var(--danger)',
@@ -214,20 +223,13 @@ export function BlockSheet({ open, onClose, block, defaultDay = 'monday', onSave
           <label htmlFor="block-day" className="type-subheadline mb-1.5 block font-medium">
             Day
           </label>
-          <select
+          <Select
             id="block-day"
             value={draft.day}
-            onChange={(event) =>
-              setDraft((prev) => ({ ...prev, day: event.target.value as Weekday }))
-            }
-            className="field"
-          >
-            {WEEKDAYS.map((day) => (
-              <option key={day} value={day}>
-                {formatWeekday(day)}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setDraft((prev) => ({ ...prev, day: value as Weekday }))}
+            label="Day"
+            options={WEEKDAYS.map((day) => ({ value: day, label: formatWeekday(day) }))}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -235,26 +237,22 @@ export function BlockSheet({ open, onClose, block, defaultDay = 'monday', onSave
             <label htmlFor="block-start" className="type-subheadline mb-1.5 block font-medium">
               Starts
             </label>
-            <input
+            <TimePicker
               id="block-start"
-              type="time"
               value={draft.startTime}
-              onChange={(event) =>
-                setDraft((prev) => ({ ...prev, startTime: event.target.value }))
-              }
-              className="field type-data"
+              onChange={(startTime) => setDraft((prev) => ({ ...prev, startTime }))}
+              label="Starts"
             />
           </div>
           <div>
             <label htmlFor="block-end" className="type-subheadline mb-1.5 block font-medium">
               Ends
             </label>
-            <input
+            <TimePicker
               id="block-end"
-              type="time"
               value={draft.endTime}
-              onChange={(event) => setDraft((prev) => ({ ...prev, endTime: event.target.value }))}
-              className="field type-data"
+              onChange={(endTime) => setDraft((prev) => ({ ...prev, endTime }))}
+              label="Ends"
             />
           </div>
         </div>

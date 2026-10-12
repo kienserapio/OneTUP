@@ -7,6 +7,7 @@ import { spring, transition } from '@/design/motion'
 import { Button } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
 import { cx } from '@/lib/cx'
+import { IconSave } from '@/components/ui/icon'
 
 /**
  * Editing a recorded class.
@@ -76,6 +77,7 @@ export function AttendanceRecordSheet({
               onSave({ status, note: note.trim() || null })
               onClose()
             }}
+            leading={<IconSave size={18} />}
           >
             Save
           </Button>

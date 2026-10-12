@@ -19,7 +19,9 @@ import { Badge, Card, EmptyState, SectionHeader } from '@/components/ui/surfaces
 import { Button, ButtonLink } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
 import { NavBar } from '@/components/app/nav-bar'
-import { IconCards } from '@/components/ui/icon'
+import { IconCards, IconClock, IconWarning, IconPlay, IconSave } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { StatCard } from '@/components/subjects/stat-card'
 import { CardEditor, type CardDraft } from '@/components/study/card-editor'
 import { formatPackDate } from '@/components/study/study-view'
@@ -117,6 +119,7 @@ export function PackDetail({ packId }: { packId: string }) {
         >
           <StatCard
             label="Due now"
+            icon={<IconTile Icon={IconPlay} tone="crimson" size={28} />}
             value={dueCount}
             emphasis
             tone={dueCount > 0 ? 'var(--accent)' : undefined}
@@ -124,6 +127,7 @@ export function PackDetail({ packId }: { packId: string }) {
           />
           <StatCard
             label="Cards"
+            icon={<IconTile Icon={IconCards} tone="gray" size={28} />}
             value={cards.length}
             note={cards.length === 0 ? 'Add your first below' : 'In this pack'}
           />
@@ -132,42 +136,49 @@ export function PackDetail({ packId }: { packId: string }) {
         {/* A pack that stopped says so, rather than sitting on a spinner the
             student will come back to. */}
         {pack.status !== 'ready' && (
-          <Card className="flex flex-wrap items-center gap-3">
-            <span
-              aria-hidden="true"
-              className="h-2 w-2 shrink-0 rounded-full"
-              style={{
-                background: pack.status === 'failed' ? 'var(--danger)' : 'var(--warning)',
-              }}
+          <div
+            className="flex items-center gap-3 rounded-[var(--radius-lg)] p-3.5"
+            style={{
+              background:
+                pack.status === 'failed' ? 'var(--tone-crimson-tint)' : 'var(--tone-crimson-tint)',
+            }}
+          >
+            <IconTile
+              Icon={pack.status === 'failed' ? IconWarning : IconClock}
+              tone={pack.status === 'failed' ? 'crimson' : 'blue'}
+              variant="solid"
+              size={36}
             />
             <p className="type-subheadline flex-1">
               {pack.status === 'failed'
                 ? 'Making cards from your notes did not finish. Nothing was lost — add cards by hand below, or try again with a new pack.'
                 : 'Still reading your notes. Come back in a minute.'}
             </p>
-          </Card>
+          </div>
         )}
 
-        {/* Stated in words, because the behaviour is otherwise invisible until
-            a card surprises somebody by coming back early. */}
+        {/* Stated on screen, because the behaviour is otherwise invisible
+            until a card surprises somebody by coming back early. The short
+            line says what is happening; the tip says why. */}
         {compressingUntil && (
-          <Card className="flex flex-wrap items-center gap-3">
-            <span
-              aria-hidden="true"
-              className="h-2 w-2 shrink-0 rounded-full"
-              style={{ background: 'var(--warning)' }}
-            />
+          <div
+            className="flex items-center gap-3 rounded-[var(--radius-lg)] p-3.5"
+            style={{ background: 'var(--tone-crimson-tint)' }}
+          >
+            <IconTile Icon={IconClock} tone="crimson" variant="solid" size={36} />
             <p className="type-subheadline flex-1">
-              There is a deadline on {courseCode ?? 'this subject'} on{' '}
-              <span className="type-data">{formatPackDate(compressingUntil)}</span>, so the
-              schedule is pulling cards in — every card before then, rather than the usual
-              spacing.
+              Every card comes back before{' '}
+              <span className="type-data font-semibold">{formatPackDate(compressingUntil)}</span>
             </p>
-          </Card>
+            <InfoTip title="Why sooner">
+              There is a deadline on {courseCode ?? 'this subject'} then, so the schedule pulls
+              cards in rather than using the usual spacing.
+            </InfoTip>
+          </div>
         )}
 
         {dueCount > 0 && (
-          <ButtonLink href="/study/review" variant="accent" block>
+          <ButtonLink href="/study/review" variant="accent" block leading={<IconPlay size={18} />}>
             Review {dueCount} card{dueCount === 1 ? '' : 's'}
           </ButtonLink>
         )}
@@ -186,14 +197,14 @@ export function PackDetail({ packId }: { packId: string }) {
           {cards.length === 0 ? (
             <Card>
               <EmptyState
-                icon={<IconCards size={26} />}
+                icon={<IconTile Icon={IconCards} tone="gray" size={52} />}
                 title="Nothing in this pack yet. Add the things you keep forgetting, one at a time."
               />
             </Card>
           ) : (
-            <ul className="squircle divide-y divide-[var(--separator)] overflow-hidden rounded-[var(--radius-md)] border border-[var(--separator)]">
+            <ul className="flex flex-col gap-2.5">
               {cards.map((card) => (
-                <li key={card.id}>
+                <li key={card.id} className="card overflow-hidden !rounded-[var(--radius-lg)]">
                   <CardRow card={card} onEdit={() => setEditing(card)} />
                 </li>
               ))}
@@ -257,10 +268,10 @@ function CardRow({ card, onEdit }: { card: Flashcard; onEdit: () => void }) {
   const [confirming, setConfirming] = useState(false)
 
   return (
-    <div className="flex items-start gap-3 px-4 py-3">
+    <div className="flex items-start gap-3 px-4 py-3.5">
       <button type="button" onClick={onEdit} className="min-w-0 flex-1 text-left">
-        <span className="type-subheadline block truncate">{card.front}</span>
-        <span className="type-footnote block truncate text-[var(--label-secondary)]">
+        <span className="block truncate text-[0.9688rem] font-semibold">{card.front}</span>
+        <span className="block truncate text-[0.8125rem] text-[var(--label-secondary)]">
           {card.back}
         </span>
         {/* `source_chunk_id` is the marker: a card with one was written by a
@@ -338,7 +349,13 @@ function RenameSheet({
           className="field w-full"
           aria-label="Pack title"
         />
-        <Button variant="accent" block disabled={!draft.trim()} onClick={() => void onSave(draft.trim())}>
+        <Button
+          variant="accent"
+          block
+          disabled={!draft.trim()}
+          onClick={() => void onSave(draft.trim())}
+          leading={<IconSave size={18} />}
+        >
           Save
         </Button>
       </div>
@@ -352,10 +369,10 @@ function PackSkeleton() {
       <NavBar title="Pack" back={{ href: '/study', label: 'Study' }} largeTitle={false} />
       <div className="app-container stack" aria-busy="true" aria-label="Loading pack">
         <div className="grid grid-cols-2 gap-3">
-          <div className="skeleton h-28 rounded-[var(--radius-md)]" />
-          <div className="skeleton h-28 rounded-[var(--radius-md)]" />
+          <div className="skeleton h-28 rounded-[var(--radius-lg)]" />
+          <div className="skeleton h-28 rounded-[var(--radius-lg)]" />
         </div>
-        <div className="skeleton h-40 rounded-[var(--radius-md)]" />
+        <div className="skeleton h-40 rounded-[var(--radius-lg)]" />
       </div>
     </>
   )

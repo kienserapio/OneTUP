@@ -27,9 +27,12 @@ export function firstName(fullName: string | null): string | null {
 export function initialsOf(fullName: string | null): string {
   if (!fullName) return '—'
   const [surname, given] = fullName.split(',').map((part) => part.trim())
-  const a = given?.[0] ?? fullName[0] ?? ''
-  const b = surname?.[0] ?? ''
-  return `${a}${b}`.toUpperCase() || '—'
+  if (given) return `${given[0] ?? ''}${surname?.[0] ?? ''}`.toUpperCase() || '—'
+  // Not ERS-shaped ("Juan Dela Cruz"): first word and last word.
+  const words = fullName.trim().split(/\s+/)
+  const first = words[0]?.[0] ?? ''
+  const last = words.length > 1 ? (words[words.length - 1]?.[0] ?? '') : ''
+  return `${first}${last}`.toUpperCase() || '—'
 }
 
 function titleCase(value: string): string {

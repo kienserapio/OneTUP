@@ -6,6 +6,7 @@ import { deleteThreshold, saveThreshold } from '@/lib/queries/subjects'
 import { Button } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
 import { cx } from '@/lib/cx'
+import { IconSave } from '@/components/ui/icon'
 
 /**
  * Threshold configuration.
@@ -75,7 +76,13 @@ export function ThresholdSheet({ open, onClose, existing, onSaved }: ThresholdSh
       title={existing ? 'Edit threshold' : 'Add a threshold'}
       footer={
         <div className="stack">
-          <Button variant="accent" block disabled={!valid} onClick={() => void save()}>
+          <Button
+            variant="accent"
+            block
+            disabled={!valid}
+            onClick={() => void save()}
+            leading={<IconSave size={18} />}
+          >
             Save
           </Button>
           {existing && (
@@ -89,7 +96,7 @@ export function ThresholdSheet({ open, onClose, existing, onSaved }: ThresholdSh
       <div className="stack">
         {!existing && (
           <div>
-            <p className="type-section-header pb-2">Start from</p>
+            <p className="pb-2 text-[0.875rem] font-semibold">Start from</p>
             <div className="flex flex-wrap gap-2">
               {PRESETS.map((preset) => (
                 <button

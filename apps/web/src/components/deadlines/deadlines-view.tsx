@@ -9,6 +9,7 @@ import {
   type Course,
   type Deadline,
   type Enrollment,
+  type Urgency,
 } from '@onetup/core'
 import { readAll } from '@/lib/offline/db'
 import { queueWrite, syncNow } from '@/lib/offline/sync'
@@ -23,11 +24,13 @@ import {
 import { spring, transition } from '@/design/motion'
 import { NavBar } from '@/components/app/nav-bar'
 import { ButtonLink } from '@/components/ui/button'
-import { Card, EmptyState, ListGroup, SectionHeader } from '@/components/ui/surfaces'
-import { IconPlus } from '@/components/ui/icon'
+import { Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
+import { IconDeadlines, IconPlus } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { DeadlineRow, URGENCY_COLOR } from './deadline-row'
 import { DeadlineDetail } from './deadline-detail'
-import { cx } from '@/lib/cx'
+import { FilterChip } from '@/components/ui/filter-chip'
 
 type Filter = 'all' | 'overdue' | 'next48' | 'week' | 'done'
 
@@ -55,9 +58,16 @@ interface TrackerRow {
   completedAt: string | null
 }
 
-/** The two windows the summary strip counts, in hours. */
+/** The two windows the summary chips count, in hours. */
 const NEXT_48H = 48
 const THIS_WEEK_H = 168
+
+/** The three counted filters, in the order a student scans them. */
+const STAT_FILTERS: { key: 'overdue' | 'next48' | 'week'; label: string; urgency: Urgency }[] = [
+  { key: 'overdue', label: 'Overdue', urgency: 'overdue' },
+  { key: 'next48', label: 'Next 48h', urgency: 'urgent' },
+  { key: 'week', label: 'This week', urgency: 'upcoming' },
+]
 
 /**
  * The deadlines list.
@@ -66,9 +76,11 @@ const THIS_WEEK_H = 168
  * urgency is wrong the moment the clock moves — and a deadline that quietly
  * stays "soon" for three days is worse than no signal at all.
  *
- * The strip across the top is both the summary and the filter: the three
+ * The chip row across the top is both the summary and the filter: the three
  * numbers a student scans for are the three things they then want to see on
- * their own, so tapping one narrows the list rather than opening a menu.
+ * their own, so tapping one narrows the list rather than opening a menu, and
+ * tapping it again clears it. Finished sits in the same row, so every way of
+ * narrowing the list is in one place.
  *
  * Above `lg` the selected deadline opens beside the list instead of replacing
  * it. `/deadlines/[id]` still exists and still works — it is what a phone gets,
@@ -100,7 +112,10 @@ export function DeadlinesView() {
     const courseById = new Map(courses.map((course) => [course.id, course.code]))
     setCourseByEnrollment(
       new Map(
-        enrollments.map((enrollment) => [enrollment.id, courseById.get(enrollment.course_id) ?? '']),
+        enrollments.map((enrollment) => [
+          enrollment.id,
+          courseById.get(enrollment.course_id) ?? '',
+        ]),
       ),
     )
     setDeadlines(rows)
@@ -134,7 +149,8 @@ export function DeadlinesView() {
         title: item.title,
         dueAt: item.dueAt,
         courseCode: item.courseCode,
-        status: item.status === 'submitted' ? ('done' as const) : (item.status as TrackerRow['status']),
+        status:
+          item.status === 'submitted' ? ('done' as const) : (item.status as TrackerRow['status']),
         fromAnnouncement: false,
         sectionCode: item.sectionCode,
         source: 'class' as const,
@@ -221,7 +237,9 @@ export function DeadlinesView() {
         completed_at: done ? new Date().toISOString() : null,
       }
 
-      setDeadlines((prev) => prev.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)))
+      setDeadlines((prev) =>
+        prev.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)),
+      )
 
       await queueWrite({
         entity: 'deadlines',
@@ -241,14 +259,18 @@ export function DeadlinesView() {
       <NavBar
         title="Deadlines"
         subtitle={
-          counts.next48 > 0
-            ? `${counts.next48} due in the next 48 hours`
-            : `${open.length} open`
+          counts.next48 > 0 ? `${counts.next48} due in the next 48 hours` : `${open.length} open`
+        }
+        info={
+          <InfoTip title="Deadlines">
+            Your own deadlines and your class posts, most urgent first. Swipe a row right or tap its
+            circle to finish it; tap a chip to narrow the list.
+          </InfoTip>
         }
         trailing={
           <ButtonLink
             href="/deadlines/new"
-            variant="plain"
+            variant="accent"
             size="sm"
             leading={<IconPlus size={18} />}
           >
@@ -258,55 +280,50 @@ export function DeadlinesView() {
       />
 
       <div className="app-container stack pb-4">
-        <div className="grid grid-cols-3 gap-2.5" role="group" aria-label="Filter deadlines">
-          <SummaryStat
-            label="Overdue"
-            value={counts.overdue}
-            tone={URGENCY_COLOR.overdue}
-            active={filter === 'overdue'}
-            onToggle={() => setFilter((current) => (current === 'overdue' ? 'all' : 'overdue'))}
-          />
-          <SummaryStat
-            label="Next 48h"
-            value={counts.next48}
-            tone={URGENCY_COLOR.urgent}
-            active={filter === 'next48'}
-            onToggle={() => setFilter((current) => (current === 'next48' ? 'all' : 'next48'))}
-          />
-          <SummaryStat
-            label="This week"
-            value={counts.week}
-            tone={URGENCY_COLOR.upcoming}
-            active={filter === 'week'}
-            onToggle={() => setFilter((current) => (current === 'week' ? 'all' : 'week'))}
+        {/* The negative margin lets the chips scroll to the true screen edge on
+            a phone; above the shell breakpoint it is dropped. */}
+        <div
+          role="group"
+          aria-label="Filter deadlines"
+          className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 min-[900px]:mx-0 min-[900px]:px-0"
+        >
+          {STAT_FILTERS.map((option) => (
+            <FilterChip
+              key={option.key}
+              label={option.label}
+              count={counts[option.key]}
+              dot={counts[option.key] > 0 ? URGENCY_COLOR[option.urgency] : undefined}
+              tone="crimson"
+              active={filter === option.key}
+              onSelect={() => setFilter((current) => (current === option.key ? 'all' : option.key))}
+            />
+          ))}
+          <FilterChip
+            label="Finished"
+            tone="green"
+            active={filter === 'done'}
+            onSelect={() => setFilter((current) => (current === 'done' ? 'all' : 'done'))}
           />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
           <section>
-            <SectionHeader
-              action={
-                <button
-                  type="button"
-                  onClick={() => setFilter((current) => (current === 'done' ? 'all' : 'done'))}
-                  className="type-footnote min-h-[var(--target-min)] font-medium text-[var(--accent)]"
-                >
-                  {filter === 'done' ? 'Show open' : 'Show finished'}
-                </button>
-              }
-            >
-              {describeFilter(filter, visible.length)}
-            </SectionHeader>
+            <SectionHeader>{describeFilter(filter, visible.length)}</SectionHeader>
 
             {loading ? (
-              <div className="skeleton h-40 rounded-[var(--radius-md)]" />
+              <div className="skeleton h-40 rounded-[var(--radius-lg)]" />
             ) : visible.length === 0 ? (
               <Card>
                 <EmptyState
+                  icon={<IconTile Icon={IconDeadlines} tone="crimson" size={52} />}
                   title={emptyCopy(filter)}
                   action={
                     filter === 'all' ? (
-                      <ButtonLink href="/deadlines/new" variant="accent">
+                      <ButtonLink
+                        href="/deadlines/new"
+                        variant="accent"
+                        leading={<IconPlus size={18} />}
+                      >
                         Add a deadline
                       </ButtonLink>
                     ) : undefined
@@ -314,7 +331,7 @@ export function DeadlinesView() {
                 />
               </Card>
             ) : (
-              <ListGroup>
+              <div className="flex flex-col gap-2.5">
                 <AnimatePresence initial={false}>
                   {visible.map((row) => (
                     <motion.div
@@ -342,7 +359,7 @@ export function DeadlinesView() {
                     </motion.div>
                   ))}
                 </AnimatePresence>
-              </ListGroup>
+              </div>
             )}
           </section>
 
@@ -363,49 +380,6 @@ export function DeadlinesView() {
         </div>
       </div>
     </>
-  )
-}
-
-function SummaryStat({
-  label,
-  value,
-  tone,
-  active,
-  onToggle,
-}: {
-  label: string
-  value: number
-  tone: string
-  active: boolean
-  onToggle: () => void
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onToggle}
-      className={cx(
-        'card squircle flex min-h-[var(--target-min)] flex-col items-start px-3 py-2.5 text-left',
-        'transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)]',
-      )}
-      style={
-        active
-          ? { background: 'var(--accent-subtle)', borderColor: 'var(--accent-border)' }
-          : undefined
-      }
-    >
-      <span className="flex items-center gap-1.5">
-        <span
-          aria-hidden
-          className="block size-2 shrink-0 rounded-full"
-          style={{ background: value > 0 ? tone : 'var(--label-quaternary)' }}
-        />
-        <span className="type-title-2 type-data" style={value > 0 ? { color: tone } : undefined}>
-          {value}
-        </span>
-      </span>
-      <span className="type-caption-1 mt-0.5 text-[var(--label-secondary)]">{label}</span>
-    </button>
   )
 }
 

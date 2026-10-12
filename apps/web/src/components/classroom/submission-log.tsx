@@ -1,8 +1,9 @@
 'use client'
 
 import type { SubmissionEntry } from '@/lib/queries/classroom'
-import { ListGroup, SectionHeader } from '@/components/ui/surfaces'
-import { IconCheck } from '@/components/ui/icon'
+import { SectionHeader } from '@/components/ui/surfaces'
+import { IconCheck, IconClock } from '@/components/ui/icon'
+import { InfoTip } from '@/components/ui/info-tip'
 
 /**
  * Who has marked this submitted.
@@ -41,23 +42,31 @@ export function SubmissionLog({ entries, now }: SubmissionLogProps) {
             {submitted} of {entries.length}
           </span>
         }
+        info={
+          <InfoTip title="What this is">
+            What each person said about their own work. It isn&rsquo;t proof anything was turned
+            in, and it says nothing about a grade.
+          </InfoTip>
+        }
       >
         Submissions
       </SectionHeader>
 
-      <p className="type-footnote mb-2 px-1 text-[var(--label-secondary)]">
-        What each person said about their own work. It isn&rsquo;t proof anything was turned in,
-        and it says nothing about a grade.
-      </p>
-
-      <ListGroup>
+      <div className="row-list">
         {entries.map((entry) => (
-          <div key={entry.userId} className="list-row" aria-label={accessibleName(entry, now)}>
+          <div key={entry.userId} className="row" aria-label={accessibleName(entry, now)}>
+            <span
+              aria-hidden
+              data-tone={entry.submittedAt ? 'green' : 'gray'}
+              className="glyph grid size-9 shrink-0 place-items-center"
+            >
+              {entry.submittedAt ? <IconCheck size={26} /> : <IconClock size={24} />}
+            </span>
             <span className="type-body min-w-0 flex-1 truncate">{entry.name}</span>
             {entry.submittedAt ? (
               <span
                 className="type-footnote inline-flex shrink-0 items-center gap-1.5"
-                style={{ color: 'var(--ok)' }}
+                style={{ color: 'var(--tone-green-ink)' }}
               >
                 <IconCheck size={16} aria-hidden />
                 {describeWhen(entry.submittedAt, now)}
@@ -67,7 +76,7 @@ export function SubmissionLog({ entries, now }: SubmissionLogProps) {
             )}
           </div>
         ))}
-      </ListGroup>
+      </div>
     </section>
   )
 }

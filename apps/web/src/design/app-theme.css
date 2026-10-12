@@ -1,0 +1,1211 @@
+/*
+ * The app theme.
+ *
+ * Everything here is scoped to `.app-ui`, the wrapper the signed-in app and
+ * onboarding render inside. The landing page, the campus page and the auth
+ * screens keep the original Apple-system look from tokens.css and
+ * materials.css; this file re-points the same tokens and re-skins the same
+ * classes for the app only, so no component had to learn a second vocabulary.
+ *
+ * The direction, in four rules:
+ *
+ *   1. Surfaces separate by tone, not by line. A light grey canvas, white
+ *      cards on it, and soft shadow. Outlines are the exception.
+ *   2. Flat colour. No gradients on cards or buttons, no specular highlights.
+ *   3. Crimson is the primary, and five supporting tones give each feature
+ *      a colour of its own — always on an icon tile, never as decoration.
+ *   4. Generous radii and spacing. The old system was tuned to iOS density;
+ *      this one is tuned to a thumb.
+ *
+ * Unlayered, like materials.css, and later in the import order — so a rule
+ * here wins over the one it re-skins without needing `!important`.
+ */
+
+.app-ui {
+  /* --- Type --------------------------------------------------------------
+   * SF Pro Rounded where the platform has it (Apple devices, through the
+   * `ui-rounded` generic or the local face), Geist everywhere else. SF Pro is
+   * licensed for Apple platforms only, so it is referenced, never shipped. */
+  --font-rounded:
+    ui-rounded, 'SF Pro Rounded Local', var(--font-geist), 'Geist', system-ui, sans-serif;
+  --font-text: var(--font-rounded);
+  --font-display: var(--font-rounded);
+  --font-mono: var(--font-rounded);
+
+  /* --- Canvas and surfaces ------------------------------------------------ */
+  --canvas: #f8f8fa;
+  --bg: #ffffff;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f8f8fa;
+  --bg-grouped: #f8f8fa;
+  --bg-grouped-secondary: #ffffff;
+  --bg-grouped-tertiary: #fafafb;
+  --surface-sunken: #f3f3f6;
+
+  --separator: #ececf0;
+  --separator-soft: #f1f1f4;
+  --separator-opaque: #e4e4e9;
+
+  --fill: rgb(24 24 27 / 0.1);
+  --fill-secondary: rgb(24 24 27 / 0.08);
+  --fill-tertiary: rgb(24 24 27 / 0.06);
+  --fill-quaternary: rgb(24 24 27 / 0.04);
+
+  /* --- Text --------------------------------------------------------------- */
+  --label: #18181b;
+  --label-secondary: #6b6b76;
+  --label-tertiary: #a1a1aa;
+  --label-quaternary: #d4d4d8;
+
+  /* --- Tones --------------------------------------------------------------
+   * Four, on purpose. Crimson is the brand and marks what is important; gray is
+   * everything else; green and blue are indicators only (done or on track,
+   * informational). `--tone-x` is the colour, `-ink` a shade that clears
+   * contrast as text, `-tint` a pale wash for pills and pressed chips — never
+   * for a background behind an icon. */
+  --tone-crimson: #a51c30;
+  --tone-crimson-ink: #a51c30;
+  --tone-crimson-tint: #fce9ec;
+
+  --tone-green: #34c759;
+  --tone-green-ink: #248a3d;
+  --tone-green-tint: #e2f7e7;
+
+  --tone-blue: #007aff;
+  --tone-blue-ink: #0062cc;
+  --tone-blue-tint: #e0eeff;
+
+  --tone-gray: #8e8e93;
+  --tone-gray-ink: #636366;
+  --tone-gray-tint: #efeff1;
+
+  /* The bottom bar and anything else that sits dark on the light canvas. */
+  --ink: #18181b;
+  --ink-soft: #27272a;
+  --on-ink: #ffffff;
+  --on-ink-secondary: rgb(255 255 255 / 0.55);
+
+  /* --- Status ------------------------------------------------------------- */
+  /* Warnings are not a colour of their own: anything that needs the student
+   * is crimson, the same as overdue. */
+  --ok: var(--tone-green-ink);
+  --caution: var(--tone-crimson);
+  --warning: var(--tone-crimson);
+  --danger: var(--tone-crimson);
+  --info: var(--tone-blue);
+  --generated: var(--tone-blue);
+  --generated-subtle: var(--tone-blue-tint);
+
+  --accent-subtle: var(--tone-crimson-tint);
+
+  /* --- Materials, flattened ------------------------------------------------
+   * Translucency survives only on the chrome that content scrolls under.
+   * Everything else is a solid surface. */
+  --material-thin: #ffffff;
+  --material-regular: #ffffff;
+  --material-thick: rgb(244 244 246 / 0.86);
+  --material-chrome: rgb(244 244 246 / 0.86);
+  --material-edge: transparent;
+  --material-edge-top: transparent;
+  --material-hairline: transparent;
+
+  /* --- Elevation -----------------------------------------------------------
+   * Soft and wide rather than tight and dark. A card should look like it is
+   * resting on the canvas, not floating above it. */
+  --shadow-chip: 0 1px 2px rgb(24 24 27 / 0.05);
+  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.03), 0 6px 20px -6px rgb(24 24 27 / 0.06);
+  --shadow-float: 0 8px 24px -6px rgb(24 24 27 / 0.28), 0 2px 6px rgb(24 24 27 / 0.12);
+  --shadow-sheet: 0 -12px 48px -12px rgb(24 24 27 / 0.22);
+  --shadow-pop: 0 12px 32px -8px rgb(24 24 27 / 0.24), 0 2px 6px rgb(24 24 27 / 0.08);
+
+  /* --- Geometry ------------------------------------------------------------ */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --radius-sheet: 32px;
+
+  --target-min: 48px;
+  --tab-bar-height: 68px;
+  --tab-bar-inset: 14px;
+  --content-max: 36rem;
+  --dashboard-max: 52rem;
+
+  background: var(--canvas);
+  color: var(--label);
+  font-family: var(--font-text);
+  letter-spacing: -0.012em;
+  min-height: 100dvh;
+}
+
+/* The page behind the app, so an overscroll or a short page never shows white
+ * around a grey app. */
+body.app-ui {
+  background: #f8f8fa;
+}
+
+/* Headings in the rounded face read heavy at 700; 650 keeps the friendliness
+ * without shouting. */
+.app-ui :is(h1, h2, h3) {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.app-ui .type-large-title {
+  font-size: 1.875rem;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.app-ui .type-section-header {
+  font-size: 1.0625rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  text-transform: none;
+  color: var(--label);
+}
+
+/* --- Corners ---------------------------------------------------------------
+ * The base system turns on Apple's continuous squircle corner wherever the
+ * browser supports it. The app uses plain round corners instead: a pill stays
+ * a pill and a round button stays a circle, rather than both drifting towards a
+ * rounded square. */
+@supports (corner-shape: squircle) {
+  .app-ui :is(.squircle, .glass, .card, .sheet, .tab-bar) {
+    corner-shape: round;
+  }
+}
+
+/* --- Surfaces -------------------------------------------------------------- */
+
+.app-ui .card {
+  background: var(--bg);
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.app-ui .card-flush {
+  background: var(--bg);
+  border: none;
+  border-radius: var(--radius-lg);
+}
+
+.app-ui a.card,
+.app-ui button.card {
+  transition:
+    transform var(--duration-base) var(--ease-spring),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.app-ui a.card:active,
+.app-ui button.card:active {
+  transform: scale(0.97);
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-out);
+}
+
+.app-ui .list-group {
+  background: var(--bg);
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.app-ui .list-row {
+  min-height: 56px;
+  padding: var(--space-3) var(--space-4);
+}
+
+.app-ui .list-group.list-inset .list-row + .list-row::before {
+  left: var(--space-4);
+  right: var(--space-4);
+  background: var(--separator-soft);
+}
+
+.app-ui button.list-row:active,
+.app-ui a.list-row:active {
+  background: var(--fill-quaternary);
+}
+
+/* --- Buttons ----------------------------------------------------------------
+ * Pills. The default is a soft grey fill with no edge or blur. The accent
+ * keeps the house's original lit recipe — a specular sheen across its top, a
+ * bright inner edge and a crimson shadow under it. */
+
+.app-ui .glass {
+  min-height: var(--target-min);
+  padding: 0 var(--space-6);
+  border: none;
+  background: var(--fill-tertiary);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.app-ui .glass::before {
+  content: none;
+}
+
+.app-ui .glass:active:not(:disabled) {
+  background: var(--fill-secondary);
+}
+
+.app-ui .glass-accent {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.24),
+    inset 0 -2px 0 0 rgb(0 0 0 / 0.1),
+    0 1px 2px rgb(0 0 0 / 0.12),
+    0 8px 20px -8px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.app-ui .glass-accent::before {
+  content: '';
+}
+
+.app-ui .glass-accent > svg {
+  flex: 0 0 auto;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.18));
+}
+
+.app-ui .glass-accent:active:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.app-ui .glass-plain {
+  background: transparent;
+  color: var(--accent);
+  box-shadow: none;
+}
+
+.app-ui .glass-plain:active:not(:disabled) {
+  background: var(--fill-quaternary);
+}
+
+.app-ui .glass-sm {
+  min-height: 38px;
+  padding: 0 var(--space-4);
+  font-size: 0.9375rem;
+}
+
+.app-ui .glass-lg {
+  min-height: 56px;
+  font-size: 1.0625rem;
+}
+
+/* --- Fields ----------------------------------------------------------------
+ * No outline. A white well that stands off the grey canvas by its fill alone,
+ * a whisper of a placeholder, and the student's own answer in semibold so it
+ * never reads as part of the label above it. On a white surface (a card, a
+ * sheet) the well inverts to the canvas grey for the same contrast. */
+
+.app-ui .field {
+  min-height: 52px;
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--bg);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--label);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgb(24 24 27 / 0.04);
+}
+
+.app-ui :is(.card, .sheet, .list-group, [role='dialog']) .field {
+  background-color: var(--canvas);
+  box-shadow: none;
+}
+
+.app-ui .field::placeholder {
+  color: #c4c4cc;
+  font-weight: 500;
+  opacity: 1;
+}
+
+.app-ui .field:focus {
+  background-color: var(--bg);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.app-ui select.field {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.75rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b6b76' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 18px;
+}
+
+.app-ui .field[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+/* --- Segmented control and badges ----------------------------------------- */
+
+.app-ui .segmented {
+  padding: 4px;
+  gap: 4px;
+  background: var(--fill-tertiary);
+  border-radius: var(--radius-pill);
+}
+
+.app-ui .segmented-item {
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  font-size: 0.875rem;
+}
+
+.app-ui .segmented-item[aria-selected='true'],
+.app-ui .segmented-item[data-selected='true'] {
+  background: var(--bg);
+  box-shadow: var(--shadow-chip);
+}
+
+.app-ui .badge {
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+}
+
+/* --- Materials ---------------------------------------------------------------
+ * Panels that were glass become solid white. The edge goes with the glass. */
+
+.app-ui .material {
+  border: none;
+  box-shadow: none;
+}
+
+.app-ui .sheet {
+  background: var(--bg);
+}
+
+/* --- Quick actions ------------------------------------------------------------
+ * A white tile with the feature's icon tile on it and one word under it. */
+
+.app-ui .quick-action {
+  aspect-ratio: auto;
+  min-height: 88px;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-1);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  color: var(--label);
+  box-shadow: var(--shadow-card);
+}
+
+/* --- Shell ----------------------------------------------------------------- */
+
+.app-ui .shell {
+  background: var(--canvas);
+}
+
+/* Transparent at rest, frosted once content scrolls under it. The `data-`
+ * attributes are set by the top bar from the scroll position. */
+.app-ui .topbar {
+  background: transparent;
+  border-bottom: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  transition:
+    transform var(--duration-slow) var(--ease-emphasized),
+    background-color var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.app-ui .topbar[data-scrolled='true'] {
+  background: var(--material-chrome);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow: 0 1px 0 rgb(24 24 27 / 0.04);
+}
+
+/* Phones only: the bar gets out of the way while reading down a page and
+ * comes back the moment the student scrolls up. */
+@media (max-width: 899px) {
+  .app-ui .topbar[data-hidden='true'] {
+    transform: translateY(-100%);
+  }
+}
+
+.app-ui .nav-item {
+  min-height: 44px;
+  gap: 12px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  font-weight: 550;
+  color: var(--label-secondary);
+}
+
+.app-ui .nav-item:hover {
+  background: var(--fill-quaternary);
+  color: var(--label);
+}
+
+.app-ui .nav-item > svg {
+  flex: 0 0 auto;
+  color: var(--label-tertiary);
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.app-ui .nav-item[aria-current='page'] {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.app-ui .nav-item[aria-current='page'] > svg {
+  color: var(--accent);
+}
+
+.app-ui .nav-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-weight: 600;
+  color: var(--label-tertiary);
+  padding: var(--space-4) var(--space-3) var(--space-1);
+}
+
+.app-ui .brand-mark {
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+@media (min-width: 900px) {
+  .app-ui .sidebar {
+    border-right: none;
+    background: transparent;
+  }
+}
+
+.app-ui .scroll-edge-top {
+  background: linear-gradient(to bottom, var(--canvas), transparent);
+}
+
+/* --- Glyphs ----------------------------------------------------------------
+ * The house's way of being icons-first: the glyph itself in its feature's
+ * tone, solid, with no tile behind it. */
+
+.icon-tile {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.glyph[data-tone='crimson'] { color: var(--tone-crimson); }
+.glyph[data-tone='green'] { color: var(--tone-green); }
+.glyph[data-tone='blue'] { color: var(--tone-blue); }
+.glyph[data-tone='gray'] { color: var(--tone-gray); }
+
+/* --- Info tips ------------------------------------------------------------- */
+
+.info-tip-trigger {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  color: var(--label-tertiary);
+  vertical-align: middle;
+  transition: color var(--duration-fast) var(--ease-standard);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+/* The glyph is small; the target is not. */
+.info-tip-trigger::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+}
+
+.info-tip-trigger[aria-expanded='true'],
+.info-tip-trigger:hover {
+  color: var(--accent);
+}
+
+.info-tip {
+  display: block;
+  position: fixed;
+  z-index: 80;
+  width: max-content;
+  max-width: min(18rem, calc(100vw - 32px));
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--ink);
+  color: var(--on-ink);
+  font-family: var(--font-text);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+  text-align: left;
+  white-space: normal;
+  text-transform: none;
+  box-shadow: var(--shadow-pop);
+  pointer-events: auto;
+}
+
+.info-tip strong {
+  display: block;
+  margin-bottom: 2px;
+  font-weight: 650;
+}
+
+/* --- Motion ---------------------------------------------------------------
+ * Content rises into place as a page mounts, a beat apart, so a screen
+ * assembles rather than appearing. `backwards` fill only: once the rise is
+ * over the element keeps no transform, so nothing fixed-position inside it is
+ * ever re-anchored and no motion-driven transform is overridden. */
+
+@keyframes app-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.app-page > * > :where(:not(.fixed):not([role='dialog']):not(script)) {
+  animation: app-rise 520ms var(--ease-out) backwards;
+}
+
+.app-page > * > :nth-child(2) { animation-delay: 40ms; }
+.app-page > * > :nth-child(3) { animation-delay: 80ms; }
+.app-page > * > :nth-child(4) { animation-delay: 120ms; }
+.app-page > * > :nth-child(5) { animation-delay: 160ms; }
+.app-page > * > :nth-child(6) { animation-delay: 200ms; }
+.app-page > * > :nth-child(7) { animation-delay: 240ms; }
+.app-page > * > :nth-child(n + 8) { animation-delay: 280ms; }
+
+/* Long press shouldn't select text or pop the iOS callout on things that
+ * are meant to be pressed. */
+.app-ui :is(.quick-action, .card[href], .list-row) {
+  -webkit-touch-callout: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-page > * > * {
+    animation: none;
+  }
+  .app-ui .topbar[data-hidden='true'] {
+    transform: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .app-ui {
+    --label-secondary: #3f3f46;
+    --label-tertiary: #52525b;
+    --separator: #71717a;
+  }
+  .app-ui .card,
+  .app-ui .list-group {
+    border: 1px solid var(--separator);
+  }
+}
+
+/* --- Rows ------------------------------------------------------------------
+ * Floating list items (components/ui/row.tsx). Each is its own white card;
+ * the gap between them does the separating that hairlines used to. */
+
+.app-ui .row-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.app-ui .row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 12px 16px 12px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  box-shadow: 0 1px 2px rgb(24 24 27 / 0.04), 0 6px 18px -12px rgb(24 24 27 / 0.12);
+  color: var(--label);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-ui .row-interactive:hover {
+    box-shadow: 0 1px 2px rgb(24 24 27 / 0.05), 0 10px 24px -12px rgb(24 24 27 / 0.2);
+  }
+}
+
+.app-ui .row-interactive:active {
+  transform: scale(0.98);
+}
+
+.app-ui .row-muted {
+  opacity: 0.55;
+}
+
+.app-ui .row-leading {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  min-width: 40px;
+}
+
+.app-ui .row-title {
+  display: block;
+  overflow: hidden;
+  font-size: 0.9688rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-ui .row-detail {
+  display: block;
+  overflow: hidden;
+  margin-top: 1px;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--label-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-ui .row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.app-ui .row-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--canvas);
+  color: var(--label-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.app-ui .row-pill[data-tone='crimson'] { background: var(--tone-crimson-tint); color: var(--tone-crimson-ink); }
+.app-ui .row-pill[data-tone='green'] { background: var(--tone-green-tint); color: var(--tone-green-ink); }
+.app-ui .row-pill[data-tone='blue'] { background: var(--tone-blue-tint); color: var(--tone-blue-ink); }
+
+.app-ui .row-unread {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* Day timeline ------------------------------------------------------------
+ * The schedule's day page as a calendar: an hour gutter on the left, a hairline
+ * per hour, and each class placed by its start and sized by its length. White
+ * blocks with a gray edge; the class in progress (or next up) gets the crimson
+ * edge. No per-subject colours. */
+
+.app-ui .day-timeline {
+  position: relative;
+  margin-top: 4px;
+}
+
+.app-ui .day-timeline-hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px solid var(--separator);
+  margin-left: 52px;
+}
+
+.app-ui .day-timeline-label {
+  position: absolute;
+  left: -52px;
+  top: -0.5em;
+  width: 44px;
+  text-align: right;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--label-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.app-ui .day-timeline-track {
+  position: absolute;
+  inset: 0 0 0 58px;
+}
+
+.app-ui .day-timeline-slot {
+  position: absolute;
+  padding-top: 1px;
+}
+
+.app-ui .day-block {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  padding: 6px 10px 6px 14px;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 4px 14px rgb(0 0 0 / 0.04);
+  text-align: left;
+  color: var(--label);
+  transition: transform 150ms ease;
+}
+
+.app-ui .day-block::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--label-quaternary);
+}
+
+.app-ui a.day-block:active,
+.app-ui button.day-block:active {
+  transform: scale(0.98);
+}
+
+.app-ui .day-block-focus::before {
+  background: var(--accent);
+}
+
+.app-ui .day-block-focus {
+  box-shadow: 0 0 0 1.5px var(--accent-subtle), 0 4px 16px rgb(165 28 48 / 0.1);
+}
+
+.app-ui .day-block-past {
+  opacity: 0.5;
+}
+
+.app-ui .day-block-compact {
+  justify-content: center;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.app-ui .day-block-compact::before {
+  top: 4px;
+  bottom: 4px;
+}
+
+.app-ui .day-block-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-ui .day-block-sub {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-ui .day-block-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--label-secondary);
+}
+
+.app-ui .day-block-line strong {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--label);
+}
+
+.app-ui .day-timeline-gap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.app-ui .day-timeline-gap span {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--canvas);
+  color: var(--label-tertiary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-ui .day-timeline-now {
+  position: absolute;
+  left: -6px;
+  right: 0;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--accent);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.app-ui .day-timeline-now::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* --- Glass cards ---------------------------------------------------------
+ * The home dashboard's cards. White, but lit: a white inner rim and a top
+ * highlight read as a thick pane catching light, a faint shade along the
+ * bottom edge gives it depth, and a soft drop shadow lifts it off the canvas.
+ * A big faint glyph of what the card is about sits behind the content. */
+.app-ui .card-glass {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 100%);
+  box-shadow:
+    inset 0 0 0 1.5px rgb(255 255 255 / 0.95),
+    inset 0 2px 0 rgb(255 255 255 / 1),
+    inset 0 -8px 16px -10px rgb(24 24 27 / 0.06),
+    0 0 0 1px rgb(24 24 27 / 0.035),
+    0 2px 4px rgb(24 24 27 / 0.03),
+    0 12px 28px -12px rgb(24 24 27 / 0.12);
+}
+
+/* The sheen: a pale wash across the top-left, under the content. */
+.app-ui .card-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(120% 70% at 0% 0%, rgb(255 255 255 / 1), transparent 60%);
+}
+
+/* The crimson variant, for the one card that leads the page. */
+.app-ui .card-glass[data-tone='crimson'] {
+  background: linear-gradient(180deg, #b52238 0%, var(--accent) 55%, #931828 100%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.14),
+    inset 0 1.5px 0 rgb(255 255 255 / 0.32),
+    inset 0 -10px 22px -12px rgb(0 0 0 / 0.25),
+    0 14px 32px -12px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.app-ui .card-glass[data-tone='crimson']::before {
+  background: radial-gradient(110% 60% at 0% 0%, rgb(255 255 255 / 0.18), transparent 60%);
+}
+
+/* The big glyph behind a card's content. Faint enough to be texture, not a
+ * second icon; tilted so it reads as decoration. */
+.app-ui .card-watermark {
+  position: absolute;
+  z-index: -1;
+  right: -0.9rem;
+  bottom: -1.1rem;
+  pointer-events: none;
+  color: var(--label);
+  opacity: 0.05;
+  transform: rotate(-12deg);
+}
+
+.app-ui .card-glass[data-tone='crimson'] .card-watermark {
+  color: #ffffff;
+  opacity: 0.12;
+}
+
+/* The round white buttons in the top bar. */
+.app-ui .chrome-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  color: var(--label-secondary);
+  background: var(--bg);
+  box-shadow:
+    inset 0 1.5px 0 rgb(255 255 255 / 1),
+    0 0 0 1px rgb(24 24 27 / 0.04),
+    0 4px 12px -4px rgb(24 24 27 / 0.12);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.app-ui .chrome-button:active {
+  transform: scale(0.9);
+}
+
+/* Rows in the home feed take the glass card's lit rim too. */
+.app-ui .row-list-glass .row {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 100%);
+  box-shadow:
+    inset 0 0 0 1.5px rgb(255 255 255 / 0.95),
+    inset 0 2px 0 rgb(255 255 255 / 1),
+    inset 0 -6px 12px -8px rgb(24 24 27 / 0.06),
+    0 0 0 1px rgb(24 24 27 / 0.035),
+    0 8px 20px -10px rgb(24 24 27 / 0.12);
+}
+
+/* --- Ask: the assistant page -------------------------------------------
+ * A chat page, not a form: a quiet stage with one living orb, answers that
+ * write themselves in, and a composer that lights up while you type. All of
+ * the motion stops under prefers-reduced-motion. */
+.app-ui .ask-stage {
+  position: relative;
+  isolation: isolate;
+}
+
+/* A faint crimson bloom behind the top of the page, so the empty state has a
+ * light source rather than a flat canvas. */
+.app-ui .ask-stage::before {
+  content: '';
+  position: absolute;
+  inset: -4rem -2rem auto -2rem;
+  height: 26rem;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 55% at 50% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    radial-gradient(30% 40% at 80% 10%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%);
+}
+
+.app-ui .ask-orb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 9999px;
+  color: #fff;
+  background:
+    radial-gradient(60% 60% at 30% 25%, rgb(255 255 255 / 0.55), transparent 60%),
+    radial-gradient(80% 80% at 70% 80%, #7a1222, transparent 70%),
+    linear-gradient(145deg, #d1344b, var(--accent) 55%, #7a1222);
+  box-shadow:
+    inset 0 1.5px 0 rgb(255 255 255 / 0.45),
+    inset 0 -6px 12px -4px rgb(0 0 0 / 0.28),
+    0 10px 28px -8px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.app-ui .ask-orb[data-live='true'] {
+  animation: ask-breathe 3.6s ease-in-out infinite;
+}
+
+.app-ui .ask-orb[data-live='true']::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  border: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  animation: ask-ripple 3.6s ease-out infinite;
+}
+
+.app-ui .ask-orb[data-thinking='true'] {
+  animation: ask-breathe 1.1s ease-in-out infinite;
+}
+
+@keyframes ask-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+@keyframes ask-ripple {
+  0% { opacity: 0.8; transform: scale(0.96); }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+
+/* Each word of an answer fades up as it lands. */
+.app-ui .ask-word {
+  display: inline-block;
+  white-space: pre-wrap;
+  opacity: 0;
+  animation: ask-word-in 0.42s var(--ease-standard) forwards;
+}
+
+@keyframes ask-word-in {
+  from { opacity: 0; transform: translateY(5px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+.app-ui .ask-shimmer {
+  background: linear-gradient(90deg, var(--label-tertiary) 0%, var(--label) 45%, var(--label-tertiary) 90%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ask-shimmer 1.8s linear infinite;
+}
+
+@keyframes ask-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -100% 0; }
+}
+
+/* The composer: white and raised, with a crimson edge that fades in on focus. */
+.app-ui .ask-composer {
+  position: relative;
+  border-radius: 26px;
+  background: var(--bg);
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    0 0 0 1px rgb(24 24 27 / 0.05),
+    0 2px 4px rgb(24 24 27 / 0.03),
+    0 18px 40px -16px rgb(24 24 27 / 0.16);
+  transition: box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.app-ui .ask-composer::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  z-index: -1;
+  border-radius: 27px;
+  opacity: 0;
+  background: linear-gradient(135deg, var(--accent), #e8788a 50%, var(--accent));
+  filter: blur(0.2px);
+  transition: opacity var(--duration-base) var(--ease-standard);
+}
+
+.app-ui .ask-composer:focus-within {
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 18px 44px -14px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.app-ui .ask-composer textarea {
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  outline: none;
+  resize: none;
+  width: 100%;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--label);
+  padding: 0.25rem 0.25rem 0;
+}
+
+.app-ui .ask-composer textarea::placeholder {
+  color: #c4c4cc;
+  font-weight: 500;
+}
+
+.app-ui .ask-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  justify-content: center;
+  padding: 0 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--label-secondary);
+  background: var(--canvas);
+  transition: transform var(--duration-fast) var(--ease-standard), color var(--duration-fast), background var(--duration-fast);
+}
+
+.app-ui .ask-tool:hover { color: var(--label); background: var(--surface-sunken); }
+.app-ui .ask-tool:active { transform: scale(0.92); }
+.app-ui .ask-tool[data-active='true'] { color: var(--accent); background: var(--accent-subtle); }
+.app-ui .ask-tool:disabled { opacity: 0.4; }
+
+.app-ui .ask-suggestion {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.625rem;
+  min-height: 5.5rem;
+  padding: 0.875rem 1rem;
+  text-align: left;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #fff, #fbfbfd);
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    0 0 0 1px rgb(24 24 27 / 0.04),
+    0 8px 20px -12px rgb(24 24 27 / 0.14);
+  transition: transform var(--duration-base) var(--ease-spring), box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.app-ui .ask-suggestion:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    0 0 0 1px rgb(24 24 27 / 0.05),
+    0 14px 26px -12px rgb(24 24 27 / 0.2);
+}
+
+.app-ui .ask-suggestion:active { transform: scale(0.97); }
+
+.app-ui .ask-user-bubble {
+  background: linear-gradient(180deg, #b52238, var(--accent) 60%, #931828);
+  color: var(--on-accent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    inset 0 -4px 10px -6px rgb(0 0 0 / 0.25),
+    0 8px 18px -10px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-ui .ask-orb,
+  .app-ui .ask-orb::after,
+  .app-ui .ask-shimmer { animation: none !important; }
+  .app-ui .ask-word { animation: none; opacity: 1; }
+}

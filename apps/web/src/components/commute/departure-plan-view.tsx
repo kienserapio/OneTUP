@@ -6,19 +6,32 @@ import { motion } from 'motion/react'
 import { spring, transition } from '@/design/motion'
 import { NavBar } from '@/components/app/nav-bar'
 import { Button, ButtonLink } from '@/components/ui/button'
-import { Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
-import { IconAlarm, IconClock, IconCommute, IconRefresh, IconWarning } from '@/components/ui/icon'
+import {Card, EmptyState, SectionHeader } from '@/components/ui/surfaces'
+import { Row, RowList } from '@/components/ui/row'
+import {
+  IconAlarm,
+  IconCampus,
+  IconClock,
+  IconCommute,
+  IconRefresh,
+  IconSchedule,
+  IconWalk,
+  IconWarning,
+  type IconProps,
+  IconRoute,
+} from '@/components/ui/icon'
+import { IconTile, type Tone } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { CommuteStatStrip, type CommuteStat } from '@/components/commute/stat-strip'
 import { supabaseBrowser } from '@/lib/supabase/client'
 
 /**
  * The wake-up and leave-by plan.
  *
- * Four instants a student reads in order — wake, leave, arrive, class — with
- * the gaps between them proportional to the real minutes, so a long commute
- * looks long. That is the same timeline Today draws on its departure card, and
- * deliberately so: a student should recognise this screen as the expanded form
- * of the card they already tapped, not as a second design.
+ * Four instants a student reads in order — wake, leave, arrive, class — as
+ * icons on a dotted track. That is the same timeline Today draws on its
+ * departure card, and deliberately so: a student should recognise this screen
+ * as the expanded form of the card they already tapped, not as a second design.
  *
  * The explanation shown here is the one the server templated from the
  * adjustments that actually fired, never a second version written for the
@@ -133,28 +146,29 @@ export function DeparturePlanView() {
             type="button"
             onClick={() => void load()}
             aria-label="Recalculate"
-            className="grid size-[var(--target-min)] place-items-center rounded-full text-[var(--accent)]"
+            data-tone="green"
+            className="glyph grid size-11 place-items-center rounded-full transition-transform duration-150 active:scale-90"
           >
-            <IconRefresh size={20} />
+            <IconRefresh size={26} />
           </button>
         }
       />
 
       <div className="app-container stack pb-6">
         {loading ? (
-          <div className="skeleton h-56 rounded-[var(--radius-md)]" aria-busy="true" />
+          <div className="skeleton h-56 rounded-[var(--radius-lg)]" aria-busy="true" />
         ) : !plan ? (
           <Card>
             <EmptyState
-              icon={<IconAlarm size={30} />}
+              icon={<IconTile Icon={IconAlarm} tone="green" variant="solid" size={56} />}
               title={
                 reason === 'no_class_day'
-                  ? 'No classes coming up, so there is nothing to plan for.'
-                  : 'Pick where you commute from, save a route, and OneTUP will work out when to leave.'
+                  ? 'No classes coming up — nothing to plan.'
+                  : 'Save a route and OneTUP works out when to leave.'
               }
               action={
                 reason === 'no_route_saved' ? (
-                  <ButtonLink href="/commute" variant="accent">
+                  <ButtonLink href="/commute" variant="accent" leading={<IconRoute size={18} />}>
                     Choose a route
                   </ButtonLink>
                 ) : undefined
@@ -177,18 +191,25 @@ export function DeparturePlanView() {
 
                 {plan.adjustments.length > 0 && (
                   <section>
-                    <SectionHeader>
+                    <SectionHeader
+                      info={
+                        <InfoTip title="Why it moved">
+                          Rush hour and weather add minutes on top of the clear-road time. Each
+                          line is one thing that fired today.
+                        </InfoTip>
+                      }
+                    >
                       Why it moved · +{addedMinutes} min
                     </SectionHeader>
-                    <ListGroup>
+                    <RowList>
                       {plan.adjustments.map((adjustment, index) => (
-                        <ListRow
+                        <Row
                           key={`${adjustment.kind}-${index}`}
                           leading={
                             adjustment.kind === 'weather' ? (
-                              <IconWarning size={20} />
+                              <IconTile Icon={IconWarning} tone="crimson" size={36} />
                             ) : (
-                              <IconClock size={20} />
+                              <IconTile Icon={IconClock} tone="crimson" size={36} />
                             )
                           }
                           title={adjustment.reason}
@@ -199,7 +220,7 @@ export function DeparturePlanView() {
                           }
                         />
                       ))}
-                    </ListGroup>
+                    </RowList>
                   </section>
                 )}
               </div>
@@ -207,32 +228,39 @@ export function DeparturePlanView() {
               <aside className="stack min-w-0">
                 <section>
                   <SectionHeader>The numbers</SectionHeader>
-                  <ListGroup>
-                    <ListRow
-                      leading={<IconClock size={20} />}
+                  <RowList>
+                    <Row
+                      leading={<IconTile Icon={IconCampus} tone="gray" size={36} />}
                       title="Arrive by"
                       trailing={<span className="type-data">{formatTime(plan.arrive_by)}</span>}
                     />
-                    <ListRow
-                      leading={<IconClock size={20} />}
+                    <Row
+                      leading={<IconTile Icon={IconSchedule} tone="blue" size={36} />}
                       title="First class"
                       trailing={<span className="type-data">{formatTime(plan.class_start)}</span>}
                     />
-                    <ListRow
-                      leading={<IconCommute size={20} />}
+                    <Row
+                      leading={<IconTile Icon={IconCommute} tone="green" size={36} />}
                       title="Travel time"
-                      subtitle={`${plan.base_minutes} min without delays`}
+                      detail={`${plan.base_minutes} min without delays`}
                       trailing={<span className="type-data">{travelMinutes} min</span>}
                     />
-                  </ListGroup>
+                  </RowList>
                 </section>
 
-                <Button variant="accent" block onClick={() => void setAlarms()} disabled={alarmSet}>
-                  {alarmSet ? 'Alarms set' : 'Set the alarm and the leave-now nudge'}
+                <Button
+                  variant="accent"
+                  size="lg"
+                  block
+                  onClick={() => void setAlarms()}
+                  disabled={alarmSet}
+                  leading={<IconAlarm size={20} />}
+                >
+                  {alarmSet ? 'Alarms set' : 'Set alarm + leave nudge'}
                 </Button>
 
                 <p className="type-caption-1 text-center text-[var(--label-tertiary)]">
-                  <Link href={'/commute' as never} className="text-[var(--accent)]">
+                  <Link href={'/commute' as never} className="font-semibold text-[var(--accent)]">
                     Change your route
                   </Link>{' '}
                   and this recalculates.
@@ -247,74 +275,71 @@ export function DeparturePlanView() {
 }
 
 /**
- * The four instants, spaced by their true minutes.
+ * The four instants as icons on a dotted track, Leave the one solid tile.
  *
- * Even spacing would make a ninety-minute commute look like a ten-minute one.
- * The dots carry the proportion; the labels stay centred under them and pin to
- * the ends so neither overflows the card.
+ * The stops are evenly spaced so four labels always fit a phone; each stop's
+ * true position in the window rides on `data-offset`. The server's explanation
+ * sits behind the (i) so the card leads with times, not prose.
  */
 function PlanTimeline({ plan }: { plan: Plan }) {
-  const stops = [
-    { label: 'Wake', at: plan.wake_at },
-    { label: 'Leave', at: plan.leave_at },
-    { label: 'Arrive', at: plan.arrive_by },
-    { label: 'Class', at: plan.class_start },
+  const stops: {
+    label: string
+    at: string
+    Icon: React.ComponentType<IconProps>
+    tone: Tone
+  }[] = [
+    { label: 'Wake', at: plan.wake_at, Icon: IconAlarm, tone: 'crimson' },
+    { label: 'Leave', at: plan.leave_at, Icon: IconWalk, tone: 'green' },
+    { label: 'Arrive', at: plan.arrive_by, Icon: IconCampus, tone: 'gray' },
+    { label: 'Class', at: plan.class_start, Icon: IconSchedule, tone: 'blue' },
   ]
 
   const start = new Date(plan.wake_at).getTime()
   const span = Math.max(1, new Date(plan.class_start).getTime() - start)
 
   return (
-    <section className="card squircle p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="type-headline">Getting to your first class</h2>
-          {plan.explanation && (
-            <p className="type-footnote mt-1 max-w-[52ch] text-[var(--label-secondary)]">
-              {plan.explanation}
-            </p>
-          )}
+    <section className="card p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="type-headline">First class</h2>
+          {plan.explanation && <InfoTip title="How this was worked out">{plan.explanation}</InfoTip>}
         </div>
         <span
-          className="type-caption-1 type-data shrink-0 rounded-full px-2.5 py-1 font-medium"
-          style={{ background: 'var(--accent-subtle)', color: 'var(--crimson-800)' }}
+          className="type-caption-1 type-data shrink-0 rounded-full px-3 py-1 font-semibold"
+          style={{ background: 'var(--tone-green-tint)', color: 'var(--tone-green-ink)' }}
         >
-          leave {formatTime(plan.leave_at)}
+          Leave {formatTime(plan.leave_at)}
         </span>
       </div>
 
-      <div className="relative mt-6 pb-1">
+      <div className="relative mt-6">
         <span
           aria-hidden
-          className="absolute left-0 right-0 top-[5px] h-[2px]"
-          style={{ background: 'var(--separator)' }}
+          className="absolute left-6 right-6 top-6 border-t-2 border-dotted"
+          style={{ borderColor: 'var(--label-quaternary)' }}
         />
         <ol className="relative flex justify-between">
-          {stops.map((stop, index) => {
+          {stops.map((stop) => {
             const offset = ((new Date(stop.at).getTime() - start) / span) * 100
             const isLeave = stop.label === 'Leave'
             return (
               <li
                 key={stop.label}
-                className="flex flex-col"
-                style={{
-                  alignItems:
-                    index === 0 ? 'flex-start' : index === stops.length - 1 ? 'flex-end' : 'center',
-                }}
+                className="flex w-16 flex-col items-center text-center"
+                data-offset={offset.toFixed(1)}
               >
-                <span
-                  aria-hidden
-                  className="block size-3 rounded-full"
-                  style={{
-                    background: isLeave ? 'var(--accent)' : 'var(--separator-opaque)',
-                    outline: isLeave ? '3px solid var(--accent-subtle)' : 'none',
-                  }}
-                  data-offset={offset.toFixed(1)}
-                />
-                <span className="type-data type-subheadline mt-2 font-semibold">
+                <span className="rounded-[30%]" style={{ boxShadow: '0 0 0 4px var(--bg)' }}>
+                  <IconTile
+                    Icon={stop.Icon}
+                    tone={stop.tone}
+                    variant={isLeave ? 'solid' : 'soft'}
+                    size={48}
+                  />
+                </span>
+                <span className="type-data type-subheadline mt-2 font-bold">
                   {formatTime(stop.at)}
                 </span>
-                <span className="type-caption-2 uppercase tracking-[0.08em] text-[var(--label-tertiary)]">
+                <span className="text-[0.75rem] font-medium text-[var(--label-tertiary)]">
                   {stop.label}
                 </span>
               </li>

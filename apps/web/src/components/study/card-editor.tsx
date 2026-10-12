@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { IconCheck } from '@/components/ui/icon'
 
 /**
  * Writing one card.
@@ -98,7 +99,13 @@ export function CardEditor({
       </label>
 
       <div className="flex gap-2">
-        <Button variant="accent" block disabled={!ready || busy} onClick={() => void submit()}>
+        <Button
+          variant="accent"
+          block
+          disabled={!ready || busy}
+          onClick={() => void submit()}
+          leading={<IconCheck size={18} />}
+        >
           {busy ? 'Saving…' : submitLabel}
         </Button>
         {onCancel && (

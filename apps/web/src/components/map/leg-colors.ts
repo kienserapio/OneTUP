@@ -7,15 +7,16 @@
  * apart — they did, once, and a route read as four legs on the map and five in
  * the list.
  *
- * Drawn from the iOS system palette already in the tokens.
+ * Drawn from the app's feature tones (design/app-theme.css), with the old iOS
+ * system colour as the fallback wherever a map renders outside the app theme.
  */
 export const LEG_COLORS = [
-  'var(--ios-blue)',
-  'var(--ios-orange)',
-  'var(--ios-green)',
-  'var(--ios-purple)',
-  'var(--ios-teal)',
-  'var(--ios-pink)',
+  'var(--tone-indigo, var(--ios-blue))',
+  'var(--tone-orange, var(--ios-orange))',
+  'var(--tone-green, var(--ios-green))',
+  'var(--tone-crimson, var(--ios-purple))',
+  'var(--tone-blue, var(--ios-teal))',
+  'var(--tone-gray, var(--ios-pink))',
 ] as const
 
 /** Wraps rather than running out, because nothing caps how many legs a route has. */

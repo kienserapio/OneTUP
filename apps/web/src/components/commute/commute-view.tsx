@@ -12,12 +12,15 @@ import { readAll } from '@/lib/offline/db'
 import { queueWrite, syncNow } from '@/lib/offline/sync'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { IconButton } from '@/components/ui/button'
-import { Card, EmptyState } from '@/components/ui/surfaces'
-import { IconChevronDown, IconCommute, IconTarget } from '@/components/ui/icon'
+import { Card } from '@/components/ui/surfaces'
+import { IconChevronDown, IconCommute, IconRoute, IconTarget } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { DirectionsChat } from '@/components/commute/directions-chat'
 import { RoutePanel, type Route, type RouteRow } from '@/components/commute/route-panel'
 import type { MapInsets } from '@/components/map/route-map'
 import { cx } from '@/lib/cx'
+import { Select } from '@/components/ui/select'
 
 /**
  * Getting to campus, as a map.
@@ -253,20 +256,23 @@ export function CommuteView() {
           className="row-start-4 flex min-h-0 flex-col min-[900px]:col-start-1 min-[900px]:row-start-2"
         >
           {!areaId ? (
-            <Card className="pointer-events-auto" padded>
-              <EmptyState
-                icon={<IconCommute size={28} />}
-                title="Pick where you commute from and the ways to campus draw themselves on the map."
-              />
+            <Card className="pointer-events-auto flex items-center gap-3" padded>
+              <IconTile Icon={IconCommute} tone="green" size={44} />
+              <p className="flex-1 text-[0.9375rem] font-semibold">Pick where you&rsquo;re coming from</p>
+              <InfoTip title="Routes">
+                Choose your area above and the ways to campus draw themselves on the map, with time
+                and fare for each.
+              </InfoTip>
             </Card>
           ) : loading ? (
-            <div className="skeleton pointer-events-auto h-40 w-full rounded-[var(--radius-md)]" />
+            <div className="skeleton pointer-events-auto h-40 w-full rounded-[var(--radius-lg)]" />
           ) : routes.length === 0 ? (
-            <Card className="pointer-events-auto" padded>
-              <EmptyState
-                icon={<IconCommute size={28} />}
-                title="No routes on file from there yet. Try a neighbouring area — routes are shared, so one that starts nearby usually still works."
-              />
+            <Card className="pointer-events-auto flex items-center gap-3" padded>
+              <IconTile Icon={IconRoute} tone="gray" size={44} />
+              <p className="flex-1 text-[0.9375rem] font-semibold">No routes from there yet</p>
+              <InfoTip title="Try nearby">
+                Routes are shared, so one that starts in a neighbouring area usually still works.
+              </InfoTip>
             </Card>
           ) : (
             <RoutePanel
@@ -334,41 +340,36 @@ function OriginPicker({
   return (
     <label
       htmlFor="commute-origin"
-      className="card squircle pointer-events-auto flex min-w-0 flex-1 items-center gap-[var(--space-3)] px-[var(--space-3)] py-[var(--space-2)]"
+      className="card pointer-events-auto flex min-w-0 flex-1 items-center gap-[var(--space-3)] rounded-full py-[var(--space-2)] pl-[var(--space-2)] pr-[var(--space-4)]"
       style={{ boxShadow: 'var(--shadow-float)' }}
     >
-      <span
-        aria-hidden
-        className="grid size-8 shrink-0 place-items-center rounded-full"
-        style={{ background: 'var(--accent-subtle)', color: 'var(--accent)' }}
-      >
-        <IconCommute size={17} />
-      </span>
+      <IconTile Icon={IconCommute} tone="green" variant="solid" size={38} className="!rounded-full" />
 
       <span className="min-w-0 flex-1">
         {/* Weight and tracking are inline because the type scale is unlayered
             CSS and therefore outranks anything in Tailwind's utilities. */}
         <span
-          className="type-caption-2 block uppercase text-[var(--label-tertiary)]"
-          style={{ fontWeight: 600, letterSpacing: '0.06em' }}
+          className="block text-[0.6875rem] text-[var(--label-tertiary)]"
+          style={{ fontWeight: 600 }}
         >
           Coming from
         </span>
-        <select
+        <Select
           id="commute-origin"
           value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="type-callout w-full appearance-none truncate bg-transparent"
-          style={{ border: 'none', outline: 'none', padding: 0, fontWeight: 600 }}
-        >
-          <option value="">Pick your area</option>
-          {areas.map((area) => (
-            <option key={area.id} value={area.id}>
-              {area.name}
-              {area.city ? ` · ${area.city}` : ''}
-            </option>
-          ))}
-        </select>
+          onChange={onChange}
+          variant="bare"
+          label="Coming from"
+          className="type-callout"
+          options={[
+            { value: '', label: 'Pick your area' },
+            ...areas.map((area) => ({
+              value: area.id,
+              label: area.name,
+              description: area.city ?? undefined,
+            })),
+          ]}
+        />
       </span>
 
       <IconChevronDown size={16} className="shrink-0 text-[var(--label-tertiary)]" aria-hidden />

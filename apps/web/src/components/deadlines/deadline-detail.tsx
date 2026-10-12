@@ -14,7 +14,9 @@ import { readAll } from '@/lib/offline/db'
 import { queueWrite } from '@/lib/offline/sync'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { Card, EmptyState } from '@/components/ui/surfaces'
-import { IconCheck, IconDeadlines } from '@/components/ui/icon'
+import { RowPill } from '@/components/ui/row'
+import { IconAlarm, IconAnnouncement, IconCheck, IconDeadlines } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
 import { URGENCY_COLOR } from '@/components/deadlines/deadline-row'
 import { cx } from '@/lib/cx'
 
@@ -45,9 +47,7 @@ export function DeadlineDetail({ deadline, courseCode, now, onComplete }: Deadli
     }
     const rows = await readAll<DeadlineSubtask & { id: string }>('deadline_subtasks')
     setSubtasks(
-      rows
-        .filter((row) => row.deadline_id === deadlineId)
-        .sort((a, b) => a.ordinal - b.ordinal),
+      rows.filter((row) => row.deadline_id === deadlineId).sort((a, b) => a.ordinal - b.ordinal),
     )
   }, [deadlineId])
 
@@ -59,7 +59,7 @@ export function DeadlineDetail({ deadline, courseCode, now, onComplete }: Deadli
     return (
       <Card>
         <EmptyState
-          icon={<IconDeadlines size={26} />}
+          icon={<IconTile Icon={IconDeadlines} tone="crimson" size={52} />}
           title="Pick something from the list to see its steps, notes and reminders."
         />
       </Card>
@@ -91,21 +91,12 @@ export function DeadlineDetail({ deadline, courseCode, now, onComplete }: Deadli
   return (
     <div className="stack">
       <Card className="stack">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            {courseCode && (
-              <p className="type-data type-section-header">{courseCode}</p>
-            )}
-            <h2
-              className={cx('type-title-2 mt-1', deadline.status === 'done' && 'line-through opacity-60')}
-            >
-              {deadline.title}
-            </h2>
-          </div>
+        <div className="flex items-center justify-between gap-3">
+          <IconTile Icon={IconDeadlines} tone="crimson" size={40} />
           <span
-            className="type-caption-1 type-data shrink-0 rounded-full px-2.5 py-1 font-medium"
+            className="type-caption-1 type-data shrink-0 rounded-full px-3 py-1.5 font-semibold"
             style={{
-              background: 'var(--fill-quaternary)',
+              background: `color-mix(in srgb, ${URGENCY_COLOR[urgency]} 14%, transparent)`,
               color: URGENCY_COLOR[urgency],
             }}
           >
@@ -113,15 +104,30 @@ export function DeadlineDetail({ deadline, courseCode, now, onComplete }: Deadli
           </span>
         </div>
 
-        <p className="type-subheadline type-data text-[var(--label-secondary)]">
-          Due {formatDue(deadline.due_at)}
-        </p>
+        <div>
+          <h2
+            className={cx(
+              'text-[1.5rem] font-bold leading-tight tracking-[-0.02em]',
+              deadline.status === 'done' && 'line-through opacity-60',
+            )}
+          >
+            {deadline.title}
+          </h2>
+          <p className="mt-2 flex flex-wrap items-center gap-1.5">
+            {courseCode && <RowPill>{courseCode}</RowPill>}
+            <RowPill>Due {formatDue(deadline.due_at)}</RowPill>
+          </p>
+        </div>
 
         {deadline.notes && <p className="type-body whitespace-pre-line">{deadline.notes}</p>}
 
         {deadline.source === 'announcement' && (
-          <p className="type-footnote text-[var(--label-secondary)]">
-            Added from an announcement someone shared.
+          <p
+            className="type-footnote inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5"
+            style={{ background: 'var(--tone-blue-tint)', color: 'var(--tone-blue-ink)' }}
+          >
+            <IconAnnouncement size={14} />
+            From a shared announcement
           </p>
         )}
 
@@ -150,7 +156,7 @@ export function DeadlineDetail({ deadline, courseCode, now, onComplete }: Deadli
           </div>
 
           <div
-            className="mx-4 mb-3 h-1.5 overflow-hidden rounded-full"
+            className="mx-4 mb-3 h-2 overflow-hidden rounded-full"
             style={{ background: 'var(--fill-tertiary)' }}
             role="img"
             aria-label={`${progress.done} of ${progress.total} steps done`}
@@ -164,23 +170,21 @@ export function DeadlineDetail({ deadline, courseCode, now, onComplete }: Deadli
             />
           </div>
 
-          <div>
+          <div className="flex flex-col gap-0.5">
             {subtasks.map((subtask) => (
               <button
                 key={subtask.id}
                 type="button"
-                className="list-row"
+                className="flex min-h-[44px] w-full items-center gap-3 rounded-[14px] px-1.5 py-2 text-left transition-transform active:scale-[0.98] active:bg-[var(--fill-quaternary)]"
                 aria-pressed={subtask.is_done}
                 onClick={() => void toggle(subtask.id)}
               >
                 <span
                   aria-hidden
-                  className="grid size-[22px] shrink-0 place-items-center rounded-full border-2"
-                  style={{
-                    borderColor: subtask.is_done ? 'var(--ok)' : 'var(--label-tertiary)',
-                  }}
+                  className="grid size-6 shrink-0 place-items-center rounded-full transition-colors duration-150"
+                  style={{ background: subtask.is_done ? 'var(--ok)' : 'var(--fill-tertiary)' }}
                 >
-                  {subtask.is_done && <IconCheck size={13} style={{ color: 'var(--ok)' }} />}
+                  {subtask.is_done && <IconCheck size={14} style={{ color: 'var(--on-accent)' }} />}
                 </span>
                 <span
                   className={cx(
@@ -203,9 +207,12 @@ export function DeadlineDetail({ deadline, courseCode, now, onComplete }: Deadli
             {reminders.map((reminder) => (
               <li
                 key={reminder.offsetSeconds}
-                className="type-footnote flex items-baseline justify-between gap-3"
+                className="type-footnote flex items-center justify-between gap-3"
               >
-                <span>{describeOffset(reminder.offsetSeconds)}</span>
+                <span className="flex items-center gap-2.5">
+                  <IconTile Icon={IconAlarm} tone="crimson" size={28} />
+                  {describeOffset(reminder.offsetSeconds)}
+                </span>
                 <span className="type-data text-[var(--label-secondary)]">
                   {formatDue(reminder.fireAt.toISOString())}
                 </span>

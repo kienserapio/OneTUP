@@ -18,12 +18,24 @@ import { readAll } from '@/lib/offline/db'
 import { syncNow } from '@/lib/offline/sync'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { spring, transition } from '@/design/motion'
-import { Card, EmptyState, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
+import { Card, EmptyState } from '@/components/ui/surfaces'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
 import { NavBar } from '@/components/app/nav-bar'
-import { IconCheck, IconClose, IconRefresh, IconWarning } from '@/components/ui/icon'
+import {
+  IconCheck,
+  IconClipboard,
+  IconClose,
+  IconEye,
+  IconRefresh,
+  IconShield,
+  IconWarning,
+  IconSchedule,
+} from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { ErsConnect, PasteBox } from '@/components/schedule/import-source'
+import { Row } from '@/components/ui/row'
 
 /**
  * Re-sync.
@@ -207,7 +219,7 @@ export function ScheduleResync({
         {error && (
           <p
             role="alert"
-            className="type-subheadline mb-4 rounded-[var(--radius-sm)] px-3.5 py-2.5"
+            className="type-subheadline mb-4 rounded-[18px] px-3.5 py-2.5"
             style={{
               background: 'color-mix(in srgb, var(--danger) 12%, transparent)',
               color: 'var(--danger)',
@@ -312,40 +324,49 @@ function SourceStep({
 }) {
   return (
     <div className="stack">
-      <header>
-        <h2 className="type-title-2">Check ERS for changes</h2>
-        <p className="type-subheadline mt-1 max-w-[60ch] text-[var(--label-secondary)]">
-          We read your schedule again and show you what moved. Nothing changes until you say so, and
-          blocks you added by hand are never touched.
-        </p>
+      <header className="flex items-center gap-3">
+        <IconTile Icon={IconRefresh} tone="blue" variant="solid" size={48} />
+        <div className="min-w-0">
+          <h2 className="type-title-2 flex items-center gap-1.5">
+            Check ERS for changes
+            <InfoTip title="How re-sync works">
+              We read your schedule again and show you what moved. Nothing changes until you say so,
+              and blocks you added by hand are never touched.
+            </InfoTip>
+          </h2>
+          <p className="type-subheadline text-[var(--label-secondary)]">See what moved.</p>
+        </div>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-        <ListGroup>
-          <ListRow
+        <div className="row-list">
+          <Row
+            as="div"
             onClick={onConnect}
-            leading={<IconRefresh size={20} />}
+            leading={<IconTile Icon={IconRefresh} tone="blue" size={40} />}
             title="Connect ERS"
-            subtitle="Password used once, then discarded"
+            detail="Password used once, then discarded"
           />
-          <ListRow
+          <Row
+            as="div"
             onClick={onPaste}
+            leading={<IconTile Icon={IconClipboard} tone="blue" size={40} />}
             title="Paste the current schedule"
-            subtitle="No password needed"
+            detail="No password needed"
           />
-        </ListGroup>
+        </div>
 
         <Card>
-          <p className="type-subheadline font-medium">What a re-sync will not do:</p>
-          <ul className="mt-2 space-y-2">
+          <p className="type-subheadline font-semibold">What a re-sync will not do</p>
+          <ul className="mt-3 space-y-3">
             {[
-              'Overwrite anything before you have accepted it.',
-              'Touch a block you added by hand.',
-              'Ask you again about a change you already rejected.',
+              { Icon: IconEye, text: 'Overwrite anything before you have accepted it.' },
+              { Icon: IconShield, text: 'Touch a block you added by hand.' },
+              { Icon: IconCheck, text: 'Ask you again about a change you already rejected.' },
             ].map((point) => (
-              <li key={point} className="type-subheadline flex gap-2.5">
-                <IconCheck size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--ok)' }} />
-                <span>{point}</span>
+              <li key={point.text} className="type-subheadline flex items-center gap-3">
+                <IconTile Icon={point.Icon} tone="green" size={32} />
+                <span>{point.text}</span>
               </li>
             ))}
           </ul>
@@ -376,10 +397,10 @@ function ReviewStep({
     return (
       <Card>
         <EmptyState
-          icon={<IconCheck size={28} />}
+          icon={<IconTile Icon={IconCheck} tone="green" variant="solid" size={56} />}
           title="Nothing has changed. Your schedule already matches ERS."
           action={
-            <ButtonLink href="/schedule" variant="accent">
+            <ButtonLink href="/schedule" variant="accent" leading={<IconSchedule size={18} />}>
               Back to my week
             </ButtonLink>
           }
@@ -391,13 +412,16 @@ function ReviewStep({
   return (
     <div className="stack">
       <header>
-        <h2 className="type-title-2">
+        <h2 className="type-title-2 flex items-center gap-1.5">
           {changes.length} change{changes.length === 1 ? '' : 's'}
+          <InfoTip title="Deciding">
+            Accept or reject each one. Anything you reject will not be proposed again unless ERS
+            changes it afresh.
+          </InfoTip>
         </h2>
-        <p className="type-subheadline mt-1 max-w-[60ch] text-[var(--label-secondary)]">
-          Decide on each one. Anything you reject will not be proposed again unless ERS changes it
-          afresh. <span className="type-data">{decided}</span> of{' '}
-          <span className="type-data">{changes.length}</span> decided.
+        <p className="type-subheadline mt-1 text-[var(--label-secondary)]">
+          <span className="type-data">{decided}</span> of{' '}
+          <span className="type-data">{changes.length}</span> decided
         </p>
       </header>
 
@@ -415,10 +439,16 @@ function ReviewStep({
       </div>
 
       <div className="flex gap-2 pt-2">
-        <Button variant="plain" onClick={onStartOver} disabled={busy}>
+        <Button onClick={onStartOver} disabled={busy}>
           Start over
         </Button>
-        <Button variant="accent" block onClick={onApply} disabled={busy || decided === 0}>
+        <Button
+          variant="accent"
+          block
+          onClick={onApply}
+          disabled={busy || decided === 0}
+          leading={<IconCheck size={18} />}
+        >
           {busy ? 'Applying…' : `Apply ${decided} decision${decided === 1 ? '' : 's'}`}
         </Button>
       </div>
@@ -445,26 +475,20 @@ function ChangeCard({
   const removal = change.kind === 'course_removed'
 
   return (
-    <motion.div
-      layout
-      transition={transition(spring.ui)}
-      // The ring lives on the wrapper so the card keeps its own elevation.
-      style={
-        removal
-          ? { boxShadow: '0 0 0 1px var(--danger)', borderRadius: 'var(--radius-lg)' }
-          : undefined
-      }
-    >
+    <motion.div layout transition={transition(spring.ui)}>
       <Card>
         <div className="flex items-start gap-2.5">
-          {removal && (
-            <IconWarning size={19} className="mt-0.5 shrink-0" style={{ color: 'var(--danger)' }} />
-          )}
           <div className="min-w-0 flex-1">
+            {/* The kind as a tinted pill. A removal says so with its own icon
+                and the danger tone, rather than with an outline round the card. */}
             <p
-              className="type-caption-2 font-semibold uppercase tracking-[0.04em]"
-              style={{ color: kindColor(change.kind) }}
+              className="type-caption-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-semibold"
+              style={{
+                color: kindColor(change.kind),
+                background: `color-mix(in srgb, ${kindColor(change.kind)} 13%, transparent)`,
+              }}
             >
+              {removal && <IconWarning size={13} />}
               {KIND_LABEL[change.kind]}
             </p>
             <p className="type-body mt-1">{humanise(change)}</p>
@@ -532,7 +556,7 @@ function RemovalConfirm({
       title="Remove this subject?"
       footer={
         <div className="flex gap-2">
-          <Button variant="plain" onClick={onCancel} block>
+          <Button onClick={onCancel} block>
             Keep it
           </Button>
           <Button variant="destructive" onClick={onConfirm} block>
@@ -564,24 +588,22 @@ function DoneStep({
     <div className="stack">
       <Card>
         <EmptyState
-          icon={<IconCheck size={28} />}
+          icon={<IconTile Icon={IconCheck} tone="green" variant="solid" size={56} />}
           title={`${applied.accepted} change${applied.accepted === 1 ? '' : 's'} applied, ${applied.rejected} rejected. Your schedule is up to date.`}
           action={
-            <Button variant="accent" onClick={onBack}>
+            <Button variant="accent" onClick={onBack} leading={<IconSchedule size={18} />}>
               Back to my week
             </Button>
           }
         />
       </Card>
-      <section>
-        <SectionHeader>Next time</SectionHeader>
-        <Card>
-          <p className="type-subheadline text-[var(--label-secondary)]">
-            Rejected changes stay rejected until ERS changes that value again, so a re-sync will not
-            keep asking you the same question.
-          </p>
-        </Card>
-      </section>
+      <p className="type-footnote flex items-center justify-center gap-1.5 text-[var(--label-secondary)]">
+        Rejected changes stay rejected
+        <InfoTip title="Next time">
+          Rejected changes stay rejected until ERS changes that value again, so a re-sync will not
+          keep asking you the same question.
+        </InfoTip>
+      </p>
     </div>
   )
 }

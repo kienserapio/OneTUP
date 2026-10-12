@@ -4,11 +4,10 @@ import { cx } from '@/lib/cx'
 /**
  * The figures that frame a schedule screen.
  *
- * Drawn as one card split by hairlines rather than as separate cards, because
- * these numbers are read together — units against hours against subjects — and
- * separate cards would invite the eye to treat them as unrelated. The hairlines
- * are gaps over a separator-coloured ground, which is the only way to get a
- * true 1px rule in both axes without a border on every cell.
+ * A row of small white tiles rather than one boxed table: each figure gets its
+ * own soft card, big number first and a quiet label under it, and on a phone
+ * the row scrolls sideways instead of stacking into a grid — the numbers are a
+ * glance, not something to read down.
  */
 
 export interface Stat {
@@ -18,49 +17,34 @@ export interface Stat {
   hint?: ReactNode
 }
 
-/** Literal classes, because Tailwind only ships what it can see in the source. */
-const DESKTOP_COLUMNS: Record<number, string> = {
-  1: 'min-[900px]:grid-cols-1',
-  2: 'min-[900px]:grid-cols-2',
-  3: 'min-[900px]:grid-cols-3',
-  4: 'min-[900px]:grid-cols-4',
-  5: 'min-[900px]:grid-cols-5',
-}
-
 export function StatStrip({ stats, className }: { stats: Stat[]; className?: string }) {
   if (stats.length === 0) return null
 
   return (
     <dl
       className={cx(
-        'card squircle grid grid-cols-2 gap-px overflow-hidden',
-        DESKTOP_COLUMNS[stats.length] ?? 'min-[900px]:grid-cols-4',
+        'no-scrollbar -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 min-[900px]:mx-0 min-[900px]:px-0',
         className,
       )}
-      style={{ background: 'var(--separator)' }}
     >
-      {stats.map((stat, index) => (
+      {stats.map((stat) => (
         <div
           key={stat.label}
-          // An odd count would leave a hole in the two-up phone grid, and the
-          // hole shows as a bar of separator colour rather than as nothing.
-          className={cx(
-            'px-4 py-3',
-            index === stats.length - 1 &&
-              stats.length % 2 === 1 &&
-              'col-span-2 min-[900px]:col-span-1',
-          )}
-          style={{ background: 'var(--bg-grouped-secondary)' }}
+          className="flex min-w-[7.5rem] flex-1 shrink-0 flex-col rounded-[var(--radius-lg)] bg-[var(--bg)] px-4 py-3.5"
+          style={{
+            boxShadow: '0 1px 2px rgb(24 24 27 / 0.04), 0 6px 18px -12px rgb(24 24 27 / 0.12)',
+          }}
         >
-          <dt className="type-caption-2 font-semibold uppercase tracking-[0.08em] text-[var(--label-tertiary)]">
+          {/* The label comes first for a screen reader, as a <dl> needs; the
+              figure is lifted above it on screen with `order`. */}
+          <dt className="order-2 mt-1.5 text-[0.8125rem] font-semibold text-[var(--label-secondary)]">
             {stat.label}
           </dt>
-          {/* Wrapped rather than truncated: most values are short figures, but a
-              term name is a phrase, and "1st Semester AY 202…" tells nobody
-              which year it is. Two lines is the ceiling so the row stays level. */}
-          <dd className="type-data type-title-3 mt-1 line-clamp-2 break-words">{stat.value}</dd>
+          <dd className="type-data order-1 whitespace-nowrap text-[1.5rem] font-bold leading-none tracking-[-0.02em]">
+            {stat.value}
+          </dd>
           {stat.hint && (
-            <dd className="type-caption-1 mt-0.5 truncate text-[var(--label-secondary)]">
+            <dd className="order-3 mt-0.5 truncate text-[0.75rem] text-[var(--label-tertiary)]">
               {stat.hint}
             </dd>
           )}

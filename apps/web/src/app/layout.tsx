@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import '@fontsource-variable/inter'
 import './globals.css'
 import { Providers } from './providers'
+import { geist } from '@/design/app-font'
 
 export const metadata: Metadata = {
   title: {
@@ -41,7 +42,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
+      {/* `.app-ui` is the one design system (design/app-theme.css) and it is
+          global: every page sits inside it, and carries the Geist variable the
+          rounded font stack falls back to. */}
+      <body className={`app-ui ${geist.variable}`}>
         {/* Not `.glass`: that class is unlayered, so it beat `sr-only` in the
             cascade and held a 44px band above the page even while the link was
             hidden. The material is painted by `.skip-link:focus` instead. */}

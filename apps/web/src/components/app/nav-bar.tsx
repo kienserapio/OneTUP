@@ -23,9 +23,11 @@ export interface NavBarProps {
   trailing?: ReactNode
   /** A chat view wants its title in the bar only; pass false to suppress this. */
   largeTitle?: boolean
+  /** An <InfoTip> beside the title: the screen's instructions, one tap away. */
+  info?: ReactNode
 }
 
-export function NavBar({ title, subtitle, back, trailing, largeTitle = true }: NavBarProps) {
+export function NavBar({ title, subtitle, back, trailing, largeTitle = true, info }: NavBarProps) {
   const router = useRouter()
 
   return (
@@ -34,21 +36,34 @@ export function NavBar({ title, subtitle, back, trailing, largeTitle = true }: N
         <button
           type="button"
           onClick={() => (back.href ? router.push(back.href as never) : router.back())}
-          className="type-subheadline -ml-1 mb-2 inline-flex min-h-[var(--target-min)] items-center gap-0.5 text-[var(--accent)]"
+          aria-label={`Back to ${back.label ?? 'previous screen'}`}
+          data-tone="crimson"
+          className="glyph -ml-2 mb-2 grid size-10 place-items-center rounded-full transition-transform duration-150 active:scale-90"
         >
-          <IconChevronLeft size={19} strokeWidth={2.2} />
-          {back.label ?? 'Back'}
+          <IconChevronLeft size={26} strokeWidth={2.6} />
         </button>
       )}
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          {largeTitle && <h2 className="type-large-title">{title}</h2>}
+          {largeTitle && (
+            <span className="flex items-center gap-2">
+              <h2 className="type-large-title">{title}</h2>
+              {info}
+            </span>
+          )}
           {subtitle && (
             <p className="type-subheadline mt-0.5 text-[var(--label-secondary)]">{subtitle}</p>
           )}
         </div>
-        {trailing && <div className="flex items-center gap-1">{trailing}</div>}
+        {(trailing || (info && !largeTitle)) && (
+          <div className="flex items-center gap-1">
+            {/* Without a large title there is nothing to sit beside, so the
+                tip joins the actions instead of disappearing. */}
+            {!largeTitle && info}
+            {trailing}
+          </div>
+        )}
       </div>
     </div>
   )

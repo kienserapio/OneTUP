@@ -9,22 +9,38 @@ import { supabaseBrowser } from '@/lib/supabase/client'
 import { clearLocalData, readAll } from '@/lib/offline/db'
 import { queueWrite } from '@/lib/offline/sync'
 import { disablePush, enablePush, pushSupport, type PushSupport } from '@/lib/notifications/client'
-import { displayName } from '@/lib/name'
 import { spring, transition } from '@/design/motion'
-import { NavBar } from '@/components/app/nav-bar'
+import { TimePicker } from '@/components/ui/time-picker'
 import { Button } from '@/components/ui/button'
-import { Card, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
 import { Field } from '@/components/auth/auth-form'
 import { Sheet } from '@/components/ui/sheet'
-import { IconCheck } from '@/components/ui/icon'
+import {
+  IconAttendance,
+  IconBellRinging,
+  IconCheck,
+  IconCommute,
+  IconDocs,
+  IconExport,
+  IconShield,
+  IconSignOut,
+  IconWarning,
+} from '@/components/ui/icon'
+import { InfoTip } from '@/components/ui/info-tip'
+import { ProfileBadges, ProfileHero, ProfileStatTiles } from '@/components/profile/profile-hero'
+import { useProfileStats } from '@/components/profile/use-profile-stats'
+import { ControlRow, LinkRow, SettingsCard, StepperRow, SwitchRow } from './settings-parts'
 
 /**
- * Settings.
+ * The profile, and the settings under it.
  *
  * The export and delete controls are not a courtesy — they are two of the six
  * published privacy commitments, and putting them behind a support email would
  * make those commitments something a student has to trust rather than something
  * they can exercise.
+ *
+ * The top half is about the student — who they are, how the term is going,
+ * what they have earned. The bottom half is the settings: quiet grey headings
+ * over floating white rows, with crimson only on what is switched on.
  */
 
 export interface SettingsProfile {
@@ -49,6 +65,7 @@ export function SettingsView({ profile }: { profile: SettingsProfile }) {
   const [saved, setSaved] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleteWord, setDeleteWord] = useState('')
+  const stats = useProfileStats()
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pending = useRef<Preferences>({})
@@ -187,210 +204,191 @@ export function SettingsView({ profile }: { profile: SettingsProfile }) {
 
   return (
     <>
-      <NavBar title="Settings" trailing={<SavedFlag saved={saved} />} />
+      <h1 className="sr-only">Profile</h1>
+      <div className="app-container mx-auto flex max-w-[var(--dashboard-max)] flex-col gap-5 pb-6 pt-4">
+        <ProfileHero
+          profile={profile}
+          termLabel={stats?.termLabel ?? null}
+          corner={<SavedFlag saved={saved} />}
+        />
+        <ProfileStatTiles stats={stats} />
+        <ProfileBadges stats={stats} />
 
-      <div className="app-container pb-6">
         <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
           <div className="flex flex-col gap-4">
-            <section>
-              <SectionHeader>Profile</SectionHeader>
-              <Card className="flex flex-col gap-2">
-                {/* ERS hands back "SERAPIO, KIEN LERISS RAMOS". The sidebar
-                    already reads it back as a name; this has to agree. */}
-                <p className="type-title-3">
-                  {profile.fullName ? displayName(profile.fullName) : 'Your account'}
+            <SettingsCard
+              Icon={IconBellRinging}
+              title="Reminders"
+              aside={
+                support === 'ready' ? (
+                  <Button size="sm" onClick={() => void disablePush()}>
+                    Turn off
+                  </Button>
+                ) : support === 'needs_permission' ? (
+                  <Button
+                    size="sm"
+                    variant="accent"
+                    onClick={() => void enablePush()}
+                    leading={<IconBellRinging size={18} />}
+                  >
+                    Turn on
+                  </Button>
+                ) : null
+              }
+            >
+              <p className="flex items-center gap-2 px-1 text-[0.875rem] text-[var(--label-secondary)]">
+                <span
+                  aria-hidden
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ background: support === 'ready' ? 'var(--accent)' : 'var(--label-quaternary)' }}
+                />
+                {pushLabel[support]}
+              </p>
+
+              <ControlRow label="Quiet from" htmlFor="quiet-start">
+                <TimeField
+                  id="quiet-start"
+                  value={String(preferences?.quiet_hours_start ?? '22:00').slice(0, 5)}
+                  onChange={(value) => save({ quiet_hours_start: value })}
+                />
+              </ControlRow>
+              <ControlRow label="Quiet until" htmlFor="quiet-end">
+                <TimeField
+                  id="quiet-end"
+                  value={String(preferences?.quiet_hours_end ?? '06:00').slice(0, 5)}
+                  onChange={(value) => save({ quiet_hours_end: value })}
+                />
+              </ControlRow>
+              <p className="flex items-center gap-1.5 px-1 text-[0.8125rem] text-[var(--label-tertiary)]">
+                Quiet hours
+                <InfoTip title="Quiet hours">
+                  Everything is held back except your wake alarm and class suspensions.
+                </InfoTip>
+              </p>
+
+              {support === 'requires_install' && (
+                <p
+                  className="type-footnote rounded-[var(--radius-md)] px-3.5 py-3"
+                  style={{ background: 'var(--bg)', color: 'var(--label-secondary)' }}
+                >
+                  On iPhone, Safari can only send reminders once OneTUP is on your home screen.
+                  Until then everything still works in the app, and the catch-up list covers
+                  anything you missed.
                 </p>
+              )}
 
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-                  <Detail label="Student number" value={profile.studentNumber} data />
-                  <Detail label="Program" value={profile.programCode} data />
-                  <Detail
-                    label="Year and section"
-                    value={
-                      [
-                        profile.yearLevel ? `${profile.yearLevel}${ordinal(profile.yearLevel)} year` : null,
-                        profile.sectionLabel,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ') || null
-                    }
-                  />
-                  <Detail label="Campus" value={titleCase(profile.campus)} />
-                </dl>
+              {support === 'denied' && (
+                <p
+                  className="type-footnote rounded-[var(--radius-md)] px-3.5 py-3"
+                  style={{ background: 'var(--bg)', color: 'var(--label-secondary)' }}
+                >
+                  Reminders are off because notifications are blocked. You can still see
+                  everything in the app, and there&rsquo;s a catch-up list for anything you
+                  missed.
+                </p>
+              )}
+            </SettingsCard>
 
-                {profile.email && (
-                  <p className="type-footnote text-[var(--label-secondary)]">
-                    Signed in as {profile.email}
-                  </p>
-                )}
-              </Card>
-            </section>
+            <SettingsCard
+              Icon={IconCommute}
+              title="Getting to campus"
+              info={
+                <InfoTip title="Getting to campus">
+                  These feed your wake-up plan: how long you take to get ready, how early you like
+                  to arrive, and what to pad the trip for.
+                </InfoTip>
+              }
+            >
+              <StepperRow
+                id="prep"
+                label="Get ready"
+                unit="m"
+                step={5}
+                value={Number(preferences?.preparation_minutes ?? 45)}
+                min={0}
+                max={240}
+                onChange={(value) => save({ preparation_minutes: value })}
+              />
+              <StepperRow
+                id="early"
+                label="Arrive early"
+                unit="m"
+                step={5}
+                value={Number(preferences?.arrive_early_minutes ?? 15)}
+                min={0}
+                max={120}
+                onChange={(value) => save({ arrive_early_minutes: value })}
+              />
+              <SwitchRow
+                label="Rush hour"
+                hint="Add time for peak traffic"
+                on={Boolean(preferences?.apply_peak_adjustment ?? true)}
+                onChange={(on) => save({ apply_peak_adjustment: on })}
+              />
+              <SwitchRow
+                label="Rain"
+                hint="Add time when rain is likely"
+                on={Boolean(preferences?.apply_weather_adjustment ?? true)}
+                onChange={(on) => save({ apply_weather_adjustment: on })}
+              />
+            </SettingsCard>
 
-            <section>
-              <SectionHeader>Getting to campus</SectionHeader>
-              <Card className="flex flex-col gap-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <NumberField
-                    id="prep"
-                    label="Getting ready (min)"
-                    value={Number(preferences?.preparation_minutes ?? 45)}
-                    min={0}
-                    max={240}
-                    onCommit={(value) => save({ preparation_minutes: value })}
-                  />
-                  <NumberField
-                    id="early"
-                    label="Arrive early by (min)"
-                    value={Number(preferences?.arrive_early_minutes ?? 15)}
-                    min={0}
-                    max={120}
-                    onCommit={(value) => save({ arrive_early_minutes: value })}
-                  />
-                </div>
-
-                <Toggle
-                  label="Add time for rush hour"
-                  hint="Peak-hour traffic on your saved route"
-                  on={Boolean(preferences?.apply_peak_adjustment ?? true)}
-                  onChange={(on) => save({ apply_peak_adjustment: on })}
-                />
-                <Toggle
-                  label="Add time when rain is forecast"
-                  hint="Only when the chance of rain is high"
-                  on={Boolean(preferences?.apply_weather_adjustment ?? true)}
-                  onChange={(on) => save({ apply_weather_adjustment: on })}
-                />
-              </Card>
-            </section>
-
-            <section>
-              <SectionHeader>Attendance</SectionHeader>
-              <Card className="flex flex-col gap-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <NumberField
-                    id="allowed"
-                    label="Absences allowed"
-                    value={Number(preferences?.default_allowed_absences ?? DEFAULT_ALLOWED_ABSENCES)}
-                    min={0}
-                    max={40}
-                    onCommit={(value) => save({ default_allowed_absences: value })}
-                  />
-                  <NumberField
-                    id="lates"
-                    label="Lates per absence"
-                    value={Number(preferences?.lates_per_absence ?? DEFAULT_LATES_PER_ABSENCE)}
-                    min={1}
-                    max={10}
-                    onCommit={(value) => save({ lates_per_absence: value })}
-                  />
-                </div>
-                <p className="type-footnote text-[var(--label-secondary)]">
+            <SettingsCard
+              Icon={IconAttendance}
+              title="Attendance"
+              info={
+                <InfoTip title="Defaults">
                   The real limit comes from each syllabus. Override it per subject on the subject
                   screen.
-                </p>
-              </Card>
-            </section>
+                </InfoTip>
+              }
+            >
+              <StepperRow
+                id="allowed"
+                label="Absences allowed"
+                value={Number(preferences?.default_allowed_absences ?? DEFAULT_ALLOWED_ABSENCES)}
+                min={0}
+                max={40}
+                onChange={(value) => save({ default_allowed_absences: value })}
+              />
+              <StepperRow
+                id="lates"
+                label="Lates per absence"
+                value={Number(preferences?.lates_per_absence ?? DEFAULT_LATES_PER_ABSENCE)}
+                min={1}
+                max={10}
+                onChange={(value) => save({ lates_per_absence: value })}
+              />
+            </SettingsCard>
           </div>
 
           <div className="flex flex-col gap-4">
-            <section>
-              <SectionHeader>Reminders</SectionHeader>
-              <Card className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="type-body">Notifications</p>
-                    <p className="type-footnote text-[var(--label-secondary)]">
-                      {pushLabel[support]}
-                    </p>
-                  </div>
-                  {support === 'ready' ? (
-                    <Button variant="plain" className="!px-3" onClick={() => void disablePush()}>
-                      <span className="type-subheadline font-medium">Turn off</span>
-                    </Button>
-                  ) : support === 'needs_permission' ? (
-                    <Button className="!px-4" onClick={() => void enablePush()}>
-                      <span className="type-subheadline font-semibold">Turn on</span>
-                    </Button>
-                  ) : null}
-                </div>
-
-                <div className="border-t pt-3" style={{ borderColor: 'var(--separator-soft)' }}>
-                  <p className="type-body">Quiet hours</p>
-                  <p className="type-footnote text-[var(--label-secondary)]">
-                    Everything except your wake alarm and class suspensions
-                  </p>
-                  <div className="mt-2.5 grid grid-cols-2 gap-3">
-                    <TimeField
-                      id="quiet-start"
-                      label="From"
-                      value={String(preferences?.quiet_hours_start ?? '22:00').slice(0, 5)}
-                      onChange={(value) => save({ quiet_hours_start: value })}
-                    />
-                    <TimeField
-                      id="quiet-end"
-                      label="Until"
-                      value={String(preferences?.quiet_hours_end ?? '06:00').slice(0, 5)}
-                      onChange={(value) => save({ quiet_hours_end: value })}
-                    />
-                  </div>
-                </div>
-
-                {support === 'requires_install' && (
-                  <p
-                    className="type-footnote rounded-[var(--radius-sm)] px-3 py-2.5 text-[var(--label-secondary)]"
-                    style={{ background: 'var(--fill-quaternary)' }}
-                  >
-                    On iPhone, Safari can only send reminders once OneTUP is on your home screen.
-                    Until then everything still works in the app, and the catch-up list covers
-                    anything you missed.
-                  </p>
-                )}
-
-                {support === 'denied' && (
-                  <p
-                    className="type-footnote rounded-[var(--radius-sm)] px-3 py-2.5 text-[var(--label-secondary)]"
-                    style={{ background: 'var(--fill-quaternary)' }}
-                  >
-                    Reminders are off because notifications are blocked. You can still see
-                    everything in the app, and there&rsquo;s a catch-up list for anything you
-                    missed.
-                  </p>
-                )}
-              </Card>
-            </section>
-
             {/* The guide and the bug form were linked only from the landing
                 footer, and the only people who can hit a bug are signed in. */}
-            <section>
-              <SectionHeader>Help</SectionHeader>
-              <ListGroup>
-                <ListRow title="How OneTUP works" subtitle="The guide, screen by screen" href="/docs" />
-                <ListRow
-                  title="Report a problem"
-                  subtitle="Something broken, wrong, or confusing"
-                  href="/report"
-                />
-              </ListGroup>
-            </section>
+            <SettingsCard Icon={IconDocs} title="Help">
+              <LinkRow Icon={IconDocs} label="How OneTUP works" href="/docs" />
+              <LinkRow Icon={IconWarning} label="Report a problem" href="/report" />
+            </SettingsCard>
 
-            <section>
-              <SectionHeader>Your data</SectionHeader>
-              <ListGroup>
-                <ListRow
-                  title="Export everything"
-                  subtitle="One JSON file with every row we hold about you"
-                  onClick={() => void exportData()}
-                />
-                <ListRow title="Privacy" subtitle="What we do and don't do" href="/privacy" />
-                <ListRow
-                  title="Delete my account"
-                  subtitle="Real deletion, not a flag"
-                  onClick={() => setConfirmingDelete(true)}
-                />
-              </ListGroup>
-            </section>
+            <SettingsCard Icon={IconShield} title="Your data">
+              <LinkRow
+                Icon={IconExport}
+                label="Export everything"
+                hint="One JSON file"
+                onClick={() => void exportData()}
+              />
+              <LinkRow Icon={IconShield} label="Privacy" href="/privacy" />
+              <LinkRow
+                Icon={IconWarning}
+                label="Delete my account"
+                hint="Real deletion, not a flag"
+                onClick={() => setConfirmingDelete(true)}
+                danger
+              />
+            </SettingsCard>
 
-            <Link href={'/auth/sign-out' as never} className="glass glass-plain glass-block">
+            <Link href={'/auth/sign-out' as never} className="glass glass-block">
+              <IconSignOut size={18} />
               Sign out
             </Link>
           </div>
@@ -433,144 +431,22 @@ export function SettingsView({ profile }: { profile: SettingsProfile }) {
   )
 }
 
-function Detail({
-  label,
-  value,
-  data,
-}: {
-  label: string
-  value: string | null
-  data?: boolean
-}) {
-  return (
-    <div>
-      <dt className="type-caption-2 uppercase tracking-[0.06em] text-[var(--label-tertiary)]">
-        {label}
-      </dt>
-      <dd className={data ? 'type-data type-subheadline' : 'type-subheadline'}>
-        {value ?? <span className="text-[var(--label-tertiary)]">Not set</span>}
-      </dd>
-    </div>
-  )
-}
-
-/**
- * Holds the typed text rather than the parsed number, so clearing the box to
- * retype does not snap it to zero under the student's cursor.
- */
-function NumberField({
-  id,
-  label,
-  value,
-  min,
-  max,
-  onCommit,
-}: {
-  id: string
-  label: string
-  value: number
-  min: number
-  max: number
-  onCommit: (value: number) => void
-}) {
-  const [raw, setRaw] = useState(String(value))
-
-  useEffect(() => {
-    setRaw(String(value))
-  }, [value])
-
-  return (
-    <div>
-      <label htmlFor={id} className="type-subheadline mb-1.5 block font-medium">
-        {label}
-      </label>
-      <input
-        id={id}
-        type="text"
-        inputMode="numeric"
-        value={raw}
-        onChange={(event) => {
-          const next = event.target.value.replace(/[^\d]/g, '')
-          setRaw(next)
-          if (next === '') return
-          onCommit(Math.min(max, Math.max(min, Number(next))))
-        }}
-        onBlur={() => {
-          if (raw === '') setRaw(String(value))
-        }}
-        className="field type-data"
-      />
-    </div>
-  )
-}
-
 function TimeField({
   id,
-  label,
   value,
   onChange,
 }: {
   id: string
-  label: string
   value: string
   onChange: (value: string) => void
 }) {
   return (
-    <div>
-      <label htmlFor={id} className="type-footnote mb-1 block text-[var(--label-secondary)]">
-        {label}
-      </label>
-      <input
-        id={id}
-        type="time"
-        value={value}
-        onChange={(event) => event.target.value && onChange(event.target.value)}
-        className="field type-data"
-      />
-    </div>
-  )
-}
-
-function Toggle({
-  label,
-  hint,
-  on,
-  onChange,
-}: {
-  label: string
-  hint?: string
-  on: boolean
-  onChange: (on: boolean) => void
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      onClick={() => onChange(!on)}
-      className="flex min-h-[var(--target-min)] w-full items-center justify-between gap-3 text-left"
-    >
-      <span className="min-w-0">
-        <span className="type-body block">{label}</span>
-        {hint && (
-          <span className="type-footnote block text-[var(--label-secondary)]">{hint}</span>
-        )}
-      </span>
-      <span
-        aria-hidden
-        className="relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors"
-        style={{ background: on ? 'var(--ok)' : 'var(--fill)' }}
-      >
-        <span
-          className="absolute top-[2px] size-[27px] rounded-full transition-transform"
-          style={{
-            background: 'var(--bg-grouped-secondary)',
-            boxShadow: 'var(--shadow-chip)',
-            transform: `translateX(${on ? 22 : 2}px)`,
-          }}
-        />
-      </span>
-    </button>
+    <TimePicker
+      id={id}
+      value={value}
+      onChange={(next) => next && onChange(next)}
+      className="!min-h-[40px] !w-[9.25rem] !rounded-full !px-3"
+    />
   )
 }
 
@@ -581,7 +457,7 @@ function SavedFlag({ saved }: { saved: boolean }) {
       role="status"
       aria-live="polite"
       className="type-footnote flex min-h-[var(--target-min)] min-w-[4.5rem] items-center justify-end gap-1.5"
-      style={{ color: 'var(--ok)' }}
+      style={{ color: 'var(--label-secondary)' }}
     >
       <AnimatePresence>
         {saved && (
@@ -599,14 +475,4 @@ function SavedFlag({ saved }: { saved: boolean }) {
       </AnimatePresence>
     </span>
   )
-}
-
-function ordinal(n: number): string {
-  if (n % 100 >= 11 && n % 100 <= 13) return 'th'
-  return ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'
-}
-
-function titleCase(value: string | null): string | null {
-  if (!value) return null
-  return value.charAt(0).toUpperCase() + value.slice(1)
 }

@@ -10,8 +10,10 @@ import {
   type TermStanding,
 } from '@/lib/queries/subjects'
 import { spring, transition } from '@/design/motion'
-import { Badge, Card, ListGroup, ListRow, SectionHeader } from '@/components/ui/surfaces'
+import {Badge, Card, SectionHeader } from '@/components/ui/surfaces'
+import { Row, RowList } from '@/components/ui/row'
 import { IconChevronDown } from '@/components/ui/icon'
+import { InfoTip } from '@/components/ui/info-tip'
 import { GradeSheet } from '@/components/subjects/grade-sheet'
 
 /**
@@ -46,7 +48,15 @@ export function TermBreakdown({ terms, onChanged }: TermBreakdownProps) {
 
   return (
     <section>
-      <SectionHeader>Term by term</SectionHeader>
+      <SectionHeader
+        info={
+          <InfoTip title="Term by term">
+            Open a semester to see every subject in it — and to fix one that came in wrong.
+          </InfoTip>
+        }
+      >
+        Term by term
+      </SectionHeader>
 
       <Card className="stack">
         {terms.map((standing, index) => (
@@ -64,12 +74,6 @@ export function TermBreakdown({ terms, onChanged }: TermBreakdownProps) {
             }}
           />
         ))}
-
-        {openTermId === null && (
-          <p className="type-footnote text-[var(--label-secondary)]">
-            Open a semester to see every subject in it — and to fix one that came in wrong.
-          </p>
-        )}
       </Card>
 
       {editing && (
@@ -139,13 +143,13 @@ function TermRow({
         aria-controls={panelId}
         whileTap={{ scale: 0.99 }}
         transition={transition(spring.snap)}
-        className="-mx-2 block w-full rounded-[var(--radius-sm)] px-2 py-1 text-left"
+        className="-mx-2 block w-full rounded-[var(--radius-md)] px-2 py-1.5 text-left"
       >
         <div className="flex items-baseline justify-between gap-3">
           {/* Wraps rather than truncates: the semester name is what the student
               is choosing between here, and "2nd Semester AY 2024-20…" is not a
               choice anyone can make. */}
-          <span className="type-subheadline min-w-0" style={{ wordBreak: 'keep-all' }}>
+          <span className="type-subheadline min-w-0 font-medium" style={{ wordBreak: 'keep-all' }}>
             {standing.label}
             {standing.isCurrent && (
               <span className="type-footnote text-[var(--label-secondary)]"> · now</span>
@@ -154,13 +158,16 @@ function TermRow({
           <span className="flex shrink-0 items-baseline gap-2">
             {delta !== null && Math.abs(delta) >= 0.005 && (
               <span
-                className="type-caption-2 type-data"
-                style={{ color: delta > 0 ? 'var(--ok)' : 'var(--label-secondary)' }}
+                className="rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold tabular-nums"
+                style={{
+                  color: delta > 0 ? 'var(--tone-green-ink)' : 'var(--label-secondary)',
+                  background: delta > 0 ? 'var(--tone-green-tint)' : 'var(--fill-tertiary)',
+                }}
               >
                 {delta > 0 ? '↓' : '↑'} {Math.abs(delta).toFixed(2)}
               </span>
             )}
-            <span className="type-data font-semibold">{formatGwa(gwa)}</span>
+            <span className="text-[1.0625rem] font-bold tabular-nums">{formatGwa(gwa)}</span>
             <motion.span
               aria-hidden
               className="self-center"
@@ -173,8 +180,8 @@ function TermRow({
         </div>
 
         <div
-          className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full"
-          style={{ background: 'var(--fill-tertiary)' }}
+          className="mt-2 h-2.5 w-full overflow-hidden rounded-full"
+          style={{ background: 'var(--tone-crimson-tint)' }}
           aria-hidden
         >
           <motion.div
@@ -182,7 +189,10 @@ function TermRow({
             initial={{ width: 0 }}
             animate={{ width: `${fill}%` }}
             transition={transition(spring.move)}
-            style={{ background: standing.isCurrent ? 'var(--accent)' : 'var(--label-tertiary)' }}
+            style={{
+              background: 'var(--tone-crimson)',
+              opacity: standing.isCurrent ? 1 : 0.6,
+            }}
           />
         </div>
       </motion.button>
@@ -198,17 +208,17 @@ function TermRow({
             transition={transition(spring.ui)}
           >
             <div className="pt-3">
-              <ListGroup>
+              <RowList>
                 {courses.map((course) => (
-                  <ListRow
+                  <Row
                     key={course.enrollmentId}
                     onClick={() => onEditCourse(course)}
                     title={<span className="type-data">{course.code}</span>}
-                    subtitle={describeCourse(course)}
+                    detail={describeCourse(course)}
                     trailing={<GradeMark course={course} />}
                   />
                 ))}
-              </ListGroup>
+              </RowList>
 
               <p className="type-footnote mt-2 text-[var(--label-secondary)]">
                 {describeStanding(standing.result)}

@@ -17,9 +17,22 @@ import { scheduleDeadlineReminders, cancelDeadlineReminders } from '@/lib/notifi
 import { NavBar } from '@/components/app/nav-bar'
 import { NotFoundView } from '@/components/app/not-found-view'
 import { Button, ButtonLink } from '@/components/ui/button'
-import { Card, ListGroup, SectionHeader } from '@/components/ui/surfaces'
+import { Card, SectionHeader } from '@/components/ui/surfaces'
 import { Field, FormError } from '@/components/auth/auth-form'
-import { IconCheck, IconClose, IconPlus } from '@/components/ui/icon'
+import {
+  IconAnnouncement,
+  IconCheck,
+  IconClose,
+  IconDone,
+  IconPlus,
+  IconBack,
+  IconSave,
+} from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
+import { Select } from '@/components/ui/select'
+import { DatePicker } from '@/components/ui/date-picker'
+import { TimePicker } from '@/components/ui/time-picker'
 
 /**
  * Create and edit a deadline.
@@ -232,7 +245,7 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
               title="That deadline isn't here"
               message="It has been deleted, or the link came from an account that is not yours."
               actions={
-                <ButtonLink href="/deadlines" variant="accent">
+                <ButtonLink href="/deadlines" variant="accent" leading={<IconBack size={18} />}>
                   Back to Deadlines
                 </ButtonLink>
               }
@@ -262,11 +275,13 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
         <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
           <div className="stack">
             {source === 'announcement' && (
-              <Card>
-                <p className="type-footnote text-[var(--label-secondary)]">
-                  Added from an announcement someone shared.
-                </p>
-              </Card>
+              <p
+                className="type-footnote inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5"
+                style={{ background: 'var(--tone-blue-tint)', color: 'var(--tone-blue-ink)' }}
+              >
+                <IconAnnouncement size={14} />
+                From a shared announcement
+              </p>
             )}
 
             <Field id="deadline-title" label="What is it?" value={title} onChange={setTitle} required />
@@ -275,19 +290,20 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
               <label htmlFor="deadline-course" className="type-subheadline mb-1.5 block font-medium">
                 Subject
               </label>
-              <select
+              <Select
                 id="deadline-course"
                 value={enrollmentId}
-                onChange={(event) => setEnrollmentId(event.target.value)}
-                className="field"
-              >
-                <option value="">No subject</option>
-                {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.code} — {course.title}
-                  </option>
-                ))}
-              </select>
+                onChange={setEnrollmentId}
+                label="Subject"
+                options={[
+                  { value: '', label: 'No subject' },
+                  ...courses.map((course) => ({
+                    value: course.id,
+                    label: course.code,
+                    description: course.title,
+                  })),
+                ]}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -295,24 +311,22 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
                 <label htmlFor="deadline-date" className="type-subheadline mb-1.5 block font-medium">
                   Due date
                 </label>
-                <input
+                <DatePicker
                   id="deadline-date"
-                  type="date"
                   value={dueDate}
-                  onChange={(event) => setDueDate(event.target.value)}
-                  className="field"
+                  onChange={setDueDate}
+                  label="Due date"
                 />
               </div>
               <div>
                 <label htmlFor="deadline-time" className="type-subheadline mb-1.5 block font-medium">
                   Time
                 </label>
-                <input
+                <TimePicker
                   id="deadline-time"
-                  type="time"
                   value={dueTime}
-                  onChange={(event) => setDueTime(event.target.value)}
-                  className="field"
+                  onChange={setDueTime}
+                  label="Time"
                 />
               </div>
             </div>
@@ -333,15 +347,25 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
 
           <div className="stack">
             <section>
-              <SectionHeader>Remind me</SectionHeader>
-              <ListGroup>
+              <SectionHeader
+                info={
+                  <InfoTip title="Reminders">
+                    Pick as many as you like. Each one sends a notification that long before the
+                    deadline, and they stop once it is marked done.
+                  </InfoTip>
+                }
+              >
+                Remind me
+              </SectionHeader>
+              {/* Toggle pills rather than a checklist: several can be on at
+                  once, and each is one tap. */}
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Reminders">
                 {REMINDER_CHOICES.map((choice) => {
                   const on = offsets.includes(choice.seconds)
                   return (
                     <button
                       key={choice.seconds}
                       type="button"
-                      className="list-row"
                       aria-pressed={on}
                       onClick={() =>
                         setOffsets((prev) =>
@@ -350,13 +374,19 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
                             : [...prev, choice.seconds].sort((a, b) => b - a),
                         )
                       }
+                      className="flex min-h-[var(--target-min)] items-center gap-1.5 rounded-full px-4 text-[0.875rem] font-semibold transition-colors duration-150"
+                      style={{
+                        background: on ? 'var(--tone-crimson-tint)' : 'var(--bg)',
+                        color: on ? 'var(--tone-crimson-ink)' : 'var(--label-secondary)',
+                        boxShadow: on ? 'none' : 'var(--shadow-chip)',
+                      }}
                     >
-                      <span className="type-body flex-1 text-left">{choice.label}</span>
-                      {on && <IconCheck size={20} style={{ color: 'var(--accent)' }} />}
+                      {on && <IconCheck size={15} />}
+                      {choice.label}
                     </button>
                   )
                 })}
-              </ListGroup>
+              </div>
             </section>
 
             {!isNew && (
@@ -366,24 +396,24 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
                 </SectionHeader>
 
                 {subtasks.length > 0 && (
-                  <ListGroup>
+                  <div className="row-list">
                     {subtasks.map((subtask) => (
                       <button
                         key={subtask.id}
                         type="button"
-                        className="list-row"
+                        className="row row-interactive"
                         aria-pressed={subtask.is_done}
                         onClick={() => void toggleSubtask(subtask.id)}
                       >
                         <span
                           aria-hidden
-                          className="grid size-[22px] shrink-0 place-items-center rounded-full border-2"
+                          className="grid size-6 shrink-0 place-items-center rounded-full transition-colors duration-150"
                           style={{
-                            borderColor: subtask.is_done ? 'var(--ok)' : 'var(--label-tertiary)',
+                            background: subtask.is_done ? 'var(--ok)' : 'var(--fill-tertiary)',
                           }}
                         >
                           {subtask.is_done && (
-                            <IconCheck size={13} style={{ color: 'var(--ok)' }} />
+                            <IconCheck size={14} style={{ color: 'var(--on-accent)' }} />
                           )}
                         </span>
                         <span
@@ -393,17 +423,24 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
                         </span>
                       </button>
                     ))}
-                  </ListGroup>
+                  </div>
                 )}
 
                 {/* Proposed, never done for them: a student may well have one more
                     thing to do that never made it onto the list. */}
                 {progress.allDone && (
                   <Card className="mt-2 flex flex-wrap items-center gap-3">
-                    <p className="type-subheadline flex-1">
+                    <IconTile Icon={IconDone} tone="green" size={36} />
+                    <p className="type-subheadline flex-1 font-medium">
                       Every step is done. Mark the whole thing done?
                     </p>
-                    <Button size="sm" variant="accent" onClick={() => void save('done')} disabled={busy}>
+                    <Button
+                      size="sm"
+                      variant="accent"
+                      onClick={() => void save('done')}
+                      disabled={busy}
+                      leading={<IconCheck size={16} />}
+                    >
                       Mark it done
                     </Button>
                   </Card>
@@ -423,7 +460,11 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
                     aria-label="Add a step"
                     className="field flex-1"
                   />
-                  <Button onClick={() => void addSubtask()} aria-label="Add step">
+                  <Button
+                    className="aspect-square !px-0"
+                    onClick={() => void addSubtask()}
+                    aria-label="Add step"
+                  >
                     <IconPlus size={18} />
                   </Button>
                 </div>
@@ -439,7 +480,14 @@ export function DeadlineEditor({ deadlineId }: DeadlineEditorProps) {
               Delete
             </Button>
           )}
-          <Button variant="accent" block onClick={() => void save()} disabled={busy}>
+          <Button
+            variant="accent"
+            size="lg"
+            block
+            onClick={() => void save()}
+            disabled={busy}
+            leading={isNew ? <IconPlus size={20} /> : <IconSave size={20} />}
+          >
             {busy ? 'Saving…' : isNew ? 'Add it' : 'Save'}
           </Button>
         </div>

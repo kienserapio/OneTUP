@@ -11,7 +11,22 @@ import { spring, transition } from '@/design/motion'
 import { NavBar } from '@/components/app/nav-bar'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { Badge, Card, EmptyState } from '@/components/ui/surfaces'
-import { IconAnnouncement, IconCheck, IconClock, IconPlus, IconWarning } from '@/components/ui/icon'
+import { RowPill } from '@/components/ui/row'
+import {
+  IconAnnouncement,
+  IconCampus,
+  IconCheck,
+  IconChevronDown,
+  IconClock,
+  IconDeadlines,
+  IconGrades,
+  IconPlus,
+  IconSchedule,
+  IconWarning,
+} from '@/components/ui/icon'
+import { IconTile, type Tone } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
+import { FilterChip } from '@/components/ui/filter-chip'
 
 /**
  * The announcement feed.
@@ -55,6 +70,18 @@ type CourseRow = {
 type EnrollmentRow = {
   id: string
   course_id: string | null
+}
+
+/** Each kind of announcement leads with its own icon, so the feed can be
+ * scanned by shape before a word of it is read. */
+const TYPE_ICON: Record<string, { Icon: typeof IconAnnouncement; tone: Tone }> = {
+  exam: { Icon: IconGrades, tone: 'gray' },
+  quiz: { Icon: IconGrades, tone: 'gray' },
+  deadline: { Icon: IconDeadlines, tone: 'crimson' },
+  room_change: { Icon: IconCampus, tone: 'blue' },
+  suspension: { Icon: IconWarning, tone: 'crimson' },
+  schedule_change: { Icon: IconSchedule, tone: 'blue' },
+  general: { Icon: IconAnnouncement, tone: 'crimson' },
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -262,6 +289,12 @@ export function AnnouncementsView() {
             ? `${decorated.length} from the last two weeks`
             : undefined
         }
+        info={
+          <InfoTip title="Who to trust">
+            Official and class-rep posts are marked. Everything else shows how many classmates
+            confirmed it — and anyone in the section can dispute one.
+          </InfoTip>
+        }
         trailing={
           <ButtonLink
             href="/announcements/new"
@@ -288,6 +321,7 @@ export function AnnouncementsView() {
               key={option.key}
               label={option.label}
               count={counts[option.key]}
+              tone="crimson"
               active={filter === option.key}
               onSelect={() => setFilter(option.key)}
             />
@@ -299,17 +333,21 @@ export function AnnouncementsView() {
             {[0, 1, 2, 3].map((index) => (
               <div
                 key={index}
-                className="skeleton mb-4 h-40 break-inside-avoid rounded-[var(--radius-md)]"
+                className="skeleton mb-4 h-40 break-inside-avoid rounded-[var(--radius-lg)]"
               />
             ))}
           </div>
         ) : decorated.length === 0 ? (
           <Card>
             <EmptyState
-              icon={<IconAnnouncement size={30} />}
-              title="Nothing from your sections yet. When your class representative posts something, share it here and everyone in your section gets it."
+              icon={<IconTile Icon={IconAnnouncement} tone="crimson" size={56} />}
+              title="Nothing from your sections yet. Share one and your whole section gets it."
               action={
-                <ButtonLink href="/announcements/new" variant="accent">
+                <ButtonLink
+                  href="/announcements/new"
+                  variant="accent"
+                  leading={<IconPlus size={18} />}
+                >
                   Share one
                 </ButtonLink>
               }
@@ -317,7 +355,10 @@ export function AnnouncementsView() {
           </Card>
         ) : visible.length === 0 ? (
           <Card>
-            <EmptyState title="Nothing here right now. Switch back to everything to see the rest." />
+            <EmptyState
+              icon={<IconTile Icon={IconAnnouncement} tone="gray" size={48} />}
+              title="Nothing here right now. Switch back to Everything to see the rest."
+            />
           </Card>
         ) : (
           // Two columns of unequal cards read better than one long ladder, and
@@ -349,40 +390,6 @@ export function AnnouncementsView() {
   )
 }
 
-function FilterChip({
-  label,
-  count,
-  active,
-  onSelect,
-}: {
-  label: string
-  count: number
-  active: boolean
-  onSelect: () => void
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onSelect}
-      className="type-subheadline flex min-h-[var(--target-min)] shrink-0 items-center gap-2 rounded-[var(--radius-pill)] border px-4 font-medium transition-colors"
-      style={{
-        borderColor: active ? 'transparent' : 'var(--separator)',
-        background: active ? 'var(--accent)' : 'var(--bg-grouped-secondary)',
-        color: active ? 'var(--on-accent)' : 'var(--label-secondary)',
-      }}
-    >
-      {label}
-      <span
-        className="type-data type-caption-1"
-        style={{ color: active ? 'var(--on-accent)' : 'var(--label-tertiary)' }}
-      >
-        {count}
-      </span>
-    </button>
-  )
-}
-
 interface DecoratedAnnouncement extends AnnouncementRow {
   code: string | null
   courseTitle: string | null
@@ -405,84 +412,104 @@ function AnnouncementCard({
   onDispute: () => void
   onAddDeadline: () => void
 }) {
-  return (
-    <Card className="flex flex-col gap-2.5">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-        <TrustMarker announcement={announcement} />
+  const kind = TYPE_ICON[announcement.type] ?? TYPE_ICON.general
 
-        {announcement.code && (
-          <span className="type-data type-caption-1 font-semibold text-[var(--label-secondary)]">
-            {announcement.code}
+  return (
+    <Card className="flex flex-col gap-3.5 !p-[18px]">
+      <div className="flex items-center gap-3">
+        <IconTile Icon={kind.Icon} tone={kind.tone} size={36} />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[0.875rem] font-bold">
+            {TYPE_LABEL[announcement.type] ?? 'Announcement'}
           </span>
-        )}
-        <span className="type-caption-1 text-[var(--label-tertiary)]">
-          {TYPE_LABEL[announcement.type] ?? 'Announcement'}
+          <span className="block text-[0.75rem] text-[var(--label-tertiary)]">
+            {relativeTime(announcement.created_at, now)}
+          </span>
         </span>
-        <span className="type-caption-1 ml-auto text-[var(--label-tertiary)]">
-          {relativeTime(announcement.created_at, now)}
-        </span>
+        <TrustMarker announcement={announcement} />
       </div>
 
-      <p className="type-body font-medium">{announcement.summary}</p>
+      <p className="text-[1.0625rem] font-semibold leading-snug tracking-[-0.01em]">
+        {announcement.summary}
+      </p>
 
-      {announcement.event_date && (
-        <p
-          className="type-footnote inline-flex w-fit items-center gap-1.5 rounded-[var(--radius-xs)] px-2 py-1"
-          style={{ background: 'var(--fill-quaternary)' }}
-        >
-          <IconClock size={13} className="text-[var(--label-tertiary)]" />
-          <span className="type-data">
-            {formatEvent(announcement.event_date, announcement.event_time)}
-          </span>
-        </p>
+      {(announcement.code || announcement.event_date) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {announcement.event_date && (
+            <RowPill tone="crimson" icon={<IconClock size={12} />}>
+              <span className="type-data">
+                {formatEvent(announcement.event_date, announcement.event_time)}
+              </span>
+            </RowPill>
+          )}
+          {announcement.code && (
+            <RowPill>
+              <span className="type-data">{announcement.code}</span>
+            </RowPill>
+          )}
+        </div>
       )}
 
       {announcement.detail && announcement.detail !== announcement.summary && (
-        <details>
-          <summary className="type-footnote min-h-[var(--target-min)] cursor-pointer content-center text-[var(--accent)]">
+        <details className="group">
+          <summary className="type-footnote inline-flex min-h-[var(--target-min)] cursor-pointer list-none items-center gap-1 font-semibold text-[var(--label-secondary)]">
             Original message
+            <IconChevronDown
+              size={14}
+              className="transition-transform duration-200 group-open:rotate-180"
+            />
           </summary>
-          <p className="type-footnote whitespace-pre-wrap text-[var(--label-secondary)]">
+          <p className="type-footnote whitespace-pre-wrap rounded-[var(--radius-md)] bg-[var(--canvas)] p-3 text-[var(--label-secondary)]">
             {announcement.detail}
           </p>
         </details>
       )}
 
-      <div
-        className="flex flex-wrap items-center gap-2 border-t pt-2.5"
-        style={{ borderColor: 'var(--separator-soft)' }}
-      >
-        {/* Full-height buttons with tightened padding: the row stays compact
-            without dropping any target below the 44px minimum. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Compact 40px pills so the add and the vote share one line on a
+            phone. */}
         {announcement.event_date && (
-          <Button className="!px-3.5" onClick={onAddDeadline}>
-            <span className="type-subheadline font-semibold">Add to deadlines</span>
+          <Button
+            size="sm"
+            className="!min-h-[40px]"
+            onClick={onAddDeadline}
+            aria-label="Add to deadlines"
+            leading={<IconDeadlines size={15} />}
+          >
+            Track it
           </Button>
         )}
 
         {hasVoted ? (
-          <span className="type-footnote text-[var(--label-secondary)]">
+          <RowPill
+            tone={vote ? 'crimson' : 'green'}
+            icon={vote ? <IconWarning size={12} /> : <IconCheck size={12} />}
+          >
             {vote ? 'You disputed this' : 'You confirmed this'}
-          </span>
+          </RowPill>
         ) : (
-          <>
-            <Button
-              variant="plain"
-              className="!px-2.5"
+          /* One pill split in two: the pair is a single question, "is this
+             right?", so it reads as one control rather than two buttons. */
+          <span className="ml-auto inline-flex rounded-full bg-[var(--fill-tertiary)] p-0.5">
+            <button
+              type="button"
               onClick={onConfirm}
-              leading={<IconCheck size={16} />}
+              aria-label="This is right"
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-3 text-[0.875rem] font-semibold transition-colors hover:bg-[var(--bg)] active:scale-95"
             >
-              <span className="type-subheadline font-medium">This is right</span>
-            </Button>
-            <Button
-              variant="plain"
-              className="!px-2.5"
+              <IconCheck size={15} style={{ color: 'var(--tone-green-ink)' }} />
+              Right
+            </button>
+            <button
+              type="button"
               onClick={onDispute}
-              leading={<IconWarning size={16} />}
+              aria-label="This is wrong"
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-3 text-[0.875rem] font-semibold transition-colors hover:bg-[var(--bg)] active:scale-95"
             >
-              <span className="type-subheadline font-medium">This is wrong</span>
-            </Button>
-          </>
+              <IconWarning size={15} style={{ color: 'var(--tone-crimson-ink)' }} />
+              Wrong
+            </button>
+          </span>
         )}
       </div>
     </Card>
@@ -518,7 +545,8 @@ function TrustMarker({ announcement }: { announcement: DecoratedAnnouncement }) 
 }
 
 function formatEvent(date: string, time: string | null): string {
-  const instant = new Date(`${date}T${time ?? '00:00'}:00+08:00`)
+  // Postgres hands a `time` back as HH:MM:SS; only the minutes are wanted here.
+  const instant = new Date(`${date}T${time?.slice(0, 5) ?? '00:00'}:00+08:00`)
   return instant.toLocaleString('en-PH', {
     weekday: 'short',
     month: 'short',

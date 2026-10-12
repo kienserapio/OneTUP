@@ -22,9 +22,36 @@ import {
   type TermOption,
 } from '@/components/subjects/grades-import'
 import { Button } from '@/components/ui/button'
-import { Card, ListGroup, ListRow } from '@/components/ui/surfaces'
 import { Field, FormError } from '@/components/auth/auth-form'
-import { IconCheck } from '@/components/ui/icon'
+import {
+  IconAlarm,
+  IconBellRinging,
+  IconCheck,
+  IconClipboard,
+  IconCommute,
+  IconDone,
+  IconEye,
+  IconGrades,
+  IconKey,
+  IconLock,
+  IconOffline,
+  IconPhone,
+  IconSchedule,
+  IconShield,
+  IconTarget,
+  IconWarning,
+  IconForward,
+  IconImport,
+} from '@/components/ui/icon'
+import { InfoTip } from '@/components/ui/info-tip'
+import { Select } from '@/components/ui/select'
+import {
+  MinuteStepper,
+  PointRow,
+  StepArt,
+  StepDots,
+  StepFrame,
+} from '@/components/auth/onboarding-parts'
 import { spring, transition } from '@/design/motion'
 import { syncNow } from '@/lib/offline/sync'
 
@@ -88,21 +115,52 @@ export function Onboarding({
   const order = grades ? ORDER_WITH_GRADES : ORDER
   const position = Math.max(0, order.indexOf(step === 'paste' ? 'connect' : step))
 
-  return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="app-container py-4 safe-top">
-        <Progress current={position} total={order.length} />
-      </header>
+  /* Forward slides in from the right, back from the left — so going back
+   * feels like going back. */
+  const [lastPosition, setLastPosition] = useState(position)
+  const [direction, setDirection] = useState(1)
+  if (position !== lastPosition) {
+    setDirection(position > lastPosition ? 1 : -1)
+    setLastPosition(position)
+  }
 
-      <main id="main" className="app-container flex-1 pb-12">
-        <div className="mx-auto w-full max-w-[34rem]">
-          <AnimatePresence mode="wait">
+  /* The two review steps are tables a student checks row by row; they get a
+   * wider card and no picture. Every other step is the narrow, centred one. */
+  const wide = step === 'review' || step === 'grades'
+
+  return (
+    <div className="min-h-dvh sm:grid sm:place-items-center sm:p-6">
+      <motion.div
+        layout
+        transition={transition(spring.ui)}
+        className="flex min-h-dvh w-full flex-col overflow-hidden bg-white sm:min-h-0 sm:rounded-[32px]"
+        style={{
+          maxWidth: wide ? '46rem' : '28rem',
+          boxShadow: 'var(--shadow-pop)',
+        }}
+      >
+        <header className="flex items-center justify-between px-5 pb-2 pt-[calc(env(safe-area-inset-top)+18px)] sm:px-8 sm:pt-7">
+          <StepDots current={position} total={order.length} />
+          <span className="text-[0.75rem] font-semibold tabular-nums text-[var(--label-tertiary)]">
+            {position + 1} / {order.length}
+          </span>
+        </header>
+
+        <main id="main" className="relative flex flex-1 flex-col">
+          <AnimatePresence mode="wait" initial={false} custom={direction}>
             <motion.div
               key={step}
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -24 }}
+              custom={direction}
+              variants={{
+                enter: (dir: number) => ({ opacity: 0, x: 40 * dir }),
+                center: { opacity: 1, x: 0 },
+                exit: (dir: number) => ({ opacity: 0, x: -40 * dir }),
+              }}
+              initial="enter"
+              animate="center"
+              exit="exit"
               transition={transition(spring.ui)}
+              className={wide ? 'flex flex-1 flex-col px-5 pb-8 pt-2 sm:px-8' : 'flex flex-1 flex-col'}
             >
               {step === 'consent' && (
                 <ConsentStep
@@ -188,41 +246,19 @@ export function Onboarding({
               )}
             </motion.div>
           </AnimatePresence>
-        </div>
-      </main>
-    </div>
-  )
-}
-
-function Progress({ current, total }: { current: number; total: number }) {
-  return (
-    <div
-      role="progressbar"
-      aria-valuenow={current + 1}
-      aria-valuemin={1}
-      aria-valuemax={total}
-      aria-label={`Step ${current + 1} of ${total}`}
-      className="flex gap-1.5"
-    >
-      {Array.from({ length: total }, (_, index) => (
-        <motion.span
-          key={index}
-          className="h-1 flex-1 rounded-full"
-          initial={false}
-          animate={{
-            backgroundColor: index <= current ? 'var(--accent)' : 'var(--fill-tertiary)',
-          }}
-          transition={transition(spring.snap)}
-        />
-      ))}
+        </main>
+      </motion.div>
     </div>
   )
 }
 
 /**
- * The consent screen. Copy is taken verbatim from the content spec — including
- * the sentence admitting the residual risk, which is stated rather than buried
- * because a student cannot consent to something they were not told.
+ * The consent screen.
+ *
+ * Three short promises up front, the content spec's five points verbatim one
+ * tap away under "Exactly what happens", and the sentence admitting the
+ * residual risk left on screen in full — stated rather than buried, because a
+ * student cannot consent to something they were not told.
  */
 function ConsentStep({
   emailVerified,
@@ -236,59 +272,74 @@ function ConsentStep({
   onSkip: () => void
 }) {
   return (
-    <div className="stack">
-      <h1 className="type-title-1">About your ERS password</h1>
+    <StepFrame
+      art={<StepArt tone="blue" Icon={IconShield} satellites={[IconLock, IconKey, IconEye]} />}
+      title="Bring in your ERS"
+      subtitle="One sign-in reads your schedule and past grades. Or paste it — everything else works the same."
+      actions={
+        <>
+          {!emailVerified && (
+            <FormError>Verify your email first — check your inbox. ERS stays locked until you do.</FormError>
+          )}
+          <Button
+            variant="accent"
+            size="lg"
+            block
+            onClick={onConnect}
+            disabled={!emailVerified}
+            leading={<IconKey size={20} />}
+          >
+            Connect ERS
+          </Button>
+          <Button size="lg" block onClick={onPaste}>
+            Paste it instead
+          </Button>
+          <Button variant="plain" block onClick={onSkip}>
+            Skip for now
+          </Button>
+        </>
+      }
+    >
+      <PointRow Icon={IconLock} tone="blue" title="Used once, never stored" />
+      <PointRow Icon={IconEye} tone="gray" title="You check it before it saves" />
+      <PointRow Icon={IconShield} tone="green" title="Read-only — ERS stays untouched" />
 
-      <p className="type-body">
-        OneTUP signs in to ERS as you, once, and reads two pages: this term&rsquo;s schedule and the
-        semesters you have already finished. Here&rsquo;s exactly what happens:
-      </p>
-
-      <ul className="stack">
-        {[
-          'Your student number, ERS password, and birthdate are sent over an encrypted connection.',
-          "They're used to sign in once, read those two pages, and then discarded.",
-          'Your schedule is saved. Your password is not — there’s nowhere in OneTUP that stores it.',
-          'You see both before anything is saved, and past grades are yours to skip.',
-          'Nothing in your ERS account is changed or submitted, and no other page is opened.',
-        ].map((point) => (
-          <li key={point} className="type-body flex gap-2.5">
-            <IconCheck size={20} className="mt-0.5 shrink-0" style={{ color: 'var(--ok)' }} />
-            <span>{point}</span>
-          </li>
-        ))}
-      </ul>
-
-      <Card>
-        <p className="type-body">
+      {/* Stated, not buried: a student cannot consent to what they were not told. */}
+      <p
+        className="flex gap-2.5 rounded-[18px] p-3.5 text-left text-[0.8125rem] leading-snug"
+        style={{ background: 'var(--tone-crimson-tint)', color: 'var(--tone-crimson-ink)' }}
+      >
+        <IconWarning size={18} className="mt-px shrink-0" />
+        <span>
           Being straight with you: your password does pass through our server while this happens,
           and exists in memory for a few seconds. We don&rsquo;t keep it, but it isn&rsquo;t zero
           risk.
-        </p>
-      </Card>
-
-      <p className="type-body">
-        If you&rsquo;d rather not, paste your schedule instead. Everything else works the same.
+        </span>
       </p>
 
-      {!emailVerified && (
-        <FormError>
-          Verify your email first — check your inbox. ERS connection stays locked until you do.
-        </FormError>
-      )}
-
-      <div className="stack pt-2">
-        <Button variant="accent" block onClick={onConnect} disabled={!emailVerified}>
-          Connect ERS
-        </Button>
-        <Button block onClick={onPaste}>
-          Paste it instead
-        </Button>
-        <Button variant="plain" block onClick={onSkip}>
-          Skip for now
-        </Button>
-      </div>
-    </div>
+      <details className="group rounded-[18px] p-3.5 text-left" style={{ background: 'var(--surface-sunken)' }}>
+        <summary className="flex cursor-pointer list-none items-center justify-between text-[0.875rem] font-semibold">
+          Exactly what happens
+          <span aria-hidden className="text-[var(--label-tertiary)] transition-transform group-open:rotate-45">
+            +
+          </span>
+        </summary>
+        <ul className="mt-3 flex flex-col gap-2.5">
+          {[
+            'Your student number, ERS password, and birthdate are sent over an encrypted connection.',
+            "They're used to sign in once, read those two pages, and then discarded.",
+            'Your schedule is saved. Your password is not — there’s nowhere in OneTUP that stores it.',
+            'You see both before anything is saved, and past grades are yours to skip.',
+            'Nothing in your ERS account is changed or submitted, and no other page is opened.',
+          ].map((point) => (
+            <li key={point} className="flex gap-2 text-[0.8125rem] leading-snug text-[var(--label-secondary)]">
+              <IconCheck size={16} className="mt-px shrink-0" style={{ color: 'var(--ok)' }} />
+              <span>{point}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </StepFrame>
   )
 }
 
@@ -406,14 +457,40 @@ function ConnectStep({
   }
 
   return (
-    <form onSubmit={submit} className="stack">
-      <h1 className="type-title-1">Connect ERS</h1>
-      <p className="type-subheadline text-[var(--label-secondary)]">
-        {termLabel
-          ? `One sign-in reads your ${termLabel} schedule and your past grades. You check both before anything is saved.`
-          : 'One sign-in reads your schedule and your past grades. You check both before anything is saved.'}
-      </p>
-
+    <StepFrame
+      onSubmit={submit}
+      art={<StepArt tone="gray" Icon={IconKey} satellites={[IconSchedule, IconGrades, IconLock]} />}
+      title="Connect ERS"
+      subtitle={termLabel ? `Your ${termLabel} schedule and past grades, in one sign-in.` : 'Your schedule and past grades, in one sign-in.'}
+      info={
+        <InfoTip title="What gets read">
+          Two ERS pages: this term&rsquo;s schedule and your finished semesters. You check both
+          before anything is saved.
+        </InfoTip>
+      }
+      actions={
+        <>
+          <Button
+            type="submit"
+            variant="accent"
+            size="lg"
+            block
+            disabled={busy}
+            leading={<IconImport size={20} />}
+          >
+            {busy ? 'Reading your record…' : 'Read my ERS record'}
+          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button onClick={onBack} disabled={busy}>
+              Back
+            </Button>
+            <Button onClick={onPaste} disabled={busy}>
+              Paste instead
+            </Button>
+          </div>
+        </>
+      }
+    >
       {error && <FormError>{error}</FormError>}
 
       <Field
@@ -446,22 +523,9 @@ function ConnectStep({
         onChange={setBirthdate}
         autoComplete="off"
         required
-        hint="ERS asks for this too, and it has to match your record exactly."
+        hint="Has to match your ERS record exactly."
       />
-
-      <Button type="submit" variant="accent" block disabled={busy}>
-        {busy ? 'Reading your record…' : 'Read my ERS record'}
-      </Button>
-
-      <div className="flex gap-2">
-        <Button variant="plain" onClick={onBack} disabled={busy}>
-          Back
-        </Button>
-        <Button variant="plain" onClick={onPaste} disabled={busy} block>
-          Paste it instead
-        </Button>
-      </div>
-    </form>
+    </StepFrame>
   )
 }
 
@@ -492,12 +556,34 @@ function PasteStep({
   }
 
   return (
-    <div className="stack">
-      <h1 className="type-title-1">Paste your schedule</h1>
-      <p className="type-body text-[var(--label-secondary)]">
-        Open your schedule in ERS, select the table, copy it, and paste it here. No password needed.
-      </p>
-
+    <StepFrame
+      art={<StepArt tone="crimson" Icon={IconClipboard} satellites={[IconSchedule, IconCheck, IconDone]} />}
+      title="Paste your schedule"
+      subtitle="Copy the table from ERS and drop it here."
+      info={
+        <InfoTip title="How to copy it">
+          Open your schedule in ERS, select the whole table, copy it, and paste it here. No password
+          needed.
+        </InfoTip>
+      }
+      actions={
+        <>
+          <Button
+            variant="accent"
+            size="lg"
+            block
+            onClick={() => void parse()}
+            disabled={busy || !text.trim()}
+            leading={<IconClipboard size={20} />}
+          >
+            {busy ? 'Reading…' : 'Read it'}
+          </Button>
+          <Button variant="plain" block onClick={onBack}>
+            Back
+          </Button>
+        </>
+      }
+    >
       {error && <FormError>{error}</FormError>}
 
       <label htmlFor="paste-area" className="sr-only">
@@ -505,20 +591,13 @@ function PasteStep({
       </label>
       <textarea
         id="paste-area"
-        rows={10}
+        rows={7}
         value={text}
         onChange={(event) => setText(event.target.value)}
         placeholder="Paste here"
         className="field type-data font-mono text-[0.9375rem]"
       />
-
-      <Button variant="accent" block onClick={() => void parse()} disabled={busy || !text.trim()}>
-        {busy ? 'Reading…' : 'Read it'}
-      </Button>
-      <Button variant="plain" block onClick={onBack}>
-        Back
-      </Button>
-    </div>
+    </StepFrame>
   )
 }
 
@@ -579,69 +658,91 @@ function SetupStep({
   }
 
   return (
-    <div className="stack">
-      <h1 className="type-title-1">A few settings</h1>
-      <p className="type-body text-[var(--label-secondary)]">
-        These make the wake-up times and the GWA warnings actually useful. You can change all of
-        them later.
-      </p>
-
+    <StepFrame
+      art={<StepArt tone="green" Icon={IconCommute} satellites={[IconAlarm, IconTarget, IconSchedule]} />}
+      title="A few settings"
+      subtitle="For wake-up times and GWA warnings. All changeable later."
+      actions={
+        <>
+          {error && <FormError>{error}</FormError>}
+          <Button
+            variant="accent"
+            size="lg"
+            block
+            onClick={() => void save()}
+            disabled={busy}
+            trailing={<IconForward size={20} />}
+          >
+            {busy ? 'Saving…' : 'Continue'}
+          </Button>
+        </>
+      }
+    >
       <div>
-        <label htmlFor="home-area" className="type-subheadline mb-1.5 block font-medium">
-          Where do you commute from?
+        <label
+          htmlFor="home-area"
+          className="mb-1.5 flex items-center gap-1.5 text-[0.875rem] font-semibold"
+        >
+          Where you commute from
+          <InfoTip title="Not on the list?">
+            The list comes from students. Pick &ldquo;Not now&rdquo; and add your route later from
+            Commute.
+          </InfoTip>
         </label>
-        <select
+        <Select
           id="home-area"
           value={areaId}
-          onChange={(event) => setAreaId(event.target.value)}
-          className="field"
-        >
-          <option value="">Not now</option>
-          {areas.map((area) => (
-            <option key={area.id} value={area.id}>
-              {area.name}
-              {area.city ? ` · ${area.city}` : ''}
-            </option>
-          ))}
-        </select>
-        <p className="type-footnote mt-1.5 text-[var(--label-secondary)]">
-          Not there? You can add a route later — the list comes from students.
-        </p>
+          onChange={setAreaId}
+          label="Where you commute from"
+          options={[
+            { value: '', label: 'Not now' },
+            ...areas.map((area) => ({
+              value: area.id,
+              label: area.name,
+              description: area.city ?? undefined,
+            })),
+          ]}
+        />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field
-          id="prep-minutes"
-          label="Getting ready (min)"
-          inputMode="numeric"
-          value={String(preparation)}
-          onChange={(value) => setPreparation(Number(value) || 0)}
-        />
-        <Field
-          id="arrive-early"
-          label="Arrive early by (min)"
-          inputMode="numeric"
-          value={String(arriveEarly)}
-          onChange={(value) => setArriveEarly(Number(value) || 0)}
-        />
-      </div>
+      <MinuteStepper
+        id="prep-minutes"
+        label="Get ready"
+        Icon={IconAlarm}
+        tone="crimson"
+        value={preparation}
+        onChange={setPreparation}
+        info={
+          <InfoTip title="Get ready">
+            From your alarm to walking out the door. Used to work out when to wake you.
+          </InfoTip>
+        }
+      />
+      <MinuteStepper
+        id="arrive-early"
+        label="Arrive early"
+        Icon={IconSchedule}
+        tone="gray"
+        value={arriveEarly}
+        onChange={setArriveEarly}
+        max={60}
+        info={
+          <InfoTip title="Arrive early">
+            How long before class you like to be there. Leave times include it.
+          </InfoTip>
+        }
+      />
 
       <Field
         id="gwa-target"
-        label="GWA target"
+        label="GWA target (optional)"
         inputMode="numeric"
         value={target}
         onChange={setTarget}
         placeholder="1.75"
-        hint="Optional. We'll warn you when a projection slips below it."
+        hint="We'll warn you when a projection slips below it."
       />
-
-      {error && <FormError>{error}</FormError>}
-
-      <Button variant="accent" block onClick={() => void save()} disabled={busy}>
-        {busy ? 'Saving…' : 'Continue'}
-      </Button>
-    </div>
+    </StepFrame>
   )
 }
 
@@ -674,55 +775,62 @@ function InstallStep({ onDone }: { onDone: () => Promise<void> }) {
         : ['Use the install icon in the address bar', 'Or open OneTUP on your phone']
 
   return (
-    <div className="stack">
-      <h1 className="type-title-1">Add it to your home screen</h1>
-
-      {installed ? (
-        <p className="type-body">
-          You&rsquo;re already installed. Reminders and offline access are on.
-        </p>
-      ) : (
+    <StepFrame
+      art={
+        <StepArt tone="crimson" Icon={IconPhone} satellites={[IconBellRinging, IconOffline, IconDone]} />
+      }
+      title={installed ? "You're installed" : 'Add to home screen'}
+      subtitle={
+        installed
+          ? 'Reminders and offline access are on.'
+          : 'Turns on reminders and lets your schedule load without signal.'
+      }
+      info={
+        platform === 'ios' && !installed ? (
+          <InfoTip title="Why on iPhone">
+            Safari can&rsquo;t send reminders from a browser tab. Installing is what turns them on.
+          </InfoTip>
+        ) : undefined
+      }
+      actions={
         <>
-          <p className="type-body text-[var(--label-secondary)]">
-            {platform === 'ios'
-              ? "On iPhone this is what turns on reminders at all — Safari can't send them from a browser tab. It also lets your schedule load without signal."
-              : 'This is what turns on reminders and lets your schedule load without signal.'}
-          </p>
-
-          <ListGroup>
-            {instructions.map((instruction, index) => (
-              <ListRow
-                key={instruction}
-                leading={
-                  <span className="type-data grid size-6 place-items-center rounded-full text-[0.75rem]" style={{ background: 'var(--fill-tertiary)' }}>
-                    {index + 1}
-                  </span>
-                }
-                title={instruction}
-              />
-            ))}
-          </ListGroup>
+          {error && <FormError>{error}</FormError>}
+          <Button
+            variant="accent"
+            size="lg"
+            block
+            disabled={busy}
+            onClick={() => {
+              setBusy(true)
+              setError(null)
+              onDone().catch((cause: unknown) => {
+                setError(cause instanceof Error ? cause.message : 'That did not save. Try again.')
+                setBusy(false)
+              })
+            }}
+            trailing={<IconForward size={20} />}
+          >
+            {busy ? 'Setting up…' : error ? 'Try again' : 'Done — take me in'}
+          </Button>
         </>
+      }
+    >
+      {!installed && (
+        <ol className="flex flex-col gap-3">
+          {instructions.map((instruction, index) => (
+            <li key={instruction} className="flex items-center gap-3 text-left">
+              <span
+                className="grid size-9 shrink-0 place-items-center rounded-full text-[0.875rem] font-bold"
+                style={{ background: 'var(--tone-crimson-tint)', color: 'var(--tone-crimson-ink)' }}
+              >
+                {index + 1}
+              </span>
+              <span className="text-[0.9375rem] font-medium">{instruction}</span>
+            </li>
+          ))}
+        </ol>
       )}
-
-      {error && <FormError>{error}</FormError>}
-
-      <Button
-        variant="accent"
-        block
-        disabled={busy}
-        onClick={() => {
-          setBusy(true)
-          setError(null)
-          onDone().catch((cause: unknown) => {
-            setError(cause instanceof Error ? cause.message : 'That did not save. Try again.')
-            setBusy(false)
-          })
-        }}
-      >
-        {busy ? 'Setting up…' : error ? 'Try again' : 'Done — take me in'}
-      </Button>
-    </div>
+    </StepFrame>
   )
 }
 

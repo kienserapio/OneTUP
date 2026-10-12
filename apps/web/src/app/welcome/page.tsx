@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { currentUser, supabaseServer } from '@/lib/supabase/server'
 import { Onboarding } from '@/components/auth/onboarding'
+import { geist } from '@/design/app-font'
 
 export const metadata: Metadata = { title: 'Welcome' }
 
@@ -34,13 +35,15 @@ export default async function WelcomePage() {
   const current = rows.find((term) => term.is_current)
 
   return (
-    <Onboarding
-      studentNumber={profile?.student_number ?? ''}
-      emailVerified={Boolean(user.email_confirmed_at)}
-      areas={areas ?? []}
-      termCode={current?.code ?? ''}
-      termLabel={current?.label ?? ''}
-      terms={rows.map((term) => ({ code: term.code, label: term.label }))}
-    />
+    <div className={`app-ui ${geist.variable}`}>
+      <Onboarding
+        studentNumber={profile?.student_number ?? ''}
+        emailVerified={Boolean(user.email_confirmed_at)}
+        areas={areas ?? []}
+        termCode={current?.code ?? ''}
+        termLabel={current?.label ?? ''}
+        terms={rows.map((term) => ({ code: term.code, label: term.label }))}
+      />
+    </div>
   )
 }

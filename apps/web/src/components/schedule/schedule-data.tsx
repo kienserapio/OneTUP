@@ -85,7 +85,21 @@ export async function loadSchedule(): Promise<ScheduleSnapshot> {
 
   const preferences = prefsRows[0] ?? null
 
-  const subjects: SubjectView[] = enrollments.flatMap((enrollment) => {
+  /* This term's subjects, not the whole history. A student who imported past
+   * grades has every earlier term in `enrollments` too; the schedule only
+   * knows the term its own blocks belong to. */
+  const scheduledTerms = new Set(
+    blockRows.flatMap((row) => {
+      const enrollment = row.enrollment_id ? enrollmentById.get(row.enrollment_id) : undefined
+      return enrollment ? [enrollment.term_id] : []
+    }),
+  )
+  const thisTerm =
+    scheduledTerms.size > 0
+      ? enrollments.filter((enrollment) => scheduledTerms.has(enrollment.term_id))
+      : enrollments
+
+  const subjects: SubjectView[] = thisTerm.flatMap((enrollment) => {
     const course = courseById.get(enrollment.course_id)
     if (!course) return []
     return [
@@ -141,28 +155,13 @@ export function todayDate(now = new Date()): DateOnly {
 // --- Colour ---------------------------------------------------------------
 
 /**
- * Course tints, drawn from the iOS system palette already in the tokens.
- *
- * Red and pink are deliberately absent: `--danger` and the crimson accent own
- * that end of the spectrum, and a subject tinted like a warning reads as one.
+ * Every course is the same neutral gray. The app keeps colour for meaning —
+ * crimson for what needs the student, green and blue for indicators — so a
+ * per-subject rainbow would only be noise. `colorKey` is kept on the data in
+ * case a course ever needs telling apart by more than its code.
  */
-const TINT_VARS = [
-  '--ios-blue',
-  '--ios-indigo',
-  '--ios-purple',
-  '--ios-teal',
-  '--ios-green',
-  '--ios-orange',
-  '--ios-cyan',
-  '--ios-mint',
-  '--ios-brown',
-  '--ios-yellow',
-] as const
-
-export function tintOf(colorKey: number | null | undefined): string {
-  if (colorKey === null || colorKey === undefined) return 'var(--ios-gray)'
-  const index = ((colorKey % TINT_VARS.length) + TINT_VARS.length) % TINT_VARS.length
-  return `var(${TINT_VARS[index]})`
+export function tintOf(_colorKey?: number | null): string {
+  return 'var(--tone-gray)'
 }
 
 /** The same hue at fill strength, so text on top keeps its contrast. */

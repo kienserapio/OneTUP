@@ -16,6 +16,9 @@ import { NotFoundView } from '@/components/app/not-found-view'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { Badge, Card } from '@/components/ui/surfaces'
 import { FormError } from '@/components/auth/auth-form'
+import { IconDeadlines, IconSettings, IconBack, IconCheck } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 import { SubmissionLog, describeWhen } from './submission-log'
 
 /**
@@ -109,7 +112,7 @@ export function ClassPostDetail({ postId }: ClassPostDetailProps) {
         title="That post isn't here"
         message="It may have been taken down, or you may have left the classroom it was posted in."
         actions={
-          <ButtonLink href="/classroom" variant="accent">
+          <ButtonLink href="/classroom" variant="accent" leading={<IconBack size={18} />}>
             Back to Classroom
           </ButtonLink>
         }
@@ -173,6 +176,7 @@ export function ClassPostDetail({ postId }: ClassPostDetailProps) {
               variant="accent"
               disabled={busy}
               onClick={() => void setState('submitted')}
+              leading={<IconCheck size={18} />}
             >
               I&rsquo;ve submitted
             </Button>
@@ -183,11 +187,14 @@ export function ClassPostDetail({ postId }: ClassPostDetailProps) {
 
         {post.dueAt && (
           <Card>
-            <p className="type-subheadline font-medium">In your tracker</p>
-            <p className="type-footnote mt-1 text-[var(--label-secondary)]">
-              This shows up in Today and Deadlines beside your own. Dismissing takes it off your
-              list and nobody else&rsquo;s — the post stays where it is.
-            </p>
+            <span className="flex items-center gap-3">
+              <IconTile Icon={IconDeadlines} tone="crimson" size={40} />
+              <p className="type-subheadline flex-1 font-semibold">In your tracker</p>
+              <InfoTip title="In your tracker">
+                This shows up in Today and Deadlines beside your own. Dismissing takes it off your
+                list and nobody else&rsquo;s — the post stays where it is.
+              </InfoTip>
+            </span>
             <div className="mt-3 flex flex-wrap gap-2">
               {post.myState === 'dismissed' ? (
                 <Button variant="plain" disabled={busy} onClick={() => void setState('open')}>
@@ -208,7 +215,14 @@ export function ClassPostDetail({ postId }: ClassPostDetailProps) {
         {/* Hiding is the rep's one-tap remedy for a post that should not have
             gone out, and it is reversible. RLS decides who sees this at all. */}
         <Card>
-          <p className="type-subheadline font-medium">This post</p>
+          <span className="flex items-center gap-3">
+            <IconTile Icon={IconSettings} tone="gray" size={40} />
+            <p className="type-subheadline flex-1 font-semibold">This post</p>
+            <InfoTip title="Who can change it">
+              Only the person who posted this, or a class rep, can change it. A submission list can
+              be turned off but never turned back on.
+            </InfoTip>
+          </span>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
               variant="plain"
@@ -234,10 +248,6 @@ export function ClassPostDetail({ postId }: ClassPostDetailProps) {
               </Button>
             )}
           </div>
-          <p className="type-caption-1 mt-2 text-[var(--label-secondary)]">
-            Only the person who posted this, or a class rep, can change it. A submission list can
-            be turned off but never turned back on.
-          </p>
         </Card>
       </div>
     </>

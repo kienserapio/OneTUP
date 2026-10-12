@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { badgeFor, NAV_GROUPS, type NavCounts } from './nav-items'
-import { cx } from '@/lib/cx'
 import { displayName, initialsOf } from '@/lib/name'
 import { Mark } from '@/components/ui/mark'
 
@@ -55,10 +54,8 @@ export function Sidebar({ fullName, programCode, yearSection, counts }: SidebarP
                       aria-current={active ? 'page' : undefined}
                       className="nav-item"
                     >
-                      <item.Icon
-                        size={18}
-                        className={cx(active ? 'text-[var(--accent)]' : 'text-[var(--label-tertiary)]')}
-                      />
+                      {/* No feature colours here: grey at rest, crimson when current. */}
+                      <item.Icon size={21} />
                       <span className="truncate">{item.label}</span>
                       {badge > 0 && (
                         <span
@@ -79,8 +76,7 @@ export function Sidebar({ fullName, programCode, yearSection, counts }: SidebarP
 
       <Link
         href={'/settings' as never}
-        className="flex items-center gap-3 border-t px-[18px] py-4"
-        style={{ borderColor: 'var(--separator)' }}
+        className="card mx-[11px] mb-4 flex items-center gap-3 px-3 py-3"
       >
         <span
           className="grid size-9 shrink-0 place-items-center rounded-full text-[0.75rem] font-semibold"

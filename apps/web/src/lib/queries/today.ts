@@ -149,6 +149,16 @@ export interface TodayData {
    */
   advisory: SuspensionAdvisory | null
   overview: TodayOverview
+  /** Today and the six days after it, for the week strip: how many classes
+   * fall on each and how many open things are due on it. */
+  week: WeekDay[]
+}
+
+export interface WeekDay {
+  date: string
+  weekday: Weekday
+  classes: number
+  due: number
 }
 
 /**
@@ -341,9 +351,26 @@ export async function loadToday(now = new Date()): Promise<TodayData> {
     })
     .filter((warning) => warning.state !== 'normal')
 
+  const dueByDate = new Map<string, number>()
+  for (const item of openItems) {
+    const date = manilaDate(new Date(item.dueAt))
+    dueByDate.set(date, (dueByDate.get(date) ?? 0) + 1)
+  }
+  const week: WeekDay[] = Array.from({ length: 7 }, (_, offset) => {
+    const date = shiftDate(today, offset)
+    const day = weekdayOfDate(date)
+    return {
+      date,
+      weekday: day,
+      classes: blocksOnDay(blocks, day).length,
+      due: dueByDate.get(date) ?? 0,
+    }
+  })
+
   return {
     date: today,
     weekday,
+    week,
     blocks: todayBlocks,
     now: (blockNow(blocks, now) as CourseBlock | null) ?? null,
     next: nextBlock(blocks, now) as TodayData['next'],
@@ -361,8 +388,23 @@ export async function loadToday(now = new Date()): Promise<TodayData> {
     advisory: advisoryForToday(advisories, today),
     overview: {
       hasSchedule: blocks.length > 0,
-      subjects: enrollments.length,
-      units: courses.reduce((total, course) => total + Number(course.units ?? 0), 0),
+      ...(() => {
+        /* This term's load, not the whole history: a student who imported past
+         * terms has every one of them in `enrollments`, and `courses` is the
+         * synced catalog rather than what they take. */
+        const currentTermIds = new Set(terms.filter((term) => term.is_current).map((t) => t.id))
+        const current = currentTermIds.size
+          ? enrollments.filter((enrollment) => currentTermIds.has(enrollment.term_id))
+          : enrollments
+        return {
+          subjects: current.length,
+          units: current.reduce(
+            (total, enrollment) =>
+              total + Number(courseById.get(enrollment.course_id)?.units ?? 0),
+            0,
+          ),
+        }
+      })(),
       ...(() => {
         /* The same unit-weighted arithmetic the Grades screen shows, so the
          * tile and the screen it links to can never disagree. */
@@ -371,15 +413,17 @@ export async function loadToday(now = new Date()): Promise<TodayData> {
           enrollments.map((enrollment) => {
             const grade = gradeByEnrollment.get(enrollment.id)
             const course = courseById.get(enrollment.course_id)
+            // A projection is what the student expects, not what they got; the
+            // Grades screen drops it from the figure, so this does too.
+            const usable = grade && grade.value !== null && !grade.is_projected
             return {
               enrollmentId: enrollment.id,
               code: course?.code ?? '—',
               units: Number(course?.units ?? 0),
-              value: grade?.value ?? null,
+              value: usable ? Number(grade.value) : null,
               // The column is a constrained text in Postgres and a bare string
               // in the generated types; the constraint is the source of truth.
               mark: (grade?.mark ?? null) as NonNumericMark | null,
-              isProjected: grade?.is_projected ?? false,
             }
           }),
         )

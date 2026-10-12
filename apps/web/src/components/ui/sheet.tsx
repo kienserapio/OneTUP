@@ -182,10 +182,9 @@ export function Sheet({
                   type="button"
                   onClick={onClose}
                   aria-label="Close"
-                  className="grid size-8 place-items-center rounded-full text-[var(--label-secondary)]"
-                  style={{ background: 'var(--fill-tertiary)' }}
+                  className="grid size-8 place-items-center text-[var(--label-tertiary)] transition-transform duration-150 active:scale-90"
                 >
-                  <IconClose size={18} />
+                  <IconClose size={22} />
                 </button>
               </header>
             )}

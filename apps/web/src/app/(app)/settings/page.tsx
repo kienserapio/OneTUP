@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { currentUser, supabaseServer } from '@/lib/supabase/server'
 import { SettingsView } from '@/components/settings/settings-view'
 
-export const metadata: Metadata = { title: 'Settings' }
+export const metadata: Metadata = { title: 'Profile' }
 
 /**
  * The profile block is read here rather than in the client view: a student's

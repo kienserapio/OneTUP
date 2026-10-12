@@ -1,0 +1,415 @@
+/*
+ * The app's own form controls: the select, the calendar and the time wheel
+ * (components/ui/select.tsx, date-picker.tsx, time-picker.tsx), and the panel
+ * they open into (picker-panel.tsx).
+ *
+ * Scoped to `.app-ui` like the rest of the app theme. The triggers carry the
+ * `.field` class, so they are restyled along with every other input; what is
+ * here is only what a field does not already have.
+ */
+
+/* --- Triggers -------------------------------------------------------------- */
+
+.app-ui .picker-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: left;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-ui .picker-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.app-ui .picker-trigger[data-open] .picker-chevron {
+  transform: rotate(180deg);
+}
+
+.app-ui .picker-chevron {
+  color: var(--label-tertiary);
+  transition: transform var(--duration-fast, 160ms) var(--ease-standard, ease);
+}
+
+.app-ui .picker-lead {
+  color: var(--label-tertiary);
+}
+
+.app-ui .picker-placeholder {
+  color: var(--label-tertiary);
+  font-weight: 500;
+}
+
+/* The select that sits inside a control which is already its own field. */
+.app-ui .picker-trigger-bare {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+}
+
+/* --- The panel ------------------------------------------------------------- */
+
+.app-ui .picker-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgb(24 24 27 / 0.35);
+  touch-action: none;
+}
+
+.app-ui .picker-panel {
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--label);
+  font-family: var(--font-text);
+  outline: none;
+}
+
+.app-ui .picker-popover {
+  position: fixed;
+  max-height: min(24rem, calc(100dvh - 24px));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+
+.app-ui .picker-sheet {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  max-height: 78dvh;
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  box-shadow: var(--shadow-sheet);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.app-ui .picker-sheet-title {
+  padding: 0 var(--space-5) var(--space-2);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.app-ui .picker-body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+}
+
+.app-ui .picker-sheet .picker-body {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.app-ui .picker-footer {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+.app-ui .picker-sheet .picker-footer {
+  padding: var(--space-2) var(--space-4) var(--space-4);
+}
+
+.app-ui .picker-chip {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: transform 120ms ease;
+}
+
+.app-ui .picker-chip:active {
+  transform: scale(0.95);
+}
+
+.app-ui .picker-chip[data-selected] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.app-ui .picker-chip-quiet {
+  background: transparent;
+  color: var(--label-secondary);
+}
+
+.app-ui .picker-done {
+  min-height: 40px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+/* --- Select list ----------------------------------------------------------- */
+
+.app-ui .select-list {
+  outline: none;
+}
+
+.app-ui .select-option {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.app-ui .select-option[data-active] {
+  background: var(--fill-quaternary);
+}
+
+.app-ui .select-option[aria-selected='true'] {
+  background: var(--tone-crimson-tint);
+  color: var(--tone-crimson-ink);
+}
+
+.app-ui .select-option[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.app-ui .select-option-detail {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--label-secondary);
+}
+
+.app-ui .select-option-check {
+  visibility: hidden;
+}
+
+.app-ui .select-option[aria-selected='true'] .select-option-check {
+  visibility: visible;
+}
+
+.app-ui .select-list:focus-visible .select-option[data-active] {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.app-ui .select-group-label {
+  padding: var(--space-3) var(--space-3) var(--space-1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--label-tertiary);
+}
+
+/* --- Calendar -------------------------------------------------------------- */
+
+.app-ui .calendar {
+  padding: var(--space-1) var(--space-1) 0;
+}
+
+.app-ui .calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-2);
+}
+
+.app-ui .calendar-title {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.app-ui .calendar-title:hover,
+.app-ui .calendar-nav:hover {
+  background: var(--fill-quaternary);
+}
+
+.app-ui .calendar-nav {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--label-secondary);
+}
+
+.app-ui .calendar-weekdays,
+.app-ui .calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  justify-items: center;
+}
+
+.app-ui .calendar-weekdays span {
+  padding-bottom: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--label-tertiary);
+}
+
+.app-ui .calendar-day {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  margin: 1px 0;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition:
+    background-color 120ms ease,
+    transform 120ms ease;
+}
+
+.app-ui .calendar-day:hover:not(:disabled) {
+  background: var(--fill-quaternary);
+}
+
+.app-ui .calendar-day:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+.app-ui .calendar-day:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.app-ui .calendar-day[data-today] {
+  color: var(--accent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.app-ui .calendar-day[data-selected],
+.app-ui .calendar-day[data-selected]:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.app-ui .calendar-day:disabled {
+  color: var(--label-quaternary);
+  cursor: not-allowed;
+}
+
+.app-ui .calendar-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding-bottom: var(--space-1);
+}
+
+.app-ui .calendar-tile {
+  min-height: 48px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-ui .calendar-tile[data-selected] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.app-ui .calendar-tile:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* --- Time columns ---------------------------------------------------------- */
+
+.app-ui .time-columns {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 6px;
+  padding: var(--space-1);
+}
+
+.app-ui .time-column {
+  display: flex;
+  height: 13.5rem;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y proximity;
+  scrollbar-width: none;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  padding: 4px;
+  outline: none;
+}
+
+.app-ui .time-column::-webkit-scrollbar {
+  display: none;
+}
+
+.app-ui .time-column:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.app-ui .time-column-short {
+  flex: 0.8;
+  justify-content: flex-start;
+}
+
+.app-ui .time-option {
+  min-height: 40px;
+  flex: none;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  scroll-snap-align: center;
+}
+
+.app-ui .time-option:hover {
+  background: var(--fill-quaternary);
+}
+
+.app-ui .time-option[aria-selected='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.app-ui .time-colon {
+  align-self: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--label-tertiary);
+}
+
+/* At phone width a date or time field is often half a row, and the date
+ * itself matters more than the glyph beside it. */
+@media (max-width: 640px) {
+  .app-ui .picker-lead {
+    display: none;
+  }
+}

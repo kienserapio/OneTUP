@@ -6,6 +6,9 @@ import { saveErsIdentity } from '@/lib/import/identity'
 import type { ImportProposal } from '@/lib/import/types'
 import { Button } from '@/components/ui/button'
 import { Field, FormError } from '@/components/auth/auth-form'
+import { IconClipboard, IconKey, IconImport } from '@/components/ui/icon'
+import { IconTile } from '@/components/ui/icon-tile'
+import { InfoTip } from '@/components/ui/info-tip'
 
 /**
  * The two ways a schedule gets in.
@@ -103,13 +106,19 @@ export function ErsConnect({
 
   return (
     <form onSubmit={submit} className="stack">
-      <header>
-        <h2 className="type-title-2">Connect ERS</h2>
-        {termLabel && (
-          <p className="type-subheadline mt-1 text-[var(--label-secondary)]">
-            Reading your {termLabel} schedule. Your password is used once and never saved.
-          </p>
-        )}
+      <header className="flex items-center gap-3">
+        <IconTile Icon={IconKey} tone="blue" variant="solid" size={48} />
+        <div className="min-w-0">
+          <h2 className="type-title-2 flex items-center gap-1.5">
+            Connect ERS
+            <InfoTip title="Your password">
+              Used once to read your schedule, then discarded. OneTUP never saves it.
+            </InfoTip>
+          </h2>
+          {termLabel && (
+            <p className="type-subheadline text-[var(--label-secondary)]">{termLabel} schedule</p>
+          )}
+        </div>
       </header>
 
       {!emailVerified && (
@@ -165,16 +174,22 @@ export function ErsConnect({
         hint="ERS asks for this too, and it has to match your record exactly."
       />
 
-      <Button type="submit" variant="accent" block disabled={busy || !emailVerified}>
+      <Button
+        type="submit"
+        variant="accent"
+        block
+        disabled={busy || !emailVerified}
+        leading={<IconImport size={18} />}
+      >
         {busy ? busyLabel : submitLabel}
       </Button>
 
-      <div className="flex gap-2">
-        <Button variant="plain" onClick={onCancel} disabled={busy}>
+      <div className="grid grid-cols-2 gap-2">
+        <Button onClick={onCancel} disabled={busy}>
           Back
         </Button>
-        <Button variant="plain" onClick={onPaste} disabled={busy} block>
-          Paste it instead
+        <Button onClick={onPaste} disabled={busy}>
+          Paste instead
         </Button>
       </div>
     </form>
@@ -210,12 +225,18 @@ export function PasteBox({ title, submitLabel, onParsed, onCancel }: PasteBoxPro
 
   return (
     <div className="stack">
-      <header>
-        <h2 className="type-title-2">{title}</h2>
-        <p className="type-subheadline mt-1 text-[var(--label-secondary)]">
-          Open your schedule in ERS, select the table, copy it, and paste it here. No password
-          needed.
-        </p>
+      <header className="flex items-center gap-3">
+        <IconTile Icon={IconClipboard} tone="blue" variant="solid" size={48} />
+        <div className="min-w-0">
+          <h2 className="type-title-2 flex items-center gap-1.5">
+            {title}
+            <InfoTip title="How to copy it">
+              Open your schedule in ERS, select the table, copy it, and paste it here. No password
+              needed.
+            </InfoTip>
+          </h2>
+          <p className="type-subheadline text-[var(--label-secondary)]">Copy the table from ERS</p>
+        </div>
       </header>
 
       {error && <FormError>{error}</FormError>}
@@ -232,7 +253,13 @@ export function PasteBox({ title, submitLabel, onParsed, onCancel }: PasteBoxPro
         className="field type-data type-subheadline font-mono"
       />
 
-      <Button variant="accent" block onClick={() => void parse()} disabled={busy || !text.trim()}>
+      <Button
+        variant="accent"
+        block
+        onClick={() => void parse()}
+        disabled={busy || !text.trim()}
+        leading={<IconClipboard size={18} />}
+      >
         {busy ? 'Reading…' : submitLabel}
       </Button>
       <Button variant="plain" block onClick={onCancel} disabled={busy}>
