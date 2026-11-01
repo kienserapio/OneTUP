@@ -12,7 +12,7 @@
 # The image ships the browsers; the package drives them. A mismatch is not a
 # version warning, it is Chromium failing to launch at runtime — and nothing
 # in CI would catch it, because CI never builds this image.
-FROM mcr.microsoft.com/playwright:v1.63.0-noble
+FROM mcr.microsoft.com/playwright:v1.64.1-noble
 
 ENV NODE_ENV=production \
     PORT=8787 \
